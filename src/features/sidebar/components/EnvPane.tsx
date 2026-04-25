@@ -13,7 +13,7 @@ export default function EnvPane({ T }: Props) {
 
   return (
     <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, display: 'block', marginBottom: 4 }}>
+      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, display: 'block', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         Active Environment
       </span>
       {environments.map((env, i) => (
