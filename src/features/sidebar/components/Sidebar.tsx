@@ -1,23 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { FolderOpen, Globe, Braces, Files } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
+import { selectSidebarTab, setSidebarTab, type SidebarTab } from '@/store/uiSlice';
 import CollPane from './CollPane';
 import EnvPane from './EnvPane';
 import VarsPane from './VarsPane';
 import FilePane from './FilePane';
 
-type SidebarTab = 'collections' | 'env' | 'vars' | 'file';
-
 type Props = { T: Theme; narrow: boolean };
 
 export default function Sidebar({ T, narrow }: Props) {
-  const [tab, setTab] = useState<SidebarTab>('collections');
+  const dispatch = useDispatch();
+  const tab = useSelector(selectSidebarTab);
 
   const tabBtn = (id: SidebarTab, label: string, Icon: React.ElementType) => (
     <button
-      onClick={() => setTab(id)}
+      key={id}
+      onClick={() => dispatch(setSidebarTab(id))}
       style={{
         flex: 1,
         padding: '5px 0',

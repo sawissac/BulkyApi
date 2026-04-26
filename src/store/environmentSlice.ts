@@ -1,4 +1,4 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
 import { INITIAL_ENVIRONMENTS, type Environment } from '@/lib/sampleData';
 
 type EnvironmentState = {
@@ -18,10 +18,53 @@ const environmentSlice = createSlice({
     setEnvIdx(state, action: PayloadAction<number>) {
       state.envIdx = action.payload;
     },
+    addEnvironment(state, action: PayloadAction<string>) {
+      state.environments.push({ id: nanoid(), name: action.payload, vars: {} });
+    },
+    removeEnvironment(state, action: PayloadAction<string>) {
+      const idx = state.environments.findIndex((e) => e.id === action.payload);
+      if (idx < 0) return;
+      state.environments.splice(idx, 1);
+      if (state.envIdx >= state.environments.length) {
+        state.envIdx = Math.max(0, state.environments.length - 1);
+      }
+    },
+    renameEnvironment(state, action: PayloadAction<{ id: string; name: string }>) {
+      const env = state.environments.find((e) => e.id === action.payload.id);
+      if (env) env.name = action.payload.name;
+    },
+    setVar(state, action: PayloadAction<{ envId: string; key: string; value: string }>) {
+      const env = state.environments.find((e) => e.id === action.payload.envId);
+      if (env) env.vars[action.payload.key] = action.payload.value;
+    },
+    deleteVar(state, action: PayloadAction<{ envId: string; key: string }>) {
+      const env = state.environments.find((e) => e.id === action.payload.envId);
+      if (env) delete env.vars[action.payload.key];
+    },
+    renameVar(state, action: PayloadAction<{ envId: string; oldKey: string; newKey: string }>) {
+      const { envId, oldKey, newKey } = action.payload;
+      if (!newKey || newKey === oldKey) return;
+      const env = state.environments.find((e) => e.id === envId);
+      if (!env) return;
+      env.vars[newKey] = env.vars[oldKey];
+      delete env.vars[oldKey];
+    },
+    hydrateEnvironment(_state, action: PayloadAction<EnvironmentState>) {
+      return action.payload;
+    },
   },
 });
 
-export const { setEnvIdx } = environmentSlice.actions;
+export const {
+  setEnvIdx,
+  addEnvironment,
+  removeEnvironment,
+  renameEnvironment,
+  setVar,
+  deleteVar,
+  renameVar,
+  hydrateEnvironment,
+} = environmentSlice.actions;
 export default environmentSlice.reducer;
 
 export const selectEnvironments = (s: { environment: EnvironmentState }) => s.environment.environments;

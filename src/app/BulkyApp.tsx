@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { SlidersHorizontal } from "lucide-react";
 import { THEMES } from "@/lib/themes";
@@ -12,10 +12,15 @@ import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
 import {
   selectBuiltCalls,
   selectRunning,
+  selectStepMode,
+  selectPaused,
   setBuiltCalls,
   setRunning,
+  setStepMode,
+  setPaused,
   updateCallsAndLogs,
 } from "@/store/runnerSlice";
+import { selectActiveId, saveItemCode } from "@/store/collectionsSlice";
 import Sidebar from "@/features/sidebar/components/Sidebar";
 import CodeEditor from "@/features/code-editor/components/CodeEditor";
 import ResponsePanel from "@/features/response-panel/components/ResponsePanel";
@@ -35,11 +40,16 @@ export default function BulkyApp() {
   const activeEnv = useSelector(selectActiveEnv);
   const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
+  const activeId = useSelector(selectActiveId);
+  const stepMode = useSelector(selectStepMode);
+  const paused = useSelector(selectPaused);
 
   const T = THEMES[theme] || THEMES.ocean;
   const [sidebarSize, setSidebarSize] = useState(20);
 
-  // Re-analyze on code/env change (not during a run)
+  // Holds resolve fn for current step pause
+  const stepResumeRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (!running) {
       dispatch(setBuiltCalls(analyzeScript(code, envVars)));
@@ -47,11 +57,31 @@ export default function BulkyApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, envVars]);
 
+  // Sync code edits back to active collection item
+  useEffect(() => {
+    if (activeId) dispatch(saveItemCode({ itemId: activeId, code }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, activeId]);
+
+  const waitForNext = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      stepResumeRef.current = resolve;
+      dispatch(setPaused(true));
+    });
+  }, [dispatch]);
+
+  const onNext = useCallback(() => {
+    if (stepResumeRef.current) {
+      stepResumeRef.current();
+      stepResumeRef.current = null;
+      dispatch(setPaused(false));
+    }
+  }, [dispatch]);
+
   const onRun = useCallback(async () => {
     if (running) return;
     dispatch(setRunning(true));
 
-    // Mark all as pending
     dispatch(
       setBuiltCalls(
         analyzeScript(code, envVars).map((c) => ({
@@ -61,12 +91,17 @@ export default function BulkyApp() {
       ),
     );
 
-    await runScript(code, envVars, (calls, logs) => {
-      dispatch(updateCallsAndLogs({ calls, logs }));
-    });
+    await runScript(
+      code,
+      envVars,
+      (calls, logs) => dispatch(updateCallsAndLogs({ calls, logs })),
+      stepMode ? waitForNext : undefined,
+    );
 
+    // If step mode ended with a pending resume (script error mid-step), clear it
+    stepResumeRef.current = null;
     dispatch(setRunning(false));
-  }, [running, code, envVars, dispatch]);
+  }, [running, code, envVars, dispatch, stepMode, waitForNext]);
 
   return (
     <div
@@ -147,8 +182,8 @@ export default function BulkyApp() {
                 width: 5,
                 height: 5,
                 borderRadius: "50%",
-                background: T.cyan,
-                animation: "pulse 0.7s ease-in-out infinite",
+                background: paused ? T.warn : T.cyan,
+                animation: paused ? "none" : "pulse 0.7s ease-in-out infinite",
               }}
             />
             <span
@@ -157,10 +192,10 @@ export default function BulkyApp() {
                 fontSize: 8,
                 fontWeight: 700,
                 letterSpacing: "0.1em",
-                color: T.cyanDim,
+                color: paused ? T.warn : T.cyanDim,
               }}
             >
-              RUNNING
+              {paused ? "PAUSED" : "RUNNING"}
             </span>
           </div>
         )}
@@ -209,9 +244,9 @@ export default function BulkyApp() {
           style={{ height: "100%" }}
         >
           <ResizablePanel
-            defaultSize={200}
-            minSize={100}
-            maxSize={300}
+            defaultSize={100}
+            minSize={300}
+            maxSize={500}
             onResize={(s) => setSidebarSize(s.asPercentage)}
           >
             <Sidebar T={T} narrow={sidebarSize < 18} />
@@ -221,15 +256,23 @@ export default function BulkyApp() {
             style={{ background: T.border, width: 1 }}
             className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
           />
-          <ResizablePanel defaultSize={50} minSize={25}>
-            <CodeEditor T={T} onRun={onRun} running={running} />
+          <ResizablePanel defaultSize={1000}>
+            <CodeEditor
+              T={T}
+              onRun={onRun}
+              onNext={onNext}
+              running={running}
+              stepMode={stepMode}
+              paused={paused}
+              onToggleStep={() => dispatch(setStepMode(!stepMode))}
+            />
           </ResizablePanel>
           <ResizableHandle
             withHandle
             style={{ background: T.border, width: 1 }}
             className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
           />
-          <ResizablePanel defaultSize={200} minSize={100} maxSize={300}>
+          <ResizablePanel defaultSize={100} minSize={300} maxSize={500}>
             <ResponsePanel T={T} />
           </ResizablePanel>
         </ResizablePanelGroup>

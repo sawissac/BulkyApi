@@ -1,19 +1,21 @@
 'use client';
 
-import { useSelector } from 'react-redux';
-import { Terminal, Code2 } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Terminal, Code2, BarChart2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectBuiltCalls, selectLogs } from '@/store/runnerSlice';
+import { selectResponseView, setResponseView } from '@/store/uiSlice';
 import { statusColor } from '@/lib/themes';
 import CallCard from './CallCard';
+import ApiWaterfall from './ApiWaterfall';
 
 type Props = { T: Theme };
 
 export default function ResponsePanel({ T }: Props) {
+  const dispatch = useDispatch();
   const builtCalls = useSelector(selectBuiltCalls);
   const logs = useSelector(selectLogs);
-  const lastActiveIdx = [...builtCalls].reverse().findIndex((c) => c.status !== 'idle');
-  const lastActive = lastActiveIdx >= 0 ? builtCalls.length - 1 - lastActiveIdx : -1;
+  const view = useSelector(selectResponseView);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', background: T.bgPanel, minWidth: 0, height: '100%', overflow: 'hidden' }}>
@@ -23,6 +25,31 @@ export default function ResponsePanel({ T }: Props) {
         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
           Call Script
         </span>
+
+        {/* View toggle */}
+        <div style={{ display: 'flex', gap: 2, background: T.bgHover, borderRadius: 6, padding: 2, border: `1px solid ${T.border}` }}>
+          {(['cards', 'waterfall'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => dispatch(setResponseView(v))}
+              title={v === 'cards' ? 'Card view' : 'Waterfall view'}
+              style={{
+                background: view === v ? T.bgSelected : 'transparent',
+                border: `1px solid ${view === v ? T.borderAccent : 'transparent'}`,
+                borderRadius: 4,
+                padding: '2px 5px',
+                color: view === v ? T.cyan : T.textDim,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                transition: 'all 0.15s',
+              }}
+            >
+              {v === 'cards' ? <Code2 size={11} /> : <BarChart2 size={11} />}
+            </button>
+          ))}
+        </div>
+
         <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
           {builtCalls.map((c, i) => {
             const bg = c.status === 'idle' ? T.border : c.status === 'pending' ? T.cyan : statusColor(c.statusCode, T);
@@ -39,16 +66,20 @@ export default function ResponsePanel({ T }: Props) {
         </span>
       </div>
 
-      {/* Card list */}
+      {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {builtCalls.length === 0 ? (
+        {view === 'waterfall' ? (
+          <ApiWaterfall T={T} />
+        ) : builtCalls.length === 0 ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, opacity: 0.3 }}>
             <Code2 size={32} color={T.textDim} strokeWidth={1} />
             <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, color: T.textDim }}>No api.* calls found in script</span>
           </div>
-        ) : builtCalls.map((call, i) => (
-          <CallCard key={`${i}-${call.status}`} T={T} call={call} defaultOpen={i === lastActive} />
-        ))}
+        ) : (
+          builtCalls.map((call, i) => (
+            <CallCard key={i} T={T} call={call} />
+          ))
+        )}
       </div>
 
       {/* Console */}

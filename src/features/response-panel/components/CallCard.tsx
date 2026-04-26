@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import type { ApiCall } from '@/lib/types';
@@ -20,8 +20,6 @@ type Props = { T: Theme; call: ApiCall; defaultOpen?: boolean };
 export default function CallCard({ T, call, defaultOpen }: Props) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [tab, setTab] = useState<DetailTab>('response');
-
-  useEffect(() => { if (defaultOpen) setOpen(true); }, [defaultOpen]);
 
   const sc = statusColor(call.statusCode, T);
   const path = (() => { try { return new URL(call.url).pathname || '/'; } catch { return call.url.replace(/^https?:\/\/[^/]+/, '') || call.url; } })();

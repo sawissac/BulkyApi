@@ -1,12 +1,11 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { SAMPLE_CODE } from '@/lib/sampleData';
 
 type EditorState = {
   code: string;
 };
 
 const initialState: EditorState = {
-  code: SAMPLE_CODE,
+  code: '',
 };
 
 const editorSlice = createSlice({
@@ -16,10 +15,13 @@ const editorSlice = createSlice({
     setCode(state, action: PayloadAction<string>) {
       state.code = action.payload;
     },
+    hydrateEditor(_state, action: PayloadAction<EditorState>) {
+      return action.payload;
+    },
   },
 });
 
-export const { setCode } = editorSlice.actions;
+export const { setCode, hydrateEditor } = editorSlice.actions;
 export default editorSlice.reducer;
 
 export const selectCode = (s: { editor: EditorState }) => s.editor.code;
