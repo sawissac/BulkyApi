@@ -48,64 +48,7 @@ const updated = await api.put(\`\${env.baseUrl}/posts/\${created.data.id}\`, {
 console.log('Done! Ran 4 chained API calls.');
 `;
 
-export const INITIAL_COLLECTIONS: Collection[] = [
-  {
-    id: "c1",
-    name: "JSONPlaceholder",
-    open: true,
-    items: [
-      {
-        id: "i1",
-        name: "Get All Users",
-        method: "GET",
-        code: `const r = await api.get(env.baseUrl + '/users');\nconsole.log('Users:', r.data.length);`,
-      },
-      {
-        id: "i2",
-        name: "Get All Posts",
-        method: "GET",
-        code: `const r = await api.get(env.baseUrl + '/posts');\nconsole.log('Posts:', r.data.length);`,
-      },
-      {
-        id: "i3",
-        name: "Create Post",
-        method: "POST",
-        code: `const r = await api.post(env.baseUrl + '/posts', {\n  title: 'Hello from Bulky',\n  body: 'Testing POST',\n  userId: 1\n});`,
-      },
-      {
-        id: "i4",
-        name: "Chain: Users → Posts",
-        method: "GET",
-        code: SAMPLE_CODE,
-      },
-    ],
-  },
-  {
-    id: "c2",
-    name: "HTTPBin",
-    open: false,
-    items: [
-      {
-        id: "i5",
-        name: "Echo GET",
-        method: "GET",
-        code: `const r = await api.get('https://httpbin.org/get', { headers: { 'X-Bulky': 'true' } });`,
-      },
-      {
-        id: "i6",
-        name: "Echo POST",
-        method: "POST",
-        code: `const r = await api.post('https://httpbin.org/post', { tool: 'bulky-api', version: 1 });`,
-      },
-      {
-        id: "i7",
-        name: "Bearer Auth",
-        method: "GET",
-        code: `const r = await api.get('https://httpbin.org/bearer', {\n  auth: { type: 'bearer', token: env.token }\n});`,
-      },
-    ],
-  },
-];
+export const INITIAL_COLLECTIONS: Collection[] = [];
 
 export const DOCS_CODE = `// ═══════════════════════════════════════════════════════
 //  BULKY API — SCRIPT REFERENCE

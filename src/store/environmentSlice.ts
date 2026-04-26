@@ -71,5 +71,7 @@ export const selectEnvironments = (s: { environment: EnvironmentState }) => s.en
 export const selectEnvIdx       = (s: { environment: EnvironmentState }) => s.environment.envIdx;
 export const selectActiveEnv    = (s: { environment: EnvironmentState }) =>
   s.environment.environments[s.environment.envIdx];
+const EMPTY_VARS: Record<string, string> = {};
+
 export const selectEnvVars      = (s: { environment: EnvironmentState }) =>
-  s.environment.environments[s.environment.envIdx]?.vars ?? {};
+  s.environment.environments[s.environment.envIdx]?.vars ?? EMPTY_VARS;
