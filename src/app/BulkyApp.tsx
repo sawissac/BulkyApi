@@ -15,6 +15,7 @@ import {
   selectStepMode,
   selectPaused,
   setBuiltCalls,
+  syncAnalyzedCalls,
   setRunning,
   setStepMode,
   setPaused,
@@ -52,7 +53,7 @@ export default function BulkyApp() {
 
   useEffect(() => {
     if (!running) {
-      dispatch(setBuiltCalls(analyzeScript(code, envVars)));
+      dispatch(syncAnalyzedCalls(analyzeScript(code, envVars)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, envVars]);

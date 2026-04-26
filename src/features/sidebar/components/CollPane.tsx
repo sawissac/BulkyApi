@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { ChevronRight, ChevronDown, FileText, Plus, Trash2, FolderPlus } from "lucide-react";
+import { ChevronRight, ChevronDown, FileText, Plus, Trash2, FolderPlus, Download } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { CollectionItem } from "@/lib/sampleData";
 import { METHOD_CLR } from "@/lib/themes";
@@ -12,6 +12,7 @@ import {
   selectCollections,
   toggleCollectionOpen,
   addCollection,
+  importCollections,
   removeCollection,
   renameCollection,
   addItem,
@@ -68,19 +69,45 @@ export default function CollPane({ T }: Props) {
     dispatch(setItemMethod({ itemId: item.id, method: next }));
   };
 
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        const imported = Array.isArray(json) ? json : [json];
+        dispatch(importCollections(imported));
+      } catch (err) {
+        alert("Failed to parse collection JSON.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // Reset input
+  };
+
   return (
     <div style={{ paddingTop: 4 }}>
       <div style={{ padding: "4px 10px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: T.textDim }}>
           Test Cases
         </span>
-        <button
-          onClick={() => setAddingColl(true)}
-          title="New Collection"
-          style={{ background: "transparent", border: "none", color: T.cyanDim, cursor: "pointer", lineHeight: 1, padding: "0 2px", display: "flex" }}
-        >
-          <FolderPlus size={13} />
-        </button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <label
+            title="Import Collection"
+            style={{ background: "transparent", border: "none", color: T.cyanDim, cursor: "pointer", lineHeight: 1, padding: "0 2px", display: "flex" }}
+          >
+            <input type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
+            <Download size={13} />
+          </label>
+          <button
+            onClick={() => setAddingColl(true)}
+            title="New Collection"
+            style={{ background: "transparent", border: "none", color: T.cyanDim, cursor: "pointer", lineHeight: 1, padding: "0 2px", display: "flex" }}
+          >
+            <FolderPlus size={13} />
+          </button>
+        </div>
       </div>
 
       {collections.map((col) => (

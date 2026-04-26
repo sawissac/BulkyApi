@@ -18,7 +18,8 @@ export async function runScript(
     opts: {
       auth?: { type: string; token?: string; username?: string; password?: string; header?: string; key?: string };
       headers?: Record<string, string>;
-    } = {}
+    } = {},
+    isServer = false
   ) => {
     const resolved = url.replace(/\{\{(\w+)\}\}/g, (_, k) => envVars[k] ?? `{{${k}}}`);
     let authHeaders: Record<string, string> = {};
@@ -78,18 +79,57 @@ export async function runScript(
       if (body && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
         fo.body = JSON.stringify(body);
       }
-      const res = await fetch(resolved, fo);
-      const text = await res.text();
+
+      let res: Response;
+      let text: string;
+      let headers: Record<string, string> = {};
+      let isOk: boolean;
+
+      if (isServer) {
+        res = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            method: method.toUpperCase(),
+            url: resolved,
+            headers: reqHeaders,
+            body: body && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase()) ? body : undefined,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`Proxy error: ${res.statusText}`);
+        }
+
+        const proxyData = await res.json();
+        if (proxyData.error) {
+          throw new Error(proxyData.error);
+        }
+
+        text = proxyData.data;
+        headers = proxyData.headers || {};
+        isOk = proxyData.status >= 200 && proxyData.status < 300;
+        
+        // Mock the response object properties that are used
+        Object.defineProperty(res, 'status', { value: proxyData.status });
+        Object.defineProperty(res, 'ok', { value: isOk });
+      } else {
+        res = await fetch(resolved, fo);
+        text = await res.text();
+        headers = Object.fromEntries([...res.headers.entries()]);
+        isOk = res.ok;
+      }
+
       let data: unknown;
       try { data = JSON.parse(text); } catch { data = text; }
 
       rec.statusCode = res.status;
-      rec.status = res.ok ? 'success' : 'error';
+      rec.status = isOk ? 'success' : 'error';
       rec.response = data;
-      rec.responseHeaders = Object.fromEntries([...res.headers.entries()]);
+      rec.responseHeaders = headers;
       rec.duration = Date.now() - t0;
       onUpdate(calls.map((c) => ({ ...c })), [...logs]);
-      return { data, status: res.status, headers: rec.responseHeaders, ok: res.ok };
+      return { data, status: res.status, headers: rec.responseHeaders, ok: isOk };
     } catch (e) {
       rec.status = 'error';
       rec.error = (e as Error).message;
@@ -100,12 +140,20 @@ export async function runScript(
   };
 
   const api = {
-    get:     (url: string, opts?: object)               => makeCall('GET',     url, null, opts as never),
-    post:    (url: string, body: unknown, opts?: object) => makeCall('POST',    url, body, opts as never),
-    put:     (url: string, body: unknown, opts?: object) => makeCall('PUT',     url, body, opts as never),
-    patch:   (url: string, body: unknown, opts?: object) => makeCall('PATCH',   url, body, opts as never),
-    delete:  (url: string, opts?: object)               => makeCall('DELETE',   url, null, opts as never),
-    options: (url: string, opts?: object)               => makeCall('OPTIONS',  url, null, opts as never),
+    get:     (url: string, opts?: object)               => makeCall('GET',     url, null, opts as never, false),
+    post:    (url: string, body: unknown, opts?: object) => makeCall('POST',    url, body, opts as never, false),
+    put:     (url: string, body: unknown, opts?: object) => makeCall('PUT',     url, body, opts as never, false),
+    patch:   (url: string, body: unknown, opts?: object) => makeCall('PATCH',   url, body, opts as never, false),
+    delete:  (url: string, opts?: object)               => makeCall('DELETE',   url, null, opts as never, false),
+    options: (url: string, opts?: object)               => makeCall('OPTIONS',  url, null, opts as never, false),
+    server: {
+      get:     (url: string, opts?: object)               => makeCall('GET',     url, null, opts as never, true),
+      post:    (url: string, body: unknown, opts?: object) => makeCall('POST',    url, body, opts as never, true),
+      put:     (url: string, body: unknown, opts?: object) => makeCall('PUT',     url, body, opts as never, true),
+      patch:   (url: string, body: unknown, opts?: object) => makeCall('PATCH',   url, body, opts as never, true),
+      delete:  (url: string, opts?: object)               => makeCall('DELETE',   url, null, opts as never, true),
+      options: (url: string, opts?: object)               => makeCall('OPTIONS',  url, null, opts as never, true),
+    }
   };
 
   const fmt = (a: unknown[]) =>

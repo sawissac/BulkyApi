@@ -26,6 +26,62 @@ const runnerSlice = createSlice({
     setBuiltCalls(state, action: PayloadAction<ApiCall[]>) {
       state.builtCalls = action.payload;
     },
+    syncAnalyzedCalls(state, action: PayloadAction<ApiCall[]>) {
+      const oldCalls = state.builtCalls;
+      const newCalls = action.payload;
+      const result: ApiCall[] = new Array(newCalls.length);
+      const usedOld = new Set<number>();
+
+      // First pass: Exact matches by method and urlExpr
+      for (let i = 0; i < newCalls.length; i++) {
+        const nc = newCalls[i];
+        const exactIdx = oldCalls.findIndex((oc, idx) => !usedOld.has(idx) && oc.method === nc.method && oc.urlExpr === nc.urlExpr);
+        if (exactIdx !== -1) {
+          usedOld.add(exactIdx);
+          const existing = oldCalls[exactIdx];
+          result[i] = {
+            ...nc,
+            status: existing.status,
+            statusCode: existing.statusCode,
+            response: existing.response,
+            responseHeaders: existing.responseHeaders,
+            requestBody: existing.requestBody,
+            requestHeaders: existing.requestHeaders,
+            authInfo: existing.authInfo,
+            duration: existing.duration,
+            error: existing.error,
+            timestamp: existing.timestamp,
+          };
+        }
+      }
+
+      // Second pass: Index fallback for modified calls
+      for (let i = 0; i < newCalls.length; i++) {
+        if (result[i]) continue;
+        
+        if (!usedOld.has(i) && oldCalls[i]) {
+          usedOld.add(i);
+          const existing = oldCalls[i];
+          result[i] = {
+            ...newCalls[i],
+            status: existing.status,
+            statusCode: existing.statusCode,
+            response: existing.response,
+            responseHeaders: existing.responseHeaders,
+            requestBody: existing.requestBody,
+            requestHeaders: existing.requestHeaders,
+            authInfo: existing.authInfo,
+            duration: existing.duration,
+            error: existing.error,
+            timestamp: existing.timestamp,
+          };
+        } else {
+          result[i] = newCalls[i];
+        }
+      }
+
+      state.builtCalls = result;
+    },
     setLogs(state, action: PayloadAction<LogEntry[]>) {
       state.logs = action.payload;
     },
@@ -52,6 +108,7 @@ const runnerSlice = createSlice({
 
 export const {
   setBuiltCalls,
+  syncAnalyzedCalls,
   setLogs,
   setRunning,
   setStepMode,

@@ -34,6 +34,15 @@ const collectionsSlice = createSlice({
     addCollection(state, action: PayloadAction<string>) {
       state.collections.push({ id: nanoid(), name: action.payload, open: true, items: [] });
     },
+    importCollections(state, action: PayloadAction<Collection[]>) {
+      const imported = action.payload;
+      for (const col of imported) {
+        // give fresh IDs to avoid collision
+        col.id = nanoid();
+        col.items.forEach((i) => (i.id = nanoid()));
+        state.collections.push(col);
+      }
+    },
     removeCollection(state, action: PayloadAction<string>) {
       const col = state.collections.find((c) => c.id === action.payload);
       if (col && state.activeId && col.items.some((i) => i.id === state.activeId)) state.activeId = null;
@@ -95,6 +104,7 @@ export const {
   setActiveId,
   toggleCollectionOpen,
   addCollection,
+  importCollections,
   removeCollection,
   renameCollection,
   addItem,

@@ -38,7 +38,7 @@ export default function TweaksPanel({ T }: Props) {
   return (
     <div style={{
       position: 'fixed', bottom: 18, right: 18, width: 234,
-      background: 'linear-gradient(135deg,#0a1428,#0e1e3a)',
+      background: T.bgPanel,
       border: `1px solid ${T.borderMid}`,
       borderRadius: 14, padding: 16, zIndex: 1000,
       boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
@@ -63,6 +63,9 @@ export default function TweaksPanel({ T }: Props) {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {pill<ThemeKey>('midnight', theme, (v) => dispatch(setTheme(v)), 'Midnight')}
           {pill<ThemeKey>('ocean', theme, (v) => dispatch(setTheme(v)), 'Ocean')}
+          {pill<ThemeKey>('light', theme, (v) => dispatch(setTheme(v)), 'Light')}
+          {pill<ThemeKey>('purple', theme, (v) => dispatch(setTheme(v)), 'Purple')}
+          {pill<ThemeKey>('green', theme, (v) => dispatch(setTheme(v)), 'Green')}
         </div>
       </div>
 

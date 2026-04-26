@@ -1,4 +1,5 @@
 export type Theme = {
+  isLight?: boolean;
   bg: string;
   bgPanel: string;
   bgSidebar: string;
@@ -21,7 +22,7 @@ export type Theme = {
   error: string;
 };
 
-export type ThemeKey = 'midnight' | 'ocean';
+export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green';
 
 export const THEMES: Record<ThemeKey, Theme> = {
   midnight: {
@@ -64,6 +65,73 @@ export const THEMES: Record<ThemeKey, Theme> = {
     editorBg:     '#040f1c',
     gutterBg:     '#05111e',
     lineNum:      'rgba(3,246,255,0.18)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
+  },
+  light: {
+    isLight: true,
+    bg:           '#f8fafc',
+    bgPanel:      '#ffffff',
+    bgSidebar:    '#f1f5f9',
+    bgHover:      'rgba(0,0,0,0.03)',
+    bgSelected:   'rgba(34,211,238,0.1)',
+    border:       'rgba(0,0,0,0.06)',
+    borderMid:    'rgba(0,0,0,0.1)',
+    borderAccent: 'rgba(34,211,238,0.4)',
+    cyan:         '#0284c7',
+    cyanDim:      'rgba(2,132,199,0.55)',
+    cyanFaint:    'rgba(2,132,199,0.08)',
+    text:         '#334155',
+    textBright:   '#0f172a',
+    textDim:      'rgba(71,85,105,0.8)',
+    editorBg:     '#f8fafc',
+    gutterBg:     '#f1f5f9',
+    lineNum:      'rgba(2,132,199,0.3)',
+    success:      '#059669',
+    warn:         '#d97706',
+    error:        '#dc2626',
+  },
+  purple: {
+    bg:           '#170f23',
+    bgPanel:      '#1f1430',
+    bgSidebar:    '#1a1027',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(168,85,247,0.15)',
+    border:       'rgba(168,85,247,0.1)',
+    borderMid:    'rgba(168,85,247,0.2)',
+    borderAccent: 'rgba(168,85,247,0.4)',
+    cyan:         '#c084fc',
+    cyanDim:      'rgba(192,132,252,0.55)',
+    cyanFaint:    'rgba(192,132,252,0.1)',
+    text:         '#d8b4fe',
+    textBright:   '#f3e8ff',
+    textDim:      'rgba(216,180,254,0.6)',
+    editorBg:     '#140d1e',
+    gutterBg:     '#170f23',
+    lineNum:      'rgba(192,132,252,0.3)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
+  },
+  green: {
+    bg:           '#0f1c13',
+    bgPanel:      '#132418',
+    bgSidebar:    '#111f15',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(52,211,153,0.1)',
+    border:       'rgba(52,211,153,0.1)',
+    borderMid:    'rgba(52,211,153,0.2)',
+    borderAccent: 'rgba(52,211,153,0.4)',
+    cyan:         '#34d399',
+    cyanDim:      'rgba(52,211,153,0.55)',
+    cyanFaint:    'rgba(52,211,153,0.08)',
+    text:         '#a7f3d0',
+    textBright:   '#ecfdf5',
+    textDim:      'rgba(167,243,208,0.6)',
+    editorBg:     '#0d1710',
+    gutterBg:     '#0f1c13',
+    lineNum:      'rgba(52,211,153,0.3)',
     success:      '#10b981',
     warn:         '#f59e0b',
     error:        '#ef4444',

@@ -2,7 +2,7 @@ import type { ApiCall } from './types';
 
 export function analyzeScript(code: string, envVars: Record<string, string> = {}): ApiCall[] {
   const calls: ApiCall[] = [];
-  const re = /await\s+api\.(get|post|put|patch|delete|options)\s*\(/gi;
+  const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options)\s*\(/gi;
   let m: RegExpExecArray | null;
 
   while ((m = re.exec(code)) !== null) {

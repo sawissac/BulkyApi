@@ -1,7 +1,7 @@
 'use client';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { Download, Upload, BarChart2, Copy, FileText } from 'lucide-react';
+import { Download, Upload, BarChart2, Copy, FileText, FolderUp } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectCode, setCode } from '@/store/editorSlice';
 import {
@@ -10,6 +10,7 @@ import {
   selectRecentItems,
   addItem,
   setActiveId,
+  importCollections,
 } from '@/store/collectionsSlice';
 import { setSidebarTab } from '@/store/uiSlice';
 import { downloadBlob, pickFile, readFileText } from '@/lib/fileUtils';
@@ -70,6 +71,21 @@ export default function FilePane({ T }: Props) {
     downloadBlob(`bulky-collections-${Date.now()}.json`, json, 'application/json');
   };
 
+  const onImportCollection = async () => {
+    const file = await pickFile('.json,application/json');
+    if (!file) return;
+    try {
+      const text = await readFileText(file);
+      const json = JSON.parse(text);
+      // Handle exported JSON structure `{ collections: [...] }` or array of collections
+      const imported = json.collections ? json.collections : (Array.isArray(json) ? json : [json]);
+      dispatch(importCollections(imported));
+      dispatch(setSidebarTab('collections'));
+    } catch (err) {
+      alert("Failed to parse collection JSON.");
+    }
+  };
+
   const onImportCurl = () => {
     const input = window.prompt('Paste your curl command:');
     if (!input) return;
@@ -94,6 +110,7 @@ export default function FilePane({ T }: Props) {
   const ACTIONS = [
     { icon: Download, label: 'Save Script', sub: 'Export current script as .js', colorKey: COLOR_KEYS[0], onClick: onSaveScript },
     { icon: Upload,   label: 'Import Script', sub: 'Load a .js automation file', colorKey: COLOR_KEYS[1], onClick: onImportScript },
+    { icon: FolderUp, label: 'Import Collection', sub: 'Load collections from JSON', colorKey: COLOR_KEYS[2], onClick: onImportCollection },
     { icon: BarChart2, label: 'Export Collection', sub: 'Save all collections as JSON', colorKey: COLOR_KEYS[2], onClick: onExportCollection },
     { icon: Copy,     label: 'Import from cURL', sub: 'Paste a curl command', colorKey: COLOR_KEYS[3], onClick: onImportCurl },
   ];

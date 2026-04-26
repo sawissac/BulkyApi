@@ -1,14 +1,22 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useDispatch, useSelector } from 'react-redux';
-import { Code2, Play, Loader2, ChevronRight, SkipForward, Footprints, BookOpen } from 'lucide-react';
+import { Code2, Play, Loader2, ChevronRight, SkipForward, Footprints, BookOpen, WandSparkles } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectCode, setCode } from '@/store/editorSlice';
 import { selectActiveItem, selectActiveCollection } from '@/store/collectionsSlice';
 import { setSidebarTab } from '@/store/uiSlice';
+import { selectEnvVars } from '@/store/environmentSlice';
 import { METHOD_CLR } from '@/lib/themes';
 import { EXAMPLE_SCRIPTS } from '@/lib/sampleData';
+import type { EditorInstance } from './MonacoCodeEditor';
+import * as prettier from 'prettier/standalone';
+import * as babelPlugin from 'prettier/plugins/babel';
+import * as estreePlugin from 'prettier/plugins/estree';
+
+const MonacoCodeEditor = dynamic(() => import('./MonacoCodeEditor'), { ssr: false });
 
 type Props = {
   T: Theme;
@@ -25,10 +33,9 @@ export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused
   const code = useSelector(selectCode);
   const activeItem = useSelector(selectActiveItem);
   const activeCollection = useSelector(selectActiveCollection);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const gutRef = useRef<HTMLDivElement>(null);
+  const envVars = useSelector(selectEnvVars);
+  const monacoEditorRef = useRef<EditorInstance | null>(null);
   const exBtnRef = useRef<HTMLDivElement>(null);
-  const lines = code.split('\n').length;
   const [showExamples, setShowExamples] = useState(false);
   const [dropPos, setDropPos] = useState<{ top: number; right: number } | null>(null);
 
@@ -41,27 +48,19 @@ export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused
     setShowExamples(true);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const { selectionStart: s, selectionEnd: en } = e.currentTarget;
-      const next = code.slice(0, s) + '  ' + code.slice(en);
-      dispatch(setCode(next));
-      setTimeout(() => {
-        if (taRef.current) {
-          taRef.current.selectionStart = taRef.current.selectionEnd = s + 2;
-        }
-      }, 0);
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      onRun();
-    }
-  };
-
-  const syncScroll = () => {
-    if (gutRef.current && taRef.current) {
-      gutRef.current.scrollTop = taRef.current.scrollTop;
+  const handleFormat = async () => {
+    try {
+      const formatted = await prettier.format(code, {
+        parser: 'babel',
+        plugins: [babelPlugin, estreePlugin],
+        singleQuote: true,
+        printWidth: 80,
+        trailingComma: 'all',
+      });
+      dispatch(setCode(formatted));
+    } catch (e) {
+      console.warn("Prettier format failed:", e);
+      monacoEditorRef.current?.getAction('editor.action.formatDocument')?.run();
     }
   };
 
@@ -98,6 +97,27 @@ export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused
         )}
 
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim, flexShrink: 0 }}>⌘↵</span>
+
+        {/* Format button */}
+        <button
+          onClick={handleFormat}
+          title="Format document (Shift+Alt+F)"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6,
+            border: `1px solid ${T.border}`,
+            background: 'transparent',
+            color: T.textDim,
+            cursor: 'pointer', transition: 'all 0.15s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = T.cyan; e.currentTarget.style.borderColor = T.borderAccent; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = T.textDim; e.currentTarget.style.borderColor = T.border; }}
+        >
+          <WandSparkles size={11} />
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.07em' }}>
+            Format
+          </span>
+        </button>
 
         {/* Examples dropdown */}
         <div ref={exBtnRef} style={{ position: 'relative', flexShrink: 0 }}>
@@ -188,32 +208,14 @@ export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused
       </div>
 
       {/* Editor body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        {/* Gutter */}
-        <div
-          ref={gutRef}
-          style={{ width: 44, background: T.gutterBg, borderRight: `1px solid ${T.border}`, paddingTop: 12, overflowY: 'hidden', userSelect: 'none', flexShrink: 0 }}
-        >
-          {Array.from({ length: lines }, (_, i) => (
-            <div key={i} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: '20px', color: T.lineNum, textAlign: 'right', paddingRight: 8 }}>
-              {i + 1}
-            </div>
-          ))}
-        </div>
-
-        {/* Textarea */}
-        <textarea
-          ref={taRef}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <MonacoCodeEditor
           value={code}
-          onChange={(e) => dispatch(setCode(e.target.value))}
-          onKeyDown={handleKeyDown}
-          onScroll={syncScroll}
-          spellCheck={false}
-          style={{
-            flex: 1, padding: '12px 12px', background: 'transparent', border: 'none', resize: 'none', outline: 'none',
-            color: '#c9d8e8', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, lineHeight: '20px',
-            whiteSpace: 'pre', overflowWrap: 'normal', overflowX: 'auto', overflowY: 'auto',
-          }}
+          onChange={(v) => dispatch(setCode(v))}
+          envVars={envVars}
+          T={T}
+          onRun={onRun}
+          onMount={(editor) => { monacoEditorRef.current = editor; }}
         />
       </div>
 
@@ -261,7 +263,6 @@ export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused
 
       {/* Status bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 12px', background: T.bgPanel, borderTop: `1px solid ${T.border}`, flexShrink: 0, minWidth: 0 }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim }}>{lines} ln</span>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim }}>JavaScript</span>
         {activeItem && (
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.cyanDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
