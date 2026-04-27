@@ -71,6 +71,14 @@ export const DOCS_CODE = `// ═════════════════
 //
 //  Returns: { data, status, headers, ok }
 //
+//  api.sse(url, opts?, onEvent?)
+//
+//  Opens a Server-Sent Events stream.
+//  onEvent(event) fires for each received event.
+//  Returns: Promise<{ close() }>
+//
+//  event: { type, data, id }  — type defaults to 'message'
+//
 // ── opts ────────────────────────────────────────────────
 //
 //  {
@@ -198,6 +206,22 @@ console.log('sent headers:', r.data.headers);`,
 } catch (err) {
   console.error('network error:', err.message);
 }`,
+  },
+  {
+    label: "SSE stream",
+    method: "SSE",
+    code: `// Connect to an SSE endpoint and receive events in real-time.
+// api.sse() returns a controller with .close() to stop early.
+
+const stream = await api.sse(env.baseUrl + '/events', {}, (event) => {
+  console.log('event:', event.type, '|', event.data);
+});
+
+// Close after 10 seconds (remove this to stream indefinitely)
+setTimeout(() => {
+  stream.close();
+  console.log('stream closed');
+}, 10000);`,
   },
 ];
 

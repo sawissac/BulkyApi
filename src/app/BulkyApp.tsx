@@ -6,8 +6,8 @@ import { SlidersHorizontal } from "lucide-react";
 import { THEMES } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
 import { runScript } from "@/lib/scriptRunner";
-import { selectTheme, selectTweaksOpen, setTweaksOpen } from "@/store/uiSlice";
-import { selectCode } from "@/store/editorSlice";
+import { selectTheme, selectTweaksOpen, setTweaksOpen, selectViewByItemId, setResponseView } from "@/store/uiSlice";
+import { selectCode, setCode } from "@/store/editorSlice";
 import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
 import {
   selectBuiltCalls,
@@ -16,12 +16,13 @@ import {
   selectPaused,
   setBuiltCalls,
   syncAnalyzedCalls,
+  switchToItem,
   setRunning,
   setStepMode,
   setPaused,
   updateCallsAndLogs,
 } from "@/store/runnerSlice";
-import { selectActiveId, saveItemCode } from "@/store/collectionsSlice";
+import { selectActiveId, saveItemCode, selectCollections } from "@/store/collectionsSlice";
 import Sidebar from "@/features/sidebar/components/Sidebar";
 import CodeEditor from "@/features/code-editor/components/CodeEditor";
 import ResponsePanel from "@/features/response-panel/components/ResponsePanel";
@@ -36,12 +37,14 @@ export default function BulkyApp() {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
   const tweaksOpen = useSelector(selectTweaksOpen);
+  const viewByItemId = useSelector(selectViewByItemId);
   const code = useSelector(selectCode);
   const envVars = useSelector(selectEnvVars);
   const activeEnv = useSelector(selectActiveEnv);
   const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
+  const collections = useSelector(selectCollections);
   const stepMode = useSelector(selectStepMode);
   const paused = useSelector(selectPaused);
 
@@ -51,18 +54,45 @@ export default function BulkyApp() {
   // Holds resolve fn for current step pause
   const stepResumeRef = useRef<(() => void) | null>(null);
 
+  // Flag: skip syncAnalyzedCalls when code change comes from an item switch
+  // (switchToItem already performs the correct merge)
+  const isSwitchingItemRef = useRef(false);
+
   useEffect(() => {
-    if (!running) {
+    if (!running && !isSwitchingItemRef.current) {
       dispatch(syncAnalyzedCalls(analyzeScript(code, envVars)));
     }
+    isSwitchingItemRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, envVars]);
 
-  // Sync code edits back to active collection item
+  // When activeId switches: load the item's code and restore its stored call results
+  const prevActiveIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeId && activeId !== prevActiveIdRef.current) {
+      prevActiveIdRef.current = activeId;
+      const item = collections.flatMap((c) => c.items).find((i) => i.id === activeId);
+      if (item) {
+        isSwitchingItemRef.current = true;  // suppress next syncAnalyzedCalls
+        dispatch(setCode(item.code));
+        dispatch(switchToItem({
+          itemId: activeId,
+          analyzedCalls: analyzeScript(item.code, envVars),
+        }));
+        dispatch(setResponseView(viewByItemId[activeId] ?? 'cards'));
+      }
+    } else if (!activeId) {
+      prevActiveIdRef.current = null;
+      dispatch(switchToItem({ itemId: null, analyzedCalls: [] }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+
+  // Sync code edits back to active collection item (only on code change)
   useEffect(() => {
     if (activeId) dispatch(saveItemCode({ itemId: activeId, code }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, activeId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   const waitForNext = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
@@ -81,28 +111,43 @@ export default function BulkyApp() {
 
   const onRun = useCallback(async () => {
     if (running) return;
+    const runItemId = activeId;
     dispatch(setRunning(true));
 
     dispatch(
       setBuiltCalls(
-        analyzeScript(code, envVars).map((c) => ({
+        analyzeScript(code, envVars).map((c, i) => ({
           ...c,
           status: "pending" as const,
+          cache: builtCalls[i]?.cache ?? false,
         })),
       ),
     );
 
+    const callCache = Object.fromEntries(
+      builtCalls
+        .filter((c) => c.cache && c.response !== null)
+        .map((c) => [`${c.method}::${c.url}`, {
+          statusCode: c.statusCode,
+          response: c.response,
+          responseHeaders: c.responseHeaders,
+          duration: c.duration,
+          timestamp: c.timestamp,
+        }]),
+    );
+
     await runScript(
       code,
-      envVars,
-      (calls, logs) => dispatch(updateCallsAndLogs({ calls, logs })),
+      { ...envVars, current: activeEnv?.name ?? '' },
+      (calls, logs) => dispatch(updateCallsAndLogs({ calls, logs, itemId: runItemId })),
       stepMode ? waitForNext : undefined,
+      Object.keys(callCache).length > 0 ? callCache : undefined,
     );
 
     // If step mode ended with a pending resume (script error mid-step), clear it
     stepResumeRef.current = null;
     dispatch(setRunning(false));
-  }, [running, code, envVars, dispatch, stepMode, waitForNext]);
+  }, [running, code, envVars, dispatch, stepMode, waitForNext, builtCalls]);
 
   return (
     <div
@@ -257,7 +302,7 @@ export default function BulkyApp() {
             style={{ background: T.border, width: 1 }}
             className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
           />
-          <ResizablePanel defaultSize={1000}>
+          <ResizablePanel defaultSize={1500} minSize={500}>
             <CodeEditor
               T={T}
               onRun={onRun}

@@ -49,6 +49,16 @@ const environmentSlice = createSlice({
       env.vars[newKey] = env.vars[oldKey];
       delete env.vars[oldKey];
     },
+    mergeEnvironments(state, action: PayloadAction<Environment[]>) {
+      for (const env of action.payload) {
+        state.environments.push({ id: nanoid(), name: env.name, vars: { ...env.vars } });
+      }
+    },
+    duplicateEnvironment(state, action: PayloadAction<string>) {
+      const src = state.environments.find((e) => e.id === action.payload);
+      if (!src) return;
+      state.environments.push({ id: nanoid(), name: `${src.name} Copy`, vars: { ...src.vars } });
+    },
     hydrateEnvironment(_state, action: PayloadAction<EnvironmentState>) {
       return action.payload;
     },
@@ -60,6 +70,8 @@ export const {
   addEnvironment,
   removeEnvironment,
   renameEnvironment,
+  duplicateEnvironment,
+  mergeEnvironments,
   setVar,
   deleteVar,
   renameVar,

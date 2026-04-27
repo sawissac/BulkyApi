@@ -1,5 +1,20 @@
 import type { ApiCall } from './types';
 
+function extractNoteBeforeIndex(code: string, idx: number): string | undefined {
+  const before = code.slice(0, idx);
+  // Find start of the line containing the match, then only search lines above it
+  const lineStart = before.lastIndexOf('\n') + 1;
+  const linesAbove = before.slice(0, lineStart).split('\n');
+  for (let i = linesAbove.length - 1; i >= 0; i--) {
+    const trimmed = linesAbove[i].trim();
+    if (trimmed === '') continue;
+    const match = trimmed.match(/^\/\/ note:(.+)$/);
+    if (match) return match[1].trim();
+    break;
+  }
+  return undefined;
+}
+
 export function analyzeScript(code: string, envVars: Record<string, string> = {}): ApiCall[] {
   const calls: ApiCall[] = [];
   const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options)\s*\(/gi;
@@ -7,6 +22,7 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
 
   while ((m = re.exec(code)) !== null) {
     const method = m[1].toUpperCase();
+    const note = extractNoteBeforeIndex(code, m.index);
     const after = code.slice(m.index + m[0].length);
 
     let urlExpr = '';
@@ -55,6 +71,8 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
       duration: 0,
       error: null,
       timestamp: null,
+      cache: false,
+      note,
     });
   }
 

@@ -7,6 +7,13 @@ export type AuthInfo =
   | { type: 'API Key'; header: string; key: string }
   | null;
 
+export type SseEvent = {
+  type: string;
+  data: string;
+  id?: string;
+  ts: number;
+};
+
 export type ApiCall = {
   idx: number;
   method: string;
@@ -22,6 +29,10 @@ export type ApiCall = {
   duration: number;
   error: string | null;
   timestamp: string | null;
+  cache: boolean;
+  note?: string;
+  isSse?: boolean;
+  sseEvents?: SseEvent[];
 };
 
 export type LogEntry = {

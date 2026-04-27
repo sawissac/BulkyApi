@@ -22,7 +22,7 @@ export type Theme = {
   error: string;
 };
 
-export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green';
+export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green' | 'rose' | 'amber' | 'slate';
 
 export const THEMES: Record<ThemeKey, Theme> = {
   midnight: {
@@ -136,6 +136,72 @@ export const THEMES: Record<ThemeKey, Theme> = {
     warn:         '#f59e0b',
     error:        '#ef4444',
   },
+  rose: {
+    bg:           '#1a0f12',
+    bgPanel:      '#231319',
+    bgSidebar:    '#160c0f',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(251,113,133,0.12)',
+    border:       'rgba(251,113,133,0.1)',
+    borderMid:    'rgba(251,113,133,0.2)',
+    borderAccent: 'rgba(251,113,133,0.4)',
+    cyan:         '#fb7185',
+    cyanDim:      'rgba(251,113,133,0.55)',
+    cyanFaint:    'rgba(251,113,133,0.08)',
+    text:         '#fda4af',
+    textBright:   '#fff1f2',
+    textDim:      'rgba(253,164,175,0.6)',
+    editorBg:     '#130a0d',
+    gutterBg:     '#1a0f12',
+    lineNum:      'rgba(251,113,133,0.3)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
+  },
+  amber: {
+    bg:           '#1a1408',
+    bgPanel:      '#22190a',
+    bgSidebar:    '#150f05',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(251,191,36,0.1)',
+    border:       'rgba(251,191,36,0.1)',
+    borderMid:    'rgba(251,191,36,0.2)',
+    borderAccent: 'rgba(251,191,36,0.35)',
+    cyan:         '#fbbf24',
+    cyanDim:      'rgba(251,191,36,0.55)',
+    cyanFaint:    'rgba(251,191,36,0.08)',
+    text:         '#fde68a',
+    textBright:   '#fffbeb',
+    textDim:      'rgba(253,230,138,0.6)',
+    editorBg:     '#120e05',
+    gutterBg:     '#1a1408',
+    lineNum:      'rgba(251,191,36,0.3)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
+  },
+  slate: {
+    bg:           '#0d1117',
+    bgPanel:      '#161b22',
+    bgSidebar:    '#0d1117',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(148,163,184,0.1)',
+    border:       'rgba(148,163,184,0.08)',
+    borderMid:    'rgba(148,163,184,0.15)',
+    borderAccent: 'rgba(148,163,184,0.3)',
+    cyan:         '#94a3b8',
+    cyanDim:      'rgba(148,163,184,0.55)',
+    cyanFaint:    'rgba(148,163,184,0.08)',
+    text:         '#cbd5e1',
+    textBright:   '#f1f5f9',
+    textDim:      'rgba(148,163,184,0.6)',
+    editorBg:     '#090d12',
+    gutterBg:     '#0d1117',
+    lineNum:      'rgba(148,163,184,0.25)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
+  },
 };
 
 export const METHOD_CLR: Record<string, string> = {
@@ -146,6 +212,7 @@ export const METHOD_CLR: Record<string, string> = {
   DELETE:  '#ef4444',
   OPTIONS: '#6366f1',
   HEAD:    '#64748b',
+  SSE:     '#f472b6',
 };
 
 export const STATUS_TXT: Record<number, string> = {

@@ -66,6 +66,9 @@ export default function TweaksPanel({ T }: Props) {
           {pill<ThemeKey>('light', theme, (v) => dispatch(setTheme(v)), 'Light')}
           {pill<ThemeKey>('purple', theme, (v) => dispatch(setTheme(v)), 'Purple')}
           {pill<ThemeKey>('green', theme, (v) => dispatch(setTheme(v)), 'Green')}
+          {pill<ThemeKey>('rose', theme, (v) => dispatch(setTheme(v)), 'Rose')}
+          {pill<ThemeKey>('amber', theme, (v) => dispatch(setTheme(v)), 'Amber')}
+          {pill<ThemeKey>('slate', theme, (v) => dispatch(setTheme(v)), 'Slate')}
         </div>
       </div>
 
@@ -76,6 +79,7 @@ export default function TweaksPanel({ T }: Props) {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {pill<LayoutKey>('balanced', layout, (v) => dispatch(setLayout(v)), 'Balanced')}
           {pill<LayoutKey>('editor-focus', layout, (v) => dispatch(setLayout(v)), 'Editor Focus')}
+          {pill<LayoutKey>('response-focus', layout, (v) => dispatch(setLayout(v)), 'Response Focus')}
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import {
   selectEnvironments,
@@ -11,6 +11,7 @@ import {
   addEnvironment,
   removeEnvironment,
   renameEnvironment,
+  duplicateEnvironment,
 } from '@/store/environmentSlice';
 
 type Props = { T: Theme };
@@ -97,6 +98,14 @@ export default function EnvPane({ T }: Props) {
                   {env.name}
                 </span>
               )}
+              <button
+                className="env-dup"
+                onClick={(e) => { e.stopPropagation(); dispatch(duplicateEnvironment(env.id)); }}
+                style={{ background: 'transparent', border: 'none', color: T.cyanDim, cursor: 'pointer', lineHeight: 1, padding: 0, opacity: 0.6, transition: 'opacity 0.15s', display: 'flex', flexShrink: 0 }}
+                title="Duplicate"
+              >
+                <Copy size={11} />
+              </button>
               <button
                 className="env-del"
                 onClick={(e) => { e.stopPropagation(); if (confirm(`Delete environment "${env.name}"?`)) dispatch(removeEnvironment(env.id)); }}

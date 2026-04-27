@@ -8,6 +8,7 @@ import { hydrateCollections } from '@/store/collectionsSlice';
 import { hydrateEnvironment } from '@/store/environmentSlice';
 import { hydrateEditor } from '@/store/editorSlice';
 import { hydrateUi } from '@/store/uiSlice';
+import { hydrateRunner } from '@/store/runnerSlice';
 
 function HydrateStore() {
   useEffect(() => {
@@ -17,6 +18,7 @@ function HydrateStore() {
       if (saved.environment) store.dispatch(hydrateEnvironment(saved.environment as Parameters<typeof hydrateEnvironment>[0]));
       if (saved.editor) store.dispatch(hydrateEditor(saved.editor as Parameters<typeof hydrateEditor>[0]));
       if (saved.ui) store.dispatch(hydrateUi(saved.ui as Parameters<typeof hydrateUi>[0]));
+      if (saved.runner) store.dispatch(hydrateRunner(saved.runner as Parameters<typeof hydrateRunner>[0]));
     });
   }, []);
   return null;

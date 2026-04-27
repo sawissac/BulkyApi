@@ -4,10 +4,13 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Terminal, Code2, BarChart2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectBuiltCalls, selectLogs } from '@/store/runnerSlice';
-import { selectResponseView, setResponseView } from '@/store/uiSlice';
+import { selectResponseView, setResponseView, setResponseViewForItem } from '@/store/uiSlice';
+import { selectActiveId } from '@/store/collectionsSlice';
 import { statusColor } from '@/lib/themes';
 import CallCard from './CallCard';
 import ApiWaterfall from './ApiWaterfall';
+import ApiDocs from './ApiDocs';
+import { FileText } from 'lucide-react';
 
 type Props = { T: Theme };
 
@@ -16,6 +19,7 @@ export default function ResponsePanel({ T }: Props) {
   const builtCalls = useSelector(selectBuiltCalls);
   const logs = useSelector(selectLogs);
   const view = useSelector(selectResponseView);
+  const activeId = useSelector(selectActiveId);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', background: T.bgPanel, minWidth: 0, height: '100%', overflow: 'hidden' }}>
@@ -28,11 +32,14 @@ export default function ResponsePanel({ T }: Props) {
 
         {/* View toggle */}
         <div style={{ display: 'flex', gap: 2, background: T.bgHover, borderRadius: 6, padding: 2, border: `1px solid ${T.border}` }}>
-          {(['cards', 'waterfall'] as const).map((v) => (
+          {(['cards', 'waterfall', 'docs'] as const).map((v) => (
             <button
               key={v}
-              onClick={() => dispatch(setResponseView(v))}
-              title={v === 'cards' ? 'Card view' : 'Waterfall view'}
+              onClick={() => {
+                dispatch(setResponseView(v));
+                if (activeId) dispatch(setResponseViewForItem({ itemId: activeId, view: v }));
+              }}
+              title={v === 'cards' ? 'Card view' : v === 'waterfall' ? 'Waterfall view' : 'Documentation view'}
               style={{
                 background: view === v ? T.bgSelected : 'transparent',
                 border: `1px solid ${view === v ? T.borderAccent : 'transparent'}`,
@@ -45,21 +52,40 @@ export default function ResponsePanel({ T }: Props) {
                 transition: 'all 0.15s',
               }}
             >
-              {v === 'cards' ? <Code2 size={11} /> : <BarChart2 size={11} />}
+              {v === 'cards' ? <Code2 size={11} /> : v === 'waterfall' ? <BarChart2 size={11} /> : <FileText size={11} />}
             </button>
           ))}
         </div>
 
         <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-          {builtCalls.map((c, i) => {
-            const bg = c.status === 'idle' ? T.border : c.status === 'pending' ? T.cyan : statusColor(c.statusCode, T);
-            return (
-              <div
-                key={i}
-                style={{ width: 6, height: 6, borderRadius: '50%', background: bg, transition: 'background 0.3s', opacity: c.status === 'idle' ? 0.35 : 1, animation: c.status === 'pending' ? 'pulse 0.8s ease-in-out infinite' : undefined }}
-              />
-            );
-          })}
+          {(() => {
+            const count = builtCalls.length;
+            const overflow = count > 4;
+            const heat = count > 10;
+            // heat 0→1 over range 11→30 calls; right dot (i=3) is hottest
+            const heatLevel = heat ? Math.min(1, (count - 10) / 20) : 0;
+            const dots = builtCalls.slice(0, 4);
+            return dots.map((c, i) => {
+              let bg = c.status === 'idle' ? T.border : c.status === 'pending' ? T.cyan : statusColor(c.statusCode, T);
+              if (heat) {
+                // Each dot heats up right-to-left; t=0 cyan, t=1 red
+                const t = Math.min(1, heatLevel + (i / 3) * (1 - heatLevel) * 0.6);
+                const r = Math.round(220 * t + 0 * (1 - t));
+                const g = Math.round(50  * t + 200 * (1 - t));
+                const b = Math.round(50  * t + 160 * (1 - t));
+                bg = `rgb(${r},${g},${b})`;
+              } else if (overflow) {
+                const gradients = [T.cyan, T.warn, T.error, T.error];
+                bg = gradients[i] ?? T.error;
+              }
+              return (
+                <div
+                  key={i}
+                  style={{ width: 6, height: 6, borderRadius: '50%', background: bg, transition: 'background 0.6s', opacity: c.status === 'idle' ? 0.35 : 1, animation: c.status === 'pending' ? 'pulse 0.8s ease-in-out infinite' : undefined }}
+                />
+              );
+            });
+          })()}
         </div>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.cyanDim, marginLeft: 6 }}>
           {builtCalls.length}
@@ -70,6 +96,8 @@ export default function ResponsePanel({ T }: Props) {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {view === 'waterfall' ? (
           <ApiWaterfall T={T} />
+        ) : view === 'docs' ? (
+          <ApiDocs T={T} calls={builtCalls} />
         ) : builtCalls.length === 0 ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, opacity: 0.3 }}>
             <Code2 size={32} color={T.textDim} strokeWidth={1} />

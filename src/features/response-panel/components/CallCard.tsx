@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { ChevronDown, Loader2, DatabaseZap } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import type { ApiCall } from '@/lib/types';
 import { statusColor } from '@/lib/themes';
@@ -12,14 +13,18 @@ import HeadTab from './HeadTab';
 import AuthTab from './AuthTab';
 import PayloadTab from './PayloadTab';
 import StatusTab from './StatusTab';
+import { toggleCallCache } from '@/store/runnerSlice';
 
 type DetailTab = 'response' | 'headers' | 'auth' | 'payload' | 'status';
 
 type Props = { T: Theme; call: ApiCall; defaultOpen?: boolean };
 
 export default function CallCard({ T, call, defaultOpen }: Props) {
+  const dispatch = useDispatch();
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [tab, setTab] = useState<DetailTab>('response');
+  const hasCachedResponse = call.response !== null;
+  const isCached = call.cache;
 
   const sc = statusColor(call.statusCode, T);
   const path = (() => { try { return new URL(call.url).pathname || '/'; } catch { return call.url.replace(/^https?:\/\/[^/]+/, '') || call.url; } })();
@@ -49,6 +54,29 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
 
   return (
     <div style={{ borderBottom: `1px solid ${T.border}`, animation: 'fadeUp 0.2s ease both', transition: 'all 0.15s' }}>
+      {/* Note block */}
+      {call.note && (
+        <div style={{
+          padding: '5px 12px 5px 15px',
+          borderLeft: `3px solid ${T.borderAccent}`,
+          background: T.cyanFaint,
+          borderBottom: `1px solid ${T.borderAccent}`,
+          overflow: 'hidden',
+          minWidth: 0,
+        }}>
+          <span
+            title={call.note}
+            style={{
+              fontFamily: "'Poppins', sans-serif", fontSize: 11, fontWeight: 500,
+              color: T.cyan, display: 'block',
+              whiteSpace: 'wrap', overflow: 'hidden', 
+            }}
+          >
+            {call.note}
+          </span>
+        </div>
+      )}
+
       {/* Header row */}
       <div
         onClick={() => setOpen(!open)}
@@ -85,6 +113,23 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim, flexShrink: 0 }}>
             {call.duration}ms
           </span>
+        )}
+
+        {/* Per-call cache toggle — only visible when a cached response exists */}
+        {hasCachedResponse && (
+          <button
+            onClick={(e) => { e.stopPropagation(); dispatch(toggleCallCache(call.idx)); }}
+            title={isCached ? 'Using cached response – click to disable' : 'Cache available – click to enable'}
+            style={{
+              display: 'flex', alignItems: 'center', padding: '2px 4px', borderRadius: 4, flexShrink: 0,
+              background: isCached ? `${T.cyan}20` : 'transparent',
+              border: `1px solid ${isCached ? T.cyan : T.border}`,
+              color: isCached ? T.cyan : T.textDim,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            <DatabaseZap size={10} />
+          </button>
         )}
 
         {call.status === 'idle' && <div style={{ width: 7, height: 7, borderRadius: '50%', border: `1.5px dashed ${T.textDim}`, flexShrink: 0 }} />}
