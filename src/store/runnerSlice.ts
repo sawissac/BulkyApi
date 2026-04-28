@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { ApiCall, LogEntry } from '@/lib/types';
+import { removeItem } from './collectionsSlice';
 
 type RunnerState = {
   builtCalls: ApiCall[];
@@ -153,6 +154,11 @@ const runnerSlice = createSlice({
         currentItemId: action.payload.currentItemId ?? null,
       };
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(removeItem, (state, action) => {
+      delete state.callsByItemId[action.payload.itemId];
+    });
   },
 });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { Provider } from 'react-redux';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEffect } from 'react';
 import { store } from '@/store';
 import { loadPersistedState } from '@/lib/persist';
@@ -28,7 +29,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <HydrateStore />
-      {children}
+      <ErrorBoundary>{children}</ErrorBoundary>
     </Provider>
   );
 }

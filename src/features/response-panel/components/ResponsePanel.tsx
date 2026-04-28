@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Terminal, Code2, BarChart2 } from 'lucide-react';
+import { Terminal, Code2, BarChart2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectBuiltCalls, selectLogs } from '@/store/runnerSlice';
 import { selectResponseView, setResponseView, setResponseViewForItem } from '@/store/uiSlice';
@@ -20,6 +21,8 @@ export default function ResponsePanel({ T }: Props) {
   const logs = useSelector(selectLogs);
   const view = useSelector(selectResponseView);
   const activeId = useSelector(selectActiveId);
+
+  const [consoleExpanded, setConsoleExpanded] = useState(false);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', background: T.bgPanel, minWidth: 0, height: '100%', overflow: 'hidden' }}>
@@ -62,13 +65,11 @@ export default function ResponsePanel({ T }: Props) {
             const count = builtCalls.length;
             const overflow = count > 4;
             const heat = count > 10;
-            // heat 0→1 over range 11→30 calls; right dot (i=3) is hottest
             const heatLevel = heat ? Math.min(1, (count - 10) / 20) : 0;
             const dots = builtCalls.slice(0, 4);
             return dots.map((c, i) => {
               let bg = c.status === 'idle' ? T.border : c.status === 'pending' ? T.cyan : statusColor(c.statusCode, T);
               if (heat) {
-                // Each dot heats up right-to-left; t=0 cyan, t=1 red
                 const t = Math.min(1, heatLevel + (i / 3) * (1 - heatLevel) * 0.6);
                 const r = Math.round(220 * t + 0 * (1 - t));
                 const g = Math.round(50  * t + 200 * (1 - t));
@@ -112,10 +113,18 @@ export default function ResponsePanel({ T }: Props) {
 
       {/* Console */}
       {logs.length > 0 && (
-        <div style={{ borderTop: `1px solid ${T.border}`, maxHeight: 90, overflowY: 'auto', background: T.editorBg, flexShrink: 0 }}>
-          <div style={{ padding: '3px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ borderTop: `1px solid ${T.border}`, maxHeight: consoleExpanded ? 240 : 90, overflowY: 'auto', background: T.editorBg, flexShrink: 0, transition: 'max-height 0.2s ease' }}>
+          <div style={{ padding: '3px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, position: 'sticky', top: 0, background: T.editorBg, zIndex: 1 }}>
             <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Console</span>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim }}>{logs.length}</span>
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => setConsoleExpanded((e) => !e)}
+              title={consoleExpanded ? 'Collapse console' : 'Expand console'}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.textDim, display: 'flex', alignItems: 'center', padding: 2 }}
+            >
+              {consoleExpanded ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
+            </button>
           </div>
           {logs.map((l, i) => (
             <div

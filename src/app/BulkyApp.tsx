@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { SlidersHorizontal } from "lucide-react";
 import { THEMES } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
-import { runScript } from "@/lib/scriptRunner";
+import { useScriptRunner } from "@/hooks/useScriptRunner";
 import { selectTheme, selectTweaksOpen, setTweaksOpen, selectViewByItemId, setResponseView } from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
 import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
@@ -14,15 +14,11 @@ import {
   selectRunning,
   selectStepMode,
   selectPaused,
-  setBuiltCalls,
   syncAnalyzedCalls,
   switchToItem,
-  setRunning,
   setStepMode,
-  setPaused,
-  updateCallsAndLogs,
 } from "@/store/runnerSlice";
-import { selectActiveId, saveItemCode, selectCollections } from "@/store/collectionsSlice";
+import { selectActiveId, selectActiveItem, saveItemCode } from "@/store/collectionsSlice";
 import Sidebar from "@/features/sidebar/components/Sidebar";
 import CodeEditor from "@/features/code-editor/components/CodeEditor";
 import ResponsePanel from "@/features/response-panel/components/ResponsePanel";
@@ -44,40 +40,42 @@ export default function BulkyApp() {
   const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
-  const collections = useSelector(selectCollections);
+  const activeItem = useSelector(selectActiveItem);
   const stepMode = useSelector(selectStepMode);
   const paused = useSelector(selectPaused);
+
+  const { onRun, onNext, onStop } = useScriptRunner();
 
   const T = THEMES[theme] || THEMES.ocean;
   const [sidebarSize, setSidebarSize] = useState(20);
 
-  // Holds resolve fn for current step pause
-  const stepResumeRef = useRef<(() => void) | null>(null);
-
   // Flag: skip syncAnalyzedCalls when code change comes from an item switch
-  // (switchToItem already performs the correct merge)
   const isSwitchingItemRef = useRef(false);
 
+  // Debounce analyze on code/env change (skip during run or item switch)
+  const analyzeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!running && !isSwitchingItemRef.current) {
-      dispatch(syncAnalyzedCalls(analyzeScript(code, envVars)));
-    }
+    const switching = isSwitchingItemRef.current;
     isSwitchingItemRef.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, envVars]);
+    if (running || switching) return;
+    clearTimeout(analyzeTimerRef.current ?? undefined);
+    analyzeTimerRef.current = setTimeout(() => {
+      dispatch(syncAnalyzedCalls(analyzeScript(code, envVars)));
+    }, 300);
+    return () => clearTimeout(analyzeTimerRef.current ?? undefined);
+  }, [code, envVars, running, dispatch]);
 
   // When activeId switches: load the item's code and restore its stored call results
   const prevActiveIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (activeId && activeId !== prevActiveIdRef.current) {
       prevActiveIdRef.current = activeId;
-      const item = collections.flatMap((c) => c.items).find((i) => i.id === activeId);
-      if (item) {
-        isSwitchingItemRef.current = true;  // suppress next syncAnalyzedCalls
-        dispatch(setCode(item.code));
+      if (activeItem) {
+        isSwitchingItemRef.current = true;
+        dispatch(setCode(activeItem.code));
         dispatch(switchToItem({
           itemId: activeId,
-          analyzedCalls: analyzeScript(item.code, envVars),
+          analyzedCalls: analyzeScript(activeItem.code, envVars),
         }));
         dispatch(setResponseView(viewByItemId[activeId] ?? 'cards'));
       }
@@ -85,69 +83,18 @@ export default function BulkyApp() {
       prevActiveIdRef.current = null;
       dispatch(switchToItem({ itemId: null, analyzedCalls: [] }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [activeId, activeItem, envVars, dispatch, viewByItemId]);
 
-  // Sync code edits back to active collection item (only on code change)
+  // Debounce syncing code edits back to active collection item
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (activeId) dispatch(saveItemCode({ itemId: activeId, code }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
-
-  const waitForNext = useCallback((): Promise<void> => {
-    return new Promise((resolve) => {
-      stepResumeRef.current = resolve;
-      dispatch(setPaused(true));
-    });
-  }, [dispatch]);
-
-  const onNext = useCallback(() => {
-    if (stepResumeRef.current) {
-      stepResumeRef.current();
-      stepResumeRef.current = null;
-      dispatch(setPaused(false));
-    }
-  }, [dispatch]);
-
-  const onRun = useCallback(async () => {
-    if (running) return;
-    const runItemId = activeId;
-    dispatch(setRunning(true));
-
-    dispatch(
-      setBuiltCalls(
-        analyzeScript(code, envVars).map((c, i) => ({
-          ...c,
-          status: "pending" as const,
-          cache: builtCalls[i]?.cache ?? false,
-        })),
-      ),
-    );
-
-    const callCache = Object.fromEntries(
-      builtCalls
-        .filter((c) => c.cache && c.response !== null)
-        .map((c) => [`${c.method}::${c.url}`, {
-          statusCode: c.statusCode,
-          response: c.response,
-          responseHeaders: c.responseHeaders,
-          duration: c.duration,
-          timestamp: c.timestamp,
-        }]),
-    );
-
-    await runScript(
-      code,
-      { ...envVars, current: activeEnv?.name ?? '' },
-      (calls, logs) => dispatch(updateCallsAndLogs({ calls, logs, itemId: runItemId })),
-      stepMode ? waitForNext : undefined,
-      Object.keys(callCache).length > 0 ? callCache : undefined,
-    );
-
-    // If step mode ended with a pending resume (script error mid-step), clear it
-    stepResumeRef.current = null;
-    dispatch(setRunning(false));
-  }, [running, code, envVars, dispatch, stepMode, waitForNext, builtCalls]);
+    if (!activeId) return;
+    clearTimeout(saveTimerRef.current ?? undefined);
+    saveTimerRef.current = setTimeout(() => {
+      dispatch(saveItemCode({ itemId: activeId, code }));
+    }, 400);
+    return () => clearTimeout(saveTimerRef.current ?? undefined);
+  }, [code, activeId, dispatch]);
 
   return (
     <div
@@ -208,7 +155,7 @@ export default function BulkyApp() {
             background: T.bgHover,
           }}
         >
-          {activeEnv?.name}
+          {activeEnv?.name ?? '—'}
         </span>
         <div style={{ flex: 1 }} />
         {running && (
@@ -307,6 +254,7 @@ export default function BulkyApp() {
               T={T}
               onRun={onRun}
               onNext={onNext}
+              onStop={onStop}
               running={running}
               stepMode={stepMode}
               paused={paused}

@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { ThemeKey } from '@/lib/themes';
+import { removeItem } from './collectionsSlice';
 
 export type LayoutKey = 'balanced' | 'editor-focus' | 'response-focus';
 export type ResponseView = 'cards' | 'waterfall' | 'docs';
@@ -12,6 +13,7 @@ type UiState = {
   responseView: ResponseView;
   sidebarTab: SidebarTab;
   viewByItemId: Record<string, ResponseView>;
+  callTimeout: number;
 };
 
 const initialState: UiState = {
@@ -21,6 +23,7 @@ const initialState: UiState = {
   responseView: 'cards',
   sidebarTab: 'collections',
   viewByItemId: {},
+  callTimeout: 0,
 };
 
 const uiSlice = createSlice({
@@ -45,13 +48,21 @@ const uiSlice = createSlice({
     setSidebarTab(state, action: PayloadAction<SidebarTab>) {
       state.sidebarTab = action.payload;
     },
+    setCallTimeout(state, action: PayloadAction<number>) {
+      state.callTimeout = action.payload;
+    },
     hydrateUi(_state, action: PayloadAction<UiState>) {
       return { ...initialState, ...action.payload };
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase(removeItem, (state, action) => {
+      delete state.viewByItemId[action.payload.itemId];
+    });
+  },
 });
 
-export const { setTheme, setLayout, setTweaksOpen, setResponseView, setResponseViewForItem, setSidebarTab, hydrateUi } = uiSlice.actions;
+export const { setTheme, setLayout, setTweaksOpen, setResponseView, setResponseViewForItem, setSidebarTab, setCallTimeout, hydrateUi } = uiSlice.actions;
 export default uiSlice.reducer;
 
 export const selectTheme        = (s: { ui: UiState }) => s.ui.theme;
@@ -60,3 +71,4 @@ export const selectTweaksOpen   = (s: { ui: UiState }) => s.ui.tweaksOpen;
 export const selectResponseView    = (s: { ui: UiState }) => s.ui.responseView;
 export const selectViewByItemId    = (s: { ui: UiState }) => s.ui.viewByItemId;
 export const selectSidebarTab      = (s: { ui: UiState }) => s.ui.sidebarTab;
+export const selectCallTimeout     = (s: { ui: UiState }) => s.ui.callTimeout;

@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useDispatch, useSelector } from 'react-redux';
-import { Code2, Play, Loader2, ChevronRight, SkipForward, Footprints, BookOpen, WandSparkles } from 'lucide-react';
+import { Code2, Play, Loader2, ChevronRight, SkipForward, Footprints, BookOpen, WandSparkles, Square } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectCode, setCode } from '@/store/editorSlice';
 import { selectActiveItem, selectActiveCollection } from '@/store/collectionsSlice';
@@ -22,13 +22,14 @@ type Props = {
   T: Theme;
   onRun: () => void;
   onNext: () => void;
+  onStop: () => void;
   running: boolean;
   stepMode: boolean;
   paused: boolean;
   onToggleStep: () => void;
 };
 
-export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused, onToggleStep }: Props) {
+export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode, paused, onToggleStep }: Props) {
   const dispatch = useDispatch();
   const code = useSelector(selectCode);
   const activeItem = useSelector(selectActiveItem);
@@ -182,29 +183,46 @@ export default function CodeEditor({ T, onRun, onNext, running, stepMode, paused
           </button>
         )}
 
-        {/* Run button — hidden when paused */}
-        {!paused && (
+        {/* Stop button — only while running */}
+        {running && !paused && (
           <button
-            onClick={onRun}
-            disabled={running}
+            onClick={onStop}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 9999, border: 'none',
-              background: running ? T.cyanFaint : 'linear-gradient(135deg,#0891b2,#2563eb)',
-              color: running ? T.cyanDim : 'white',
+              display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 9999, border: 'none',
+              background: `linear-gradient(135deg, ${T.error ?? '#dc2626'}, #b91c1c)`,
+              color: 'white',
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              cursor: running ? 'not-allowed' : 'pointer',
-              boxShadow: running ? 'none' : '0 4px 16px rgba(34,211,238,0.25)',
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(220,38,38,0.3)',
+              flexShrink: 0,
+            }}
+          >
+            <Square size={10} fill="white" />
+            Stop
+          </button>
+        )}
+
+        {/* Run button — hidden when running or paused */}
+        {!running && !paused && (
+          <button
+            onClick={onRun}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 9999, border: 'none',
+              background: 'linear-gradient(135deg,#0891b2,#2563eb)',
+              color: 'white',
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(34,211,238,0.25)',
               transition: 'all 0.2s',
               flexShrink: 0,
             }}
           >
-            {running
-              ? <><Loader2 size={11} style={{ animation: 'spin 0.7s linear infinite' }} />Running…</>
-              : <><Play size={11} fill="white" />Run</>
-            }
+            <Play size={11} fill="white" />Run
           </button>
         )}
+
       </div>
 
       {/* Editor body */}

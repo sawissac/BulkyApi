@@ -10,12 +10,54 @@ type CachedEntry = {
   timestamp: string | null;
 };
 
+type CallOpts = {
+  auth?: {
+    type: string;
+    token?: string;
+    username?: string;
+    password?: string;
+    header?: string;
+    key?: string;
+  };
+  headers?: Record<string, string>;
+};
+
+function buildAuthHeaders(
+  opts: CallOpts,
+  envVars: Record<string, string>,
+): { authHeaders: Record<string, string>; authInfo: AuthInfo } {
+  let authHeaders: Record<string, string> = {};
+  let authInfo: AuthInfo = null;
+
+  if (opts.auth) {
+    const a = opts.auth;
+    if (a.type === 'bearer' && a.token) {
+      authHeaders['Authorization'] = `Bearer ${a.token}`;
+      authInfo = { type: 'Bearer Token', token: a.token };
+    } else if (a.type === 'basic' && a.username && a.password) {
+      authHeaders['Authorization'] = `Basic ${btoa(`${a.username}:${a.password}`)}`;
+      authInfo = { type: 'Basic Auth', username: a.username };
+    } else if (a.type === 'apikey' && a.key) {
+      const header = a.header || 'X-API-Key';
+      authHeaders[header] = a.key;
+      authInfo = { type: 'API Key', header, key: a.key };
+    }
+  } else if (envVars.token) {
+    authHeaders['Authorization'] = `Bearer ${envVars.token}`;
+    authInfo = { type: 'Bearer (env)', token: envVars.token };
+  }
+
+  return { authHeaders, authInfo };
+}
+
 export async function runScript(
   code: string,
   envVars: Record<string, string>,
   onUpdate: OnUpdate,
   waitForNext?: () => Promise<void>,
   responseCache?: Record<string, CachedEntry>,
+  callTimeout?: number,
+  abortSignal?: AbortSignal,
 ): Promise<{ calls: ApiCall[]; logs: LogEntry[] }> {
   const calls: ApiCall[] = [];
   const logs: LogEntry[] = [];
@@ -32,33 +74,13 @@ export async function runScript(
     method: string,
     url: string,
     body: unknown,
-    opts: {
-      auth?: { type: string; token?: string; username?: string; password?: string; header?: string; key?: string };
-      headers?: Record<string, string>;
-    } = {},
+    opts: CallOpts = {},
     isServer = false
   ) => {
-    const resolved = url.replace(/\{\{(\w+)\}\}/g, (_, k) => envVars[k] ?? `{{${k}}}`);
-    let authHeaders: Record<string, string> = {};
-    let authInfo: AuthInfo = null;
+    if (abortSignal?.aborted) throw new Error('Script aborted');
 
-    if (opts.auth) {
-      const a = opts.auth;
-      if (a.type === 'bearer' && a.token) {
-        authHeaders['Authorization'] = `Bearer ${a.token}`;
-        authInfo = { type: 'Bearer Token', token: a.token };
-      } else if (a.type === 'basic' && a.username && a.password) {
-        authHeaders['Authorization'] = `Basic ${btoa(`${a.username}:${a.password}`)}`;
-        authInfo = { type: 'Basic Auth', username: a.username };
-      } else if (a.type === 'apikey' && a.key) {
-        const header = a.header || 'X-API-Key';
-        authHeaders[header] = a.key;
-        authInfo = { type: 'API Key', header, key: a.key };
-      }
-    } else if (envVars.token) {
-      authHeaders['Authorization'] = `Bearer ${envVars.token}`;
-      authInfo = { type: 'Bearer (env)', token: envVars.token };
-    }
+    const resolved = url.replace(/\{\{(\w+)\}\}/g, (_, k) => envVars[k] ?? `{{${k}}}`);
+    const { authHeaders, authInfo } = buildAuthHeaders(opts, envVars);
 
     const reqHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -87,11 +109,10 @@ export async function runScript(
     pendingNote = null;
 
     calls.push(rec);
-    // Dispatch copies — Immer freezes dispatched objects, local rec must stay mutable
     onUpdate(calls.map((c) => ({ ...c })), [...logs]);
 
-    // Step mode: show call as pending, wait for user to click Next before fetching
     if (waitForNext) await waitForNext();
+    if (abortSignal?.aborted) throw new Error('Script aborted');
 
     // Cache lookup
     const cacheKey = `${method.toUpperCase()}::${resolved}`;
@@ -108,8 +129,18 @@ export async function runScript(
     }
 
     const t0 = Date.now();
+    const controller = new AbortController();
+
+    // Link to both callTimeout and external abortSignal
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let timedOut = false;
+    if (callTimeout && callTimeout > 0) {
+      timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, callTimeout);
+    }
+    abortSignal?.addEventListener('abort', () => controller.abort(), { once: true });
+
     try {
-      const fo: RequestInit = { method: method.toUpperCase(), headers: reqHeaders };
+      const fo: RequestInit = { method: method.toUpperCase(), headers: reqHeaders, signal: controller.signal };
       if (body && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
         fo.body = JSON.stringify(body);
       }
@@ -129,22 +160,18 @@ export async function runScript(
             headers: reqHeaders,
             body: body && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase()) ? body : undefined,
           }),
+          signal: controller.signal,
         });
 
-        if (!res.ok) {
-          throw new Error(`Proxy error: ${res.statusText}`);
-        }
+        if (!res.ok) throw new Error(`Proxy error: ${res.statusText}`);
 
         const proxyData = await res.json();
-        if (proxyData.error) {
-          throw new Error(proxyData.error);
-        }
+        if (proxyData.error) throw new Error(proxyData.error);
 
         text = proxyData.data;
         headers = proxyData.headers || {};
         isOk = proxyData.status >= 200 && proxyData.status < 300;
-        
-        // Mock the response object properties that are used
+
         Object.defineProperty(res, 'status', { value: proxyData.status });
         Object.defineProperty(res, 'ok', { value: isOk });
       } else {
@@ -153,6 +180,8 @@ export async function runScript(
         headers = Object.fromEntries([...res.headers.entries()]);
         isOk = res.ok;
       }
+
+      if (timeoutId) clearTimeout(timeoutId);
 
       let data: unknown;
       try { data = JSON.parse(text); } catch { data = text; }
@@ -165,9 +194,20 @@ export async function runScript(
       onUpdate(calls.map((c) => ({ ...c })), [...logs]);
       return { data, status: res.status, headers: rec.responseHeaders, ok: isOk };
     } catch (e) {
+      if (timeoutId) clearTimeout(timeoutId);
       rec.status = 'error';
-      rec.error = (e as Error).message;
       rec.duration = Date.now() - t0;
+      if (abortSignal?.aborted && !timedOut) {
+        rec.error = 'Aborted by user';
+        onUpdate(calls.map((c) => ({ ...c })), [...logs]);
+        throw new Error('Script aborted');
+      }
+      if (timedOut || (e as Error).name === 'AbortError') {
+        rec.error = `Timeout: call exceeded ${callTimeout}ms`;
+        onUpdate(calls.map((c) => ({ ...c })), [...logs]);
+        throw new Error(`Call to ${resolved} timed out after ${callTimeout}ms — script stopped`);
+      }
+      rec.error = (e as Error).message;
       onUpdate(calls.map((c) => ({ ...c })), [...logs]);
       throw e;
     }
@@ -175,33 +215,13 @@ export async function runScript(
 
   const makeSseCall = async (
     url: string,
-    opts: {
-      auth?: { type: string; token?: string; username?: string; password?: string; header?: string; key?: string };
-      headers?: Record<string, string>;
-    } = {},
+    opts: CallOpts = {},
     onEvent: (event: { type: string; data: string; id?: string }) => void = () => {}
   ): Promise<{ close: () => void }> => {
-    const resolved = url.replace(/\{\{(\w+)\}\}/g, (_, k) => envVars[k] ?? `{{${k}}}`);
-    let authHeaders: Record<string, string> = {};
-    let authInfo: AuthInfo = null;
+    if (abortSignal?.aborted) throw new Error('Script aborted');
 
-    if (opts.auth) {
-      const a = opts.auth;
-      if (a.type === 'bearer' && a.token) {
-        authHeaders['Authorization'] = `Bearer ${a.token}`;
-        authInfo = { type: 'Bearer Token', token: a.token };
-      } else if (a.type === 'basic' && a.username && a.password) {
-        authHeaders['Authorization'] = `Basic ${btoa(`${a.username}:${a.password}`)}`;
-        authInfo = { type: 'Basic Auth', username: a.username };
-      } else if (a.type === 'apikey' && a.key) {
-        const header = a.header || 'X-API-Key';
-        authHeaders[header] = a.key;
-        authInfo = { type: 'API Key', header, key: a.key };
-      }
-    } else if (envVars.token) {
-      authHeaders['Authorization'] = `Bearer ${envVars.token}`;
-      authInfo = { type: 'Bearer (env)', token: envVars.token };
-    }
+    const resolved = url.replace(/\{\{(\w+)\}\}/g, (_, k) => envVars[k] ?? `{{${k}}}`);
+    const { authHeaders, authInfo } = buildAuthHeaders(opts, envVars);
 
     const reqHeaders: Record<string, string> = {
       'Accept': 'text/event-stream',
@@ -236,9 +256,11 @@ export async function runScript(
     onUpdate(calls.map((c) => ({ ...c })), [...logs]);
 
     if (waitForNext) await waitForNext();
+    if (abortSignal?.aborted) throw new Error('Script aborted');
 
     const t0 = Date.now();
     const controller = new AbortController();
+    abortSignal?.addEventListener('abort', () => controller.abort(), { once: true });
 
     try {
       const res = await fetch(resolved, { headers: reqHeaders, signal: controller.signal });
@@ -311,22 +333,22 @@ export async function runScript(
   };
 
   const api = {
-    get:     (url: string, opts?: object)               => makeCall('GET',     url, null, opts as never, false),
-    post:    (url: string, body: unknown, opts?: object) => makeCall('POST',    url, body, opts as never, false),
-    put:     (url: string, body: unknown, opts?: object) => makeCall('PUT',     url, body, opts as never, false),
-    patch:   (url: string, body: unknown, opts?: object) => makeCall('PATCH',   url, body, opts as never, false),
-    delete:  (url: string, opts?: object)               => makeCall('DELETE',   url, null, opts as never, false),
-    options: (url: string, opts?: object)               => makeCall('OPTIONS',  url, null, opts as never, false),
-    sse: (url: string, opts?: object, onEvent?: (event: { type: string; data: string; id?: string }) => void) =>
-      makeSseCall(url, opts as never, onEvent),
+    get:     (url: string, opts?: CallOpts)               => makeCall('GET',     url, null, opts, false),
+    post:    (url: string, body: unknown, opts?: CallOpts) => makeCall('POST',    url, body, opts, false),
+    put:     (url: string, body: unknown, opts?: CallOpts) => makeCall('PUT',     url, body, opts, false),
+    patch:   (url: string, body: unknown, opts?: CallOpts) => makeCall('PATCH',   url, body, opts, false),
+    delete:  (url: string, opts?: CallOpts)               => makeCall('DELETE',   url, null, opts, false),
+    options: (url: string, opts?: CallOpts)               => makeCall('OPTIONS',  url, null, opts, false),
+    sse: (url: string, opts?: CallOpts, onEvent?: (event: { type: string; data: string; id?: string }) => void) =>
+      makeSseCall(url, opts, onEvent),
     _note: (msg: string) => { pendingNote = msg; },
     server: {
-      get:     (url: string, opts?: object)               => makeCall('GET',     url, null, opts as never, true),
-      post:    (url: string, body: unknown, opts?: object) => makeCall('POST',    url, body, opts as never, true),
-      put:     (url: string, body: unknown, opts?: object) => makeCall('PUT',     url, body, opts as never, true),
-      patch:   (url: string, body: unknown, opts?: object) => makeCall('PATCH',   url, body, opts as never, true),
-      delete:  (url: string, opts?: object)               => makeCall('DELETE',   url, null, opts as never, true),
-      options: (url: string, opts?: object)               => makeCall('OPTIONS',  url, null, opts as never, true),
+      get:     (url: string, opts?: CallOpts)               => makeCall('GET',     url, null, opts, true),
+      post:    (url: string, body: unknown, opts?: CallOpts) => makeCall('POST',    url, body, opts, true),
+      put:     (url: string, body: unknown, opts?: CallOpts) => makeCall('PUT',     url, body, opts, true),
+      patch:   (url: string, body: unknown, opts?: CallOpts) => makeCall('PATCH',   url, body, opts, true),
+      delete:  (url: string, opts?: CallOpts)               => makeCall('DELETE',   url, null, opts, true),
+      options: (url: string, opts?: CallOpts)               => makeCall('OPTIONS',  url, null, opts, true),
     }
   };
 
@@ -345,8 +367,11 @@ export async function runScript(
     const AF = Object.getPrototypeOf(async function () {}).constructor as new (...args: string[]) => (...fArgs: unknown[]) => Promise<void>;
     await (new AF('api', 'env', 'console', processedCode))(api, envVars, con);
   } catch (e) {
-    logs.push({ level: 'error', msg: `Script error: ${(e as Error).message}` });
-    onUpdate(calls.map((c) => ({ ...c })), [...logs]);
+    const msg = (e as Error).message;
+    if (msg !== 'Script aborted') {
+      logs.push({ level: 'error', msg: `Script error: ${msg}` });
+      onUpdate(calls.map((c) => ({ ...c })), [...logs]);
+    }
   }
 
   return { calls, logs };
