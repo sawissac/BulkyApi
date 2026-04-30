@@ -11,6 +11,8 @@ import { setSidebarTab } from '@/store/uiSlice';
 import { selectEnvVars } from '@/store/environmentSlice';
 import { METHOD_CLR } from '@/lib/themes';
 import { EXAMPLE_SCRIPTS } from '@/lib/sampleData';
+import type { ExampleScript } from '@/lib/sampleData';
+import ExampleDialog from './ExampleDialog';
 import type { EditorInstance } from './MonacoCodeEditor';
 import * as prettier from 'prettier/standalone';
 import * as babelPlugin from 'prettier/plugins/babel';
@@ -39,6 +41,7 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
   const exBtnRef = useRef<HTMLDivElement>(null);
   const [showExamples, setShowExamples] = useState(false);
   const [dropPos, setDropPos] = useState<{ top: number; right: number } | null>(null);
+  const [selectedExample, setSelectedExample] = useState<ExampleScript | null>(null);
 
   const toggleExamples = () => {
     if (showExamples) { setShowExamples(false); return; }
@@ -252,7 +255,7 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
               return (
                 <button
                   key={ex.label}
-                  onClick={() => { dispatch(setCode(ex.code)); setShowExamples(false); }}
+                  onClick={() => { setSelectedExample(ex); setShowExamples(false); }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                     padding: '6px 10px', borderRadius: 5, border: 'none',
@@ -277,6 +280,16 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
             })}
           </div>
         </>
+      )}
+
+      {/* Example preview dialog */}
+      {selectedExample && (
+        <ExampleDialog
+          T={T}
+          example={selectedExample}
+          onClose={() => setSelectedExample(null)}
+          onLoad={() => { dispatch(setCode(selectedExample.code)); setSelectedExample(null); }}
+        />
       )}
 
       {/* Status bar */}

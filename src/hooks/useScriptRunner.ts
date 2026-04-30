@@ -1,14 +1,23 @@
-'use client';
+"use client";
 
-import { useCallback, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { analyzeScript } from '@/lib/scriptAnalyzer';
-import { runScript } from '@/lib/scriptRunner';
-import { selectCode } from '@/store/editorSlice';
-import { selectEnvVars, selectActiveEnv } from '@/store/environmentSlice';
-import { selectBuiltCalls, selectRunning, selectStepMode, setBuiltCalls, setRunning, setPaused, updateCallsAndLogs } from '@/store/runnerSlice';
-import { selectActiveId } from '@/store/collectionsSlice';
-import { selectCallTimeout } from '@/store/uiSlice';
+import { useCallback, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { analyzeScript } from "@/lib/scriptAnalyzer";
+import { runScript } from "@/lib/scriptRunner";
+import { selectCode } from "@/store/editorSlice";
+import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
+import {
+  selectBuiltCalls,
+  selectRunning,
+  selectStepMode,
+  setBuiltCalls,
+  setRunning,
+  setPaused,
+  setExtractedVars,
+  updateCallsAndLogs,
+} from "@/store/runnerSlice";
+import { selectActiveId } from "@/store/collectionsSlice";
+import { selectCallTimeout } from "@/store/uiSlice";
 
 export function useScriptRunner() {
   const dispatch = useDispatch();
@@ -61,7 +70,7 @@ export function useScriptRunner() {
       setBuiltCalls(
         analyzeScript(code, envVars).map((c, i) => ({
           ...c,
-          status: 'pending' as const,
+          status: "pending" as const,
           cache: builtCalls[i]?.cache ?? false,
         })),
       ),
@@ -82,10 +91,11 @@ export function useScriptRunner() {
         ]),
     );
 
-    await runScript(
+    const { extractedVars } = await runScript(
       code,
-      { ...envVars, current: activeEnv?.name ?? '' },
-      (calls, logs) => dispatch(updateCallsAndLogs({ calls, logs, itemId: runItemId })),
+      { ...envVars, current: activeEnv?.name ?? "" },
+      (calls, logs) =>
+        dispatch(updateCallsAndLogs({ calls, logs, itemId: runItemId })),
       stepMode ? waitForNext : undefined,
       Object.keys(callCache).length > 0 ? callCache : undefined,
       callTimeout > 0 ? callTimeout : undefined,
@@ -94,8 +104,21 @@ export function useScriptRunner() {
 
     stepResumeRef.current = null;
     abortControllerRef.current = null;
+    if (Object.keys(extractedVars).length > 0)
+      dispatch(setExtractedVars(extractedVars));
     dispatch(setRunning(false));
-  }, [running, code, envVars, activeEnv, builtCalls, activeId, stepMode, callTimeout, waitForNext, dispatch]);
+  }, [
+    running,
+    code,
+    envVars,
+    activeEnv,
+    builtCalls,
+    activeId,
+    stepMode,
+    callTimeout,
+    waitForNext,
+    dispatch,
+  ]);
 
   return { onRun, onNext, onStop };
 }

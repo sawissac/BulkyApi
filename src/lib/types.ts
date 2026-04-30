@@ -1,10 +1,10 @@
-export type CallStatus = 'idle' | 'pending' | 'success' | 'error';
+export type CallStatus = "idle" | "pending" | "success" | "error";
 
 export type AuthInfo =
-  | { type: 'Bearer Token'; token: string }
-  | { type: 'Bearer (env)'; token: string }
-  | { type: 'Basic Auth'; username: string }
-  | { type: 'API Key'; header: string; key: string }
+  | { type: "Bearer Token"; token: string }
+  | { type: "Bearer (env)"; token: string }
+  | { type: "Basic Auth"; username: string }
+  | { type: "API Key"; header: string; key: string }
   | null;
 
 export type SseEvent = {
@@ -36,6 +36,6 @@ export type ApiCall = {
 };
 
 export type LogEntry = {
-  level: 'log' | 'warn' | 'error' | 'info';
+  level: "log" | "warn" | "error" | "info";
   msg: string;
 };

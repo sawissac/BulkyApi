@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Terminal, Code2, BarChart2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Terminal, Code2, BarChart2, ChevronUp, ChevronDown, ArrowUpFromLine } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
-import { selectBuiltCalls, selectLogs } from '@/store/runnerSlice';
+import { selectBuiltCalls, selectLogs, selectExtractedVars } from '@/store/runnerSlice';
 import { selectResponseView, setResponseView, setResponseViewForItem } from '@/store/uiSlice';
 import { selectActiveId } from '@/store/collectionsSlice';
+import { selectActiveEnv, setVar } from '@/store/environmentSlice';
 import { statusColor } from '@/lib/themes';
 import CallCard from './CallCard';
 import ApiWaterfall from './ApiWaterfall';
@@ -21,6 +22,9 @@ export default function ResponsePanel({ T }: Props) {
   const logs = useSelector(selectLogs);
   const view = useSelector(selectResponseView);
   const activeId = useSelector(selectActiveId);
+
+  const extractedVars = useSelector(selectExtractedVars);
+  const activeEnv = useSelector(selectActiveEnv);
 
   const [consoleExpanded, setConsoleExpanded] = useState(false);
 
@@ -110,6 +114,49 @@ export default function ResponsePanel({ T }: Props) {
           ))
         )}
       </div>
+
+      {/* Extracted vars */}
+      {Object.keys(extractedVars).length > 0 && (
+        <div style={{ borderTop: `1px solid ${T.border}`, background: T.bgPanel, flexShrink: 0 }}>
+          <div style={{ padding: '4px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ArrowUpFromLine size={10} color={T.cyanDim} />
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
+              Extracted
+            </span>
+            {activeEnv && (
+              <button
+                onClick={() => {
+                  for (const [k, v] of Object.entries(extractedVars)) {
+                    dispatch(setVar({ envId: activeEnv.id, key: k, value: v }));
+                  }
+                }}
+                title={`Promote all to ${activeEnv.name}`}
+                style={{ background: T.bgHover, border: `1px solid ${T.borderAccent}`, borderRadius: 4, padding: '2px 7px', color: T.cyan, fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.07em' }}
+              >
+                promote all → {activeEnv.name}
+              </button>
+            )}
+          </div>
+          <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {Object.entries(extractedVars).map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.cyan, flexShrink: 0 }}>{k}</span>
+                <span style={{ color: T.textDim, fontSize: 9 }}>=</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
+                {activeEnv && (
+                  <button
+                    onClick={() => dispatch(setVar({ envId: activeEnv.id, key: k, value: v }))}
+                    title={`Promote ${k} to ${activeEnv.name}`}
+                    style={{ background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4, padding: '1px 6px', color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    → env
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Console */}
       {logs.length > 0 && (

@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
-import type { editor as MonacoEditorNS, languages, Position } from "monaco-editor";
+import type {
+  editor as MonacoEditorNS,
+  languages,
+  Position,
+} from "monaco-editor";
 import type { Theme } from "@/lib/themes";
 
 export type EditorInstance = MonacoEditorNS.IStandaloneCodeEditor;
@@ -37,27 +41,29 @@ export default function MonacoCodeEditor({
     monaco.editor.defineTheme("bulky", {
       base: T.isLight ? "vs" : "vs-dark",
       inherit: true,
-      rules: T.isLight ? [
-        { token: "comment", foreground: "94a3b8", fontStyle: "italic" },
-        { token: "keyword", foreground: "0284c7" },
-        { token: "string", foreground: "059669" },
-        { token: "number", foreground: "ea580c" },
-        { token: "regexp", foreground: "dc2626" },
-        { token: "type", foreground: "7c3aed" },
-        { token: "variable", foreground: "0f172a" },
-        { token: "identifier", foreground: "0f172a" },
-        { token: "delimiter", foreground: "64748b" },
-      ] : [
-        { token: "comment", foreground: "4a5568", fontStyle: "italic" },
-        { token: "keyword", foreground: "67e8f9" },
-        { token: "string", foreground: "86efac" },
-        { token: "number", foreground: "fdba74" },
-        { token: "regexp", foreground: "fca5a5" },
-        { token: "type", foreground: "c4b5fd" },
-        { token: "variable", foreground: "e2e8f0" },
-        { token: "identifier", foreground: "e2e8f0" },
-        { token: "delimiter", foreground: "64748b" },
-      ],
+      rules: T.isLight
+        ? [
+            { token: "comment", foreground: "94a3b8", fontStyle: "italic" },
+            { token: "keyword", foreground: "0284c7" },
+            { token: "string", foreground: "059669" },
+            { token: "number", foreground: "ea580c" },
+            { token: "regexp", foreground: "dc2626" },
+            { token: "type", foreground: "7c3aed" },
+            { token: "variable", foreground: "0f172a" },
+            { token: "identifier", foreground: "0f172a" },
+            { token: "delimiter", foreground: "64748b" },
+          ]
+        : [
+            { token: "comment", foreground: "4a5568", fontStyle: "italic" },
+            { token: "keyword", foreground: "67e8f9" },
+            { token: "string", foreground: "86efac" },
+            { token: "number", foreground: "fdba74" },
+            { token: "regexp", foreground: "fca5a5" },
+            { token: "type", foreground: "c4b5fd" },
+            { token: "variable", foreground: "e2e8f0" },
+            { token: "identifier", foreground: "e2e8f0" },
+            { token: "delimiter", foreground: "64748b" },
+          ],
       colors: {
         "editor.background": T.editorBg,
         "editor.foreground": T.textBright,
@@ -99,16 +105,25 @@ export default function MonacoCodeEditor({
       { label: "api.delete", insert: "api.delete('${1:url}')" },
       { label: "api.options", insert: "api.options('${1:url}')" },
       { label: "api.server.get", insert: "api.server.get('${1:url}')" },
-      { label: "api.server.post", insert: "api.server.post('${1:url}', { $2 })" },
+      {
+        label: "api.server.post",
+        insert: "api.server.post('${1:url}', { $2 })",
+      },
       { label: "api.server.put", insert: "api.server.put('${1:url}', { $2 })" },
-      { label: "api.server.patch", insert: "api.server.patch('${1:url}', { $2 })" },
+      {
+        label: "api.server.patch",
+        insert: "api.server.patch('${1:url}', { $2 })",
+      },
       { label: "api.server.delete", insert: "api.server.delete('${1:url}')" },
       { label: "api.server.options", insert: "api.server.options('${1:url}')" },
     ];
 
     const disp = monaco.languages.registerCompletionItemProvider("javascript", {
       triggerCharacters: [".", "{"],
-      provideCompletionItems(model: MonacoEditorNS.ITextModel, position: Position) {
+      provideCompletionItems(
+        model: MonacoEditorNS.ITextModel,
+        position: Position,
+      ) {
         const line = model.getLineContent(position.lineNumber);
         const before = line.substring(0, position.column - 1);
         const range = {
@@ -193,7 +208,7 @@ export default function MonacoCodeEditor({
         fontSize: 12,
         fontFamily: "'JetBrains Mono', monospace",
         lineHeight: 20,
-        minimap: { enabled: false },
+        minimap: { enabled: true },
         scrollBeyondLastLine: false,
         wordWrap: "off",
         padding: { top: 12, bottom: 12 },

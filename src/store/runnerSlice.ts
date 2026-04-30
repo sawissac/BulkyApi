@@ -1,6 +1,6 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { ApiCall, LogEntry } from '@/lib/types';
-import { removeItem } from './collectionsSlice';
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { ApiCall, LogEntry } from "@/lib/types";
+import { removeItem } from "./collectionsSlice";
 
 type RunnerState = {
   builtCalls: ApiCall[];
@@ -12,6 +12,7 @@ type RunnerState = {
   callsByItemId: Record<string, ApiCall[]>;
   currentItemId: string | null;
   runCacheFlags: boolean[];
+  extractedVars: Record<string, string>;
 };
 
 const initialState: RunnerState = {
@@ -24,6 +25,7 @@ const initialState: RunnerState = {
   callsByItemId: {},
   currentItemId: null,
   runCacheFlags: [],
+  extractedVars: {},
 };
 
 function applyStored(nc: ApiCall, existing: ApiCall): ApiCall {
@@ -51,7 +53,10 @@ function applyStored(nc: ApiCall, existing: ApiCall): ApiCall {
  * Pass 1 — exact method + url match (handles env-resolved URLs).
  * Pass 2 — positional fallback for dynamic URLs that the analyzer can't resolve.
  */
-function mergeCalls(analyzedCalls: ApiCall[], storedCalls: ApiCall[]): ApiCall[] {
+function mergeCalls(
+  analyzedCalls: ApiCall[],
+  storedCalls: ApiCall[],
+): ApiCall[] {
   if (storedCalls.length === 0) return analyzedCalls;
 
   const usedOld = new Set<number>();
@@ -59,7 +64,8 @@ function mergeCalls(analyzedCalls: ApiCall[], storedCalls: ApiCall[]): ApiCall[]
   // Pass 1: exact method + url match
   const result = analyzedCalls.map((nc) => {
     const idx = storedCalls.findIndex(
-      (oc, i) => !usedOld.has(i) && oc.method === nc.method && oc.url === nc.url,
+      (oc, i) =>
+        !usedOld.has(i) && oc.method === nc.method && oc.url === nc.url,
     );
     if (idx === -1) return null;
     usedOld.add(idx);
@@ -70,16 +76,17 @@ function mergeCalls(analyzedCalls: ApiCall[], storedCalls: ApiCall[]): ApiCall[]
   for (let i = 0; i < analyzedCalls.length; i++) {
     if (result[i]) continue;
     const stored = storedCalls[i];
-    result[i] = stored && !usedOld.has(i) && stored.method === analyzedCalls[i].method
-      ? (usedOld.add(i), applyStored(analyzedCalls[i], stored))
-      : analyzedCalls[i];
+    result[i] =
+      stored && !usedOld.has(i) && stored.method === analyzedCalls[i].method
+        ? (usedOld.add(i), applyStored(analyzedCalls[i], stored))
+        : analyzedCalls[i];
   }
 
   return result as ApiCall[];
 }
 
 const runnerSlice = createSlice({
-  name: 'runner',
+  name: "runner",
   initialState,
   reducers: {
     setBuiltCalls(state, action: PayloadAction<ApiCall[]>) {
@@ -91,7 +98,10 @@ const runnerSlice = createSlice({
     },
     switchToItem(
       state,
-      action: PayloadAction<{ itemId: string | null; analyzedCalls: ApiCall[] }>,
+      action: PayloadAction<{
+        itemId: string | null;
+        analyzedCalls: ApiCall[];
+      }>,
     ) {
       const { itemId, analyzedCalls } = action.payload;
       state.currentItemId = itemId;
@@ -107,9 +117,15 @@ const runnerSlice = createSlice({
     setLogs(state, action: PayloadAction<LogEntry[]>) {
       state.logs = action.payload;
     },
+    setExtractedVars(state, action: PayloadAction<Record<string, string>>) {
+      state.extractedVars = action.payload;
+    },
     setRunning(state, action: PayloadAction<boolean>) {
       state.running = action.payload;
-      if (action.payload) state.runStartedAt = Date.now();
+      if (action.payload) {
+        state.runStartedAt = Date.now();
+        state.extractedVars = {};
+      }
       if (!action.payload) state.paused = false;
     },
     setStepMode(state, action: PayloadAction<boolean>) {
@@ -120,7 +136,11 @@ const runnerSlice = createSlice({
     },
     updateCallsAndLogs(
       state,
-      action: PayloadAction<{ calls: ApiCall[]; logs: LogEntry[]; itemId: string | null }>,
+      action: PayloadAction<{
+        calls: ApiCall[];
+        logs: LogEntry[];
+        itemId: string | null;
+      }>,
     ) {
       // Restore user cache flags using snapshot taken at run start
       const calls = action.payload.calls.map((c, i) => ({
@@ -143,7 +163,9 @@ const runnerSlice = createSlice({
 
       // Keep callsByItemId in sync
       if (state.currentItemId) {
-        state.callsByItemId[state.currentItemId] = state.builtCalls.map((c) => ({ ...c }));
+        state.callsByItemId[state.currentItemId] = state.builtCalls.map(
+          (c) => ({ ...c }),
+        );
       }
     },
     hydrateRunner(_state, action: PayloadAction<Partial<RunnerState>>) {
@@ -170,15 +192,20 @@ export const {
   setRunning,
   setStepMode,
   setPaused,
+  setExtractedVars,
   updateCallsAndLogs,
   toggleCallCache,
   hydrateRunner,
 } = runnerSlice.actions;
 export default runnerSlice.reducer;
 
-export const selectBuiltCalls   = (s: { runner: RunnerState }) => s.runner.builtCalls;
-export const selectLogs         = (s: { runner: RunnerState }) => s.runner.logs;
-export const selectRunning      = (s: { runner: RunnerState }) => s.runner.running;
-export const selectRunStartedAt = (s: { runner: RunnerState }) => s.runner.runStartedAt;
-export const selectStepMode     = (s: { runner: RunnerState }) => s.runner.stepMode;
-export const selectPaused       = (s: { runner: RunnerState }) => s.runner.paused;
+export const selectBuiltCalls = (s: { runner: RunnerState }) =>
+  s.runner.builtCalls;
+export const selectLogs = (s: { runner: RunnerState }) => s.runner.logs;
+export const selectRunning = (s: { runner: RunnerState }) => s.runner.running;
+export const selectRunStartedAt = (s: { runner: RunnerState }) =>
+  s.runner.runStartedAt;
+export const selectStepMode = (s: { runner: RunnerState }) => s.runner.stepMode;
+export const selectPaused = (s: { runner: RunnerState }) => s.runner.paused;
+export const selectExtractedVars = (s: { runner: RunnerState }) =>
+  s.runner.extractedVars;
