@@ -7,7 +7,14 @@ import { useFullscreen } from "@/hooks/useFullscreen";
 import { THEMES } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
 import { useScriptRunner } from "@/hooks/useScriptRunner";
-import { selectTheme, selectTweaksOpen, setTweaksOpen, selectViewByItemId, setResponseView } from "@/store/uiSlice";
+import {
+  selectTheme,
+  selectTweaksOpen,
+  setTweaksOpen,
+  selectViewByItemId,
+  setResponseView,
+  selectLayout,
+} from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
 import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
 import {
@@ -19,7 +26,11 @@ import {
   switchToItem,
   setStepMode,
 } from "@/store/runnerSlice";
-import { selectActiveId, selectActiveItem, saveItemCode } from "@/store/collectionsSlice";
+import {
+  selectActiveId,
+  selectActiveItem,
+  saveItemCode,
+} from "@/store/collectionsSlice";
 import Sidebar from "@/features/sidebar/components/Sidebar";
 import CodeEditor from "@/features/code-editor/components/CodeEditor";
 import ResponsePanel from "@/features/response-panel/components/ResponsePanel";
@@ -33,6 +44,7 @@ import {
 export default function BulkyApp() {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
+  const layout = useSelector(selectLayout);
   const tweaksOpen = useSelector(selectTweaksOpen);
   const viewByItemId = useSelector(selectViewByItemId);
   const code = useSelector(selectCode);
@@ -50,6 +62,13 @@ export default function BulkyApp() {
 
   const T = THEMES[theme] || THEMES.ocean;
   const [sidebarSize, setSidebarSize] = useState(20);
+
+  const layoutSizes = {
+    balanced: { side: "25%", editor: "50%", resp: "25%" },
+    "editor-focus": { side: "18%", editor: "64%", resp: "18%" },
+    "response-focus": { side: "18%", editor: "32%", resp: "50%" },
+  } as const;
+  const L = layoutSizes[layout] ?? layoutSizes["editor-focus"];
 
   // Flag: skip syncAnalyzedCalls when code change comes from an item switch
   const isSwitchingItemRef = useRef(false);
@@ -75,11 +94,13 @@ export default function BulkyApp() {
       if (activeItem) {
         isSwitchingItemRef.current = true;
         dispatch(setCode(activeItem.code));
-        dispatch(switchToItem({
-          itemId: activeId,
-          analyzedCalls: analyzeScript(activeItem.code, envVars),
-        }));
-        dispatch(setResponseView(viewByItemId[activeId] ?? 'cards'));
+        dispatch(
+          switchToItem({
+            itemId: activeId,
+            analyzedCalls: analyzeScript(activeItem.code, envVars),
+          }),
+        );
+        dispatch(setResponseView(viewByItemId[activeId] ?? "cards"));
       }
     } else if (!activeId) {
       prevActiveIdRef.current = null;
@@ -154,7 +175,7 @@ export default function BulkyApp() {
             background: T.bgHover,
           }}
         >
-          {activeEnv?.name ?? '—'}
+          {activeEnv?.name ?? "—"}
         </span>
         <div style={{ flex: 1 }} />
         {running && (
@@ -251,13 +272,14 @@ export default function BulkyApp() {
       {/* 3-pane layout */}
       <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
         <ResizablePanelGroup
+          key={layout}
           orientation="horizontal"
           style={{ height: "100%" }}
         >
           <ResizablePanel
-            defaultSize={100}
-            minSize={300}
-            maxSize={500}
+            defaultSize={L.side}
+            minSize="15%"
+            maxSize="40%"
             onResize={(s) => setSidebarSize(s.asPercentage)}
           >
             <Sidebar T={T} narrow={sidebarSize < 18} />
@@ -267,7 +289,7 @@ export default function BulkyApp() {
             style={{ background: T.border, width: 1 }}
             className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
           />
-          <ResizablePanel defaultSize={1500} minSize={500}>
+          <ResizablePanel defaultSize={L.editor} minSize="25%">
             <CodeEditor
               T={T}
               onRun={onRun}
@@ -284,7 +306,7 @@ export default function BulkyApp() {
             style={{ background: T.border, width: 1 }}
             className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
           />
-          <ResizablePanel defaultSize={100} minSize={300} maxSize={500}>
+          <ResizablePanel defaultSize={L.resp} minSize="15%" maxSize="70%">
             <ResponsePanel T={T} />
           </ResizablePanel>
         </ResizablePanelGroup>
