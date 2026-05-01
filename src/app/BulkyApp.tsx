@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Maximize2, Minimize2 } from "lucide-react";
+import { useFullscreen } from "@/hooks/useFullscreen";
 import { THEMES } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
 import { useScriptRunner } from "@/hooks/useScriptRunner";
@@ -45,6 +46,7 @@ export default function BulkyApp() {
   const paused = useSelector(selectPaused);
 
   const { onRun, onNext, onStop } = useScriptRunner();
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const T = THEMES[theme] || THEMES.ocean;
   const [sidebarSize, setSidebarSize] = useState(20);
@@ -121,15 +123,12 @@ export default function BulkyApp() {
           flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: T.cyan,
-            boxShadow: `0 0 8px ${T.cyan}`,
-            animation: "glow 2s ease-in-out infinite",
-          }}
+        <img
+          src="/favicon.svg"
+          alt="Bulky API"
+          width={22}
+          height={22}
+          style={{ flexShrink: 0, borderRadius: 5 }}
         />
         <span
           style={{
@@ -201,6 +200,25 @@ export default function BulkyApp() {
         >
           {builtCalls.length} calls
         </span>
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          style={{
+            background: T.bgHover,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            padding: "4px 8px",
+            color: T.textDim,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            transition: "all 0.15s",
+          }}
+        >
+          {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+        </button>
         <button
           onClick={() => dispatch(setTweaksOpen(!tweaksOpen))}
           style={{

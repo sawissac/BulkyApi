@@ -10,6 +10,12 @@ import { hydrateEnvironment } from '@/store/environmentSlice';
 import { hydrateEditor } from '@/store/editorSlice';
 import { hydrateUi } from '@/store/uiSlice';
 import { hydrateRunner } from '@/store/runnerSlice';
+import { useServiceWorker } from '@/hooks/useServiceWorker';
+
+function ServiceWorkerRegister() {
+  useServiceWorker();
+  return null;
+}
 
 function HydrateStore() {
   useEffect(() => {
@@ -29,6 +35,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <HydrateStore />
+      <ServiceWorkerRegister />
       <ErrorBoundary>{children}</ErrorBoundary>
     </Provider>
   );
