@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bulky API
 
-## Getting Started
+JavaScript-based API automation client. Write chained API scripts in JS, watch live call cards build automatically, inspect responses — all in one window.
 
-First, run the development server:
+Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Works as an installable PWA.
+
+## Features
+
+- **Script-driven**: write JS using `api.get/post/put/patch/delete`. Calls auto-detect into right-pane cards.
+- **Live execution**: `⌘+Enter` runs script. Cards transition `idle → pending → 200 / err`.
+- **Step mode**: pause between calls, advance one at a time.
+- **Environments + variables**: switchable env presets, `env.*` references resolve at run time. Sensitive keys masked in UI.
+- **Auth helpers**: bearer / basic / API key shortcuts in call options.
+- **Response inspection**: 5 tabs per card (Response, Headers, Auth, Payload, Status). Pretty/raw JSON toggle.
+- **Test cases**: flat-file collection in sidebar. One scenario per file.
+- **cURL import**: paste curl, auto-generate script.
+- **SSE support**: streaming responses captured per-event.
+- **Abort + timeout**: stop running scripts, configurable per-call timeout.
+- **Themes**: Midnight, Ocean, Light, Purple, Green, Rose, Amber, Slate.
+- **Layouts**: Balanced, Editor Focus, Response Focus.
+- **Fullscreen + PWA**: installable, offline shell cache, standalone mode.
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| UI | React 19, Tailwind v4, Radix UI, shadcn |
+| State | Redux Toolkit, react-redux |
+| Editor | Monaco (`@monaco-editor/react`) |
+| Persistence | localforage |
+| Layout | react-resizable-panels v4 |
+| Icons | lucide-react |
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm build
+pnpm start    # production server (service worker only registers here)
+pnpm lint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project layout
 
-## Learn More
+```
+src/
+├─ app/
+│  ├─ BulkyApp.tsx          # top-level shell: top bar + 3-pane layout
+│  ├─ layout.tsx            # metadata, viewport, PWA icons
+│  ├─ manifest.ts           # /manifest.webmanifest route
+│  ├─ providers.tsx         # Redux + hydration + service worker register
+│  └─ api/proxy/            # CORS-bypass fetch proxy (30s timeout)
+├─ features/
+│  ├─ sidebar/              # Tests / Envs / Vars / File panes
+│  ├─ code-editor/          # Monaco wrapper + run/step/stop toolbar
+│  ├─ response-panel/       # Call cards, waterfall, docs, console
+│  └─ tweaks/               # Theme + layout + timeout panel
+├─ hooks/
+│  ├─ useScriptRunner.ts    # run/next/stop with AbortController
+│  ├─ useFullscreen.ts      # Fullscreen API toggle
+│  └─ useServiceWorker.ts   # registers /sw.js in production
+├─ lib/
+│  ├─ scriptRunner.ts       # makeCall / makeSseCall / auth headers
+│  ├─ scriptAnalyzer.ts     # extracts api.* calls without executing
+│  ├─ curlParser.ts         # curl → script
+│  ├─ persist.ts            # localforage save/load (50KB cap)
+│  └─ themes.ts             # color palettes
+├─ store/                   # Redux slices: ui, editor, runner, environment, collections
+├─ components/              # ErrorBoundary, shadcn primitives
+└─ prompts/                 # script examples / docs
+public/
+├─ favicon.svg              # main icon (also used in top bar)
+├─ logo.svg                 # full lockup (mark + wordmark)
+├─ logo-mark.svg            # square mark
+├─ manifest.webmanifest     # served by app/manifest.ts
+└─ sw.js                    # service worker (cache shell + nav fallback)
+```
 
-To learn more about Next.js, take a look at the following resources:
+## API surface (in scripts)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```js
+await api.get(url, opts?)
+await api.post(url, body, opts?)
+await api.put(url, body, opts?)
+await api.patch(url, body, opts?)
+await api.delete(url, opts?)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+// auth
+await api.get(url, { auth: { type: 'bearer',  token: env.token } });
+await api.get(url, { auth: { type: 'basic',   username: 'u', password: 'p' } });
+await api.get(url, { auth: { type: 'apikey',  header: 'X-API-Key', key: env.apiKey } });
 
-## Deploy on Vercel
+// env
+env.baseUrl   // resolves at run time
+env.token     // masked in UI
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+// console (visible in console panel)
+console.log('msg');
+console.warn('msg');
+console.error('msg');
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `⌘+Enter` / `Ctrl+Enter` | Run script |
+| `Tab` | Indent 2 spaces in editor |
+| Click card | Expand / collapse response detail |
+
+## PWA
+
+`pnpm build && pnpm start` then install via browser address bar. Offline shell cached on first load. Service worker scope: `/`. Manifest theme color `#0F172A`.
+
+## Notes
+
+- Project uses Next.js 16 — APIs may differ from older training data. Read `node_modules/next/dist/docs/` before adding routes or new conventions.
+- Proxy at `/api/proxy` is intentionally permissive (local dev tool). Do not expose publicly without auth.
+- Persisted responses capped at 50KB per entry to keep `localforage` payload bounded.
+
+## Author
+
+WAUX Studio — v1.0.0
