@@ -10,6 +10,8 @@ export type Collection = {
   name: string;
   open: boolean;
   items: CollectionItem[];
+  environments: Environment[];
+  envIdx: number;
 };
 
 export type Environment = {

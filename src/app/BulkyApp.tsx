@@ -16,7 +16,7 @@ import {
   selectLayout,
 } from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
-import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
+import { selectEnvVars, selectActiveEnv } from "@/store/collectionsSlice";
 import {
   selectBuiltCalls,
   selectRunning,

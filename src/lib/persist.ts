@@ -39,7 +39,7 @@ let _timer: ReturnType<typeof setTimeout>;
 export function scheduleSave(state: Record<string, unknown>): void {
   clearTimeout(_timer);
   _timer = setTimeout(() => {
-    const { collections, environment, editor, ui, runner } = state as Record<string, unknown>;
+    const { collections, editor, ui, runner } = state as Record<string, unknown>;
     const r = runner as Record<string, unknown> | undefined;
     // Only persist stable runner fields — skip transient running/paused/logs; cap large responses
     const runnerPersist = r
@@ -53,6 +53,6 @@ export function scheduleSave(state: Record<string, unknown>): void {
           currentItemId: r.currentItemId,
         }
       : undefined;
-    localforage.setItem(KEY, { collections, environment, editor, ui, runner: runnerPersist }).catch(() => {});
+    localforage.setItem(KEY, { collections, editor, ui, runner: runnerPersist }).catch(() => {});
   }, 400);
 }

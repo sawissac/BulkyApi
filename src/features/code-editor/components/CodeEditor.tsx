@@ -8,7 +8,7 @@ import type { Theme } from '@/lib/themes';
 import { selectCode, setCode } from '@/store/editorSlice';
 import { selectActiveItem, selectActiveCollection } from '@/store/collectionsSlice';
 import { setSidebarTab } from '@/store/uiSlice';
-import { selectEnvVars } from '@/store/environmentSlice';
+import { selectEnvVars } from '@/store/collectionsSlice';
 import { METHOD_CLR } from '@/lib/themes';
 import { EXAMPLE_SCRIPTS } from '@/lib/sampleData';
 import type { ExampleScript } from '@/lib/sampleData';

@@ -5,6 +5,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import {
+  selectActiveId,
+  selectActiveCollection,
   selectEnvironments,
   selectEnvIdx,
   setEnvIdx,
@@ -12,12 +14,13 @@ import {
   removeEnvironment,
   renameEnvironment,
   duplicateEnvironment,
-} from '@/store/environmentSlice';
+} from '@/store/collectionsSlice';
 
 type Props = { T: Theme };
 
 export default function EnvPane({ T }: Props) {
   const dispatch = useDispatch();
+  const activeCol = useSelector(selectActiveCollection);
   const environments = useSelector(selectEnvironments);
   const envIdx = useSelector(selectEnvIdx);
   const [adding, setAdding] = useState(false);
@@ -25,9 +28,17 @@ export default function EnvPane({ T }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
 
+  if (!activeCol) {
+    return (
+      <div style={{ padding: '16px', textAlign: 'center', color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10 }}>
+        Select a collection to manage environments.
+      </div>
+    );
+  }
+
   const commitAdd = () => {
     const name = newName.trim();
-    if (name) dispatch(addEnvironment(name));
+    if (name) dispatch(addEnvironment({ collectionId: activeCol.id, name }));
     setNewName('');
     setAdding(false);
   };
@@ -43,7 +54,7 @@ export default function EnvPane({ T }: Props) {
     <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim }}>
-          Active Environment
+          {activeCol.name} Env
         </span>
         <button
           onClick={() => setAdding(true)}
@@ -59,7 +70,7 @@ export default function EnvPane({ T }: Props) {
         return (
           <div
             key={env.id}
-            onClick={() => !isEditing && dispatch(setEnvIdx(i))}
+            onClick={() => !isEditing && dispatch(setEnvIdx({ collectionId: activeCol.id, envIdx: i }))}
             style={{
               padding: '8px 10px',
               borderRadius: 8,

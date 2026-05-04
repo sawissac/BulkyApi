@@ -7,7 +7,7 @@ import type { Theme } from '@/lib/themes';
 import { selectBuiltCalls, selectLogs, selectExtractedVars } from '@/store/runnerSlice';
 import { selectResponseView, setResponseView, setResponseViewForItem } from '@/store/uiSlice';
 import { selectActiveId } from '@/store/collectionsSlice';
-import { selectActiveEnv, setVar } from '@/store/environmentSlice';
+import { selectActiveEnv, setVar } from '@/store/collectionsSlice';
 import { statusColor } from '@/lib/themes';
 import CallCard from './CallCard';
 import ApiWaterfall from './ApiWaterfall';

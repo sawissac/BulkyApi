@@ -15,12 +15,31 @@ function extractNoteBeforeIndex(code: string, idx: number): string | undefined {
   return undefined;
 }
 
+function isInsideComment(code: string, idx: number): boolean {
+  // Check single-line comment: find the start of the line and see if it begins with //
+  const lineStart = code.lastIndexOf('\n', idx - 1) + 1;
+  const linePrefix = code.slice(lineStart, idx).trimStart();
+  if (linePrefix.startsWith('//')) return true;
+
+  // Check block comment: find the last /* before idx and see if it's unclosed
+  const lastOpen = code.lastIndexOf('/*', idx);
+  if (lastOpen !== -1) {
+    const lastClose = code.indexOf('*/', lastOpen);
+    if (lastClose === -1 || lastClose > idx) return true;
+  }
+
+  return false;
+}
+
 export function analyzeScript(code: string, envVars: Record<string, string> = {}): ApiCall[] {
   const calls: ApiCall[] = [];
   const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options)\s*\(/gi;
   let m: RegExpExecArray | null;
 
   while ((m = re.exec(code)) !== null) {
+    // Skip matches inside comments
+    if (isInsideComment(code, m.index)) continue;
+
     const method = m[1].toUpperCase();
     const note = extractNoteBeforeIndex(code, m.index);
     const after = code.slice(m.index + m[0].length);

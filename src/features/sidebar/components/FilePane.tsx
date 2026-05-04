@@ -15,7 +15,7 @@ import {
 import { setSidebarTab } from '@/store/uiSlice';
 import { downloadBlob, pickFile, readFileText } from '@/lib/fileUtils';
 import { parseCurl, curlToScript } from '@/lib/curlParser';
-import { selectEnvironments, selectEnvIdx, mergeEnvironments } from '@/store/environmentSlice';
+import { selectEnvironments, selectEnvIdx } from '@/store/collectionsSlice';
 
 type Props = { T: Theme };
 
@@ -27,8 +27,6 @@ export default function FilePane({ T }: Props) {
   const collections = useSelector(selectCollections);
   const activeId = useSelector(selectActiveId);
   const recents = useSelector(selectRecentItems);
-  const environments = useSelector(selectEnvironments);
-  const envIdx = useSelector(selectEnvIdx);
 
   const colorMap: Record<string, string> = {
     success: T.success,
@@ -70,7 +68,7 @@ export default function FilePane({ T }: Props) {
   };
 
   const onExportCollection = () => {
-    const json = JSON.stringify({ collections, environments, envIdx }, null, 2);
+    const json = JSON.stringify({ collections }, null, 2);
     downloadBlob(`bulky-collections-${Date.now()}.json`, json, 'application/json');
   };
 
@@ -82,11 +80,18 @@ export default function FilePane({ T }: Props) {
       const json = JSON.parse(text);
       // Restore collections
       const imported = json.collections ? json.collections : (Array.isArray(json) ? json : [json]);
-      dispatch(importCollections(imported));
-      // Merge imported environments alongside existing ones
+      
+      // Handle legacy format with top-level environments
       if (json.environments?.length) {
-        dispatch(mergeEnvironments(json.environments));
+        for (const col of imported) {
+          if (!col.environments || col.environments.length === 0) {
+            col.environments = JSON.parse(JSON.stringify(json.environments));
+            col.envIdx = json.envIdx || 0;
+          }
+        }
       }
+
+      dispatch(importCollections(imported));
       dispatch(setSidebarTab('collections'));
     } catch (err) {
       alert('Failed to parse collection JSON.');

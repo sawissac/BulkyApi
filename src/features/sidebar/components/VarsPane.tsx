@@ -9,7 +9,7 @@ import {
   setVar,
   deleteVar,
   renameVar,
-} from '@/store/environmentSlice';
+} from '@/store/collectionsSlice';
 
 type Props = { T: Theme };
 
@@ -28,7 +28,13 @@ export default function VarsPane({ T }: Props) {
   const [showAdding, setShowAdding] = useState(false);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
-  if (!env) return null;
+  if (!env) {
+    return (
+      <div style={{ padding: '16px', textAlign: 'center', color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10 }}>
+        Select a collection and create an environment to manage variables.
+      </div>
+    );
+  }
 
   const commitEdit = () => {
     if (!editCell) return;

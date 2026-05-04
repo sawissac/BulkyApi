@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
 import { runScript } from "@/lib/scriptRunner";
 import { selectCode } from "@/store/editorSlice";
-import { selectEnvVars, selectActiveEnv } from "@/store/environmentSlice";
+import { selectEnvVars, selectActiveEnv } from "@/store/collectionsSlice";
 import {
   selectBuiltCalls,
   selectRunning,
