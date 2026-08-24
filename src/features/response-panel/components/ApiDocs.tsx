@@ -63,7 +63,7 @@ export default function ApiDocs({ T, calls }: Props) {
             background: viewMode === 'view' ? T.bgSelected : 'transparent',
             border: `1px solid ${viewMode === 'view' ? T.borderAccent : 'transparent'}`,
             color: viewMode === 'view' ? T.cyan : T.textDim,
-            cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700
+            cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 700
           }}
         >
           <FileText size={12} /> View
@@ -75,7 +75,7 @@ export default function ApiDocs({ T, calls }: Props) {
             background: viewMode === 'raw' ? T.bgSelected : 'transparent',
             border: `1px solid ${viewMode === 'raw' ? T.borderAccent : 'transparent'}`,
             color: viewMode === 'raw' ? T.cyan : T.textDim,
-            cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700
+            cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 700
           }}
         >
           <FileCode2 size={12} /> Raw
@@ -83,13 +83,13 @@ export default function ApiDocs({ T, calls }: Props) {
         <div style={{ flex: 1 }} />
         <button
           onClick={() => navigator.clipboard.writeText(markdown)}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, background: T.bgHover, border: `1px solid ${T.border}`, color: T.textBright, cursor: 'pointer', fontSize: 10, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, background: T.bgHover, border: `1px solid ${T.border}`, color: T.textBright, cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700 }}
         >
           <Copy size={12} /> Copy Markdown
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', color: T.textBright, fontFamily: viewMode === 'raw' ? "'JetBrains Mono', monospace" : "'Poppins', sans-serif" }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', color: T.textBright, fontFamily: viewMode === 'raw' ? 'var(--font-mono)' : 'var(--font-display)' }}>
         {viewMode === 'raw' ? (
           <pre style={{ margin: 0, fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: T.textDim }}>
             {markdown}
@@ -106,11 +106,11 @@ export default function ApiDocs({ T, calls }: Props) {
                 code: ({node, className, children, ...props}) => {
                   const match = /language-(\w+)/.exec(className || '')
                   return match ? (
-                    <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.9em' }} {...props}>
+                    <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9em' }} {...props}>
                       {children}
                     </code>
                   ) : (
-                    <code style={{ background: T.bgHover, padding: '2px 4px', borderRadius: '4px', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.9em', border: `1px solid ${T.border}` }} {...props}>
+                    <code style={{ background: T.bgHover, padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--font-mono)', fontSize: '0.9em', border: `1px solid ${T.border}` }} {...props}>
                       {children}
                     </code>
                   )

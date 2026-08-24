@@ -68,7 +68,7 @@ function SseBodyEvents({
         <Radio size={10} color={SSE_CLR} />
         <span
           style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: 'var(--font-display)',
             fontSize: 8,
             fontWeight: 700,
             letterSpacing: "0.1em",
@@ -79,7 +79,7 @@ function SseBodyEvents({
         </span>
         <span
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
             fontSize: 8,
             color: T.textDim,
           }}
@@ -103,7 +103,7 @@ function SseBodyEvents({
                   border: `1px solid ${active ? SSE_CLR : T.border}`,
                   background: active ? `${SSE_CLR}15` : "transparent",
                   color: active ? SSE_CLR : T.textDim,
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: 'var(--font-display)',
                   fontSize: 8,
                   fontWeight: 700,
                   letterSpacing: "0.1em",
@@ -119,7 +119,7 @@ function SseBodyEvents({
       {raw ? (
         <pre
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
             fontSize: 11,
             color: T.text,
             whiteSpace: "pre-wrap",
@@ -161,7 +161,7 @@ function SseBodyEvents({
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 7,
                       fontWeight: 700,
                       color: T.textDim,
@@ -172,7 +172,7 @@ function SseBodyEvents({
                   {!isMsg && (
                     <span
                       style={{
-                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontFamily: 'var(--font-display)',
                         fontSize: 7,
                         fontWeight: 700,
                         letterSpacing: "0.08em",
@@ -189,7 +189,7 @@ function SseBodyEvents({
                   {ev.id && (
                     <span
                       style={{
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: 'var(--font-mono)',
                         fontSize: 7,
                         color: T.textDim,
                       }}
@@ -201,7 +201,7 @@ function SseBodyEvents({
                 {typeof parsed === "string" ? (
                   <pre
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 10,
                       color: T.text,
                       margin: 0,
@@ -214,7 +214,7 @@ function SseBodyEvents({
                 ) : (
                   <div
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 10,
                       lineHeight: 1.6,
                     }}
@@ -256,7 +256,7 @@ function SseEvents({ T, call }: Props) {
         />
         <span
           style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: 'var(--font-display)',
             fontSize: 8,
             fontWeight: 700,
             letterSpacing: "0.1em",
@@ -267,7 +267,7 @@ function SseEvents({ T, call }: Props) {
         </span>
         <span
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
             fontSize: 8,
             color: T.textDim,
           }}
@@ -295,7 +295,7 @@ function SseEvents({ T, call }: Props) {
           )}
           <span
             style={{
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--font-display)',
               fontSize: 11,
               fontStyle: "italic",
             }}
@@ -329,7 +329,7 @@ function SseEvents({ T, call }: Props) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 7,
                       fontWeight: 700,
                       color: T.textDim,
@@ -340,7 +340,7 @@ function SseEvents({ T, call }: Props) {
                   {!isMsg && (
                     <span
                       style={{
-                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontFamily: 'var(--font-display)',
                         fontSize: 7,
                         fontWeight: 700,
                         letterSpacing: "0.08em",
@@ -357,7 +357,7 @@ function SseEvents({ T, call }: Props) {
                   {ev.id && (
                     <span
                       style={{
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: 'var(--font-mono)',
                         fontSize: 7,
                         color: T.textDim,
                       }}
@@ -368,7 +368,7 @@ function SseEvents({ T, call }: Props) {
                   <span
                     style={{
                       marginLeft: "auto",
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 7,
                       color: T.textDim,
                     }}
@@ -379,7 +379,7 @@ function SseEvents({ T, call }: Props) {
                 {typeof parsed === "string" ? (
                   <pre
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 10,
                       color: T.text,
                       margin: 0,
@@ -392,7 +392,7 @@ function SseEvents({ T, call }: Props) {
                 ) : (
                   <div
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 10,
                       lineHeight: 1.6,
                     }}
@@ -451,7 +451,7 @@ export default function RespTab({ T, call }: Props) {
           style={{ animation: "spin 0.7s linear infinite" }}
           color={T.cyan}
         />
-        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 12 }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 12 }}>
           Awaiting response…
         </span>
       </div>
@@ -462,7 +462,7 @@ export default function RespTab({ T, call }: Props) {
     return (
       <div
         style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
           color: T.error,
           background: `${T.error}10`,
@@ -502,7 +502,7 @@ export default function RespTab({ T, call }: Props) {
           border: `1px solid ${active ? T.cyan : T.border}`,
           background: active ? `${T.cyan}15` : "transparent",
           color: active ? T.cyan : T.textDim,
-          fontFamily: "'Space Grotesk', sans-serif",
+          fontFamily: 'var(--font-display)',
           fontSize: 8,
           fontWeight: 700,
           letterSpacing: "0.1em",
@@ -530,7 +530,7 @@ export default function RespTab({ T, call }: Props) {
       {view === "raw" ? (
         <pre
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
             fontSize: 11,
             color: T.text,
             whiteSpace: "pre-wrap",
@@ -561,7 +561,7 @@ export default function RespTab({ T, call }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 4,
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: 'var(--font-display)',
               fontSize: 8,
               fontWeight: 700,
               transition: "all 0.15s",
@@ -572,7 +572,7 @@ export default function RespTab({ T, call }: Props) {
           </button>
           <pre
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: 'var(--font-mono)',
               fontSize: 11,
               color: T.cyan,
               whiteSpace: "pre-wrap",
@@ -589,7 +589,7 @@ export default function RespTab({ T, call }: Props) {
       ) : (
         <div
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
             fontSize: 11,
             lineHeight: 1.7,
           }}

@@ -7,7 +7,7 @@ type Props = { T: Theme; headers: Record<string, string> };
 
 export default function HeadTab({ T, headers }: Props) {
   if (Object.keys(headers).length === 0) {
-    return <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, color: T.textDim }}>No response headers captured.</span>;
+    return <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, color: T.textDim }}>No response headers captured.</span>;
   }
   return (
     <div>

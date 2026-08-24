@@ -23,8 +23,8 @@ export default function KVRow({ T, k, v, masked }: Props) {
         marginBottom: 3,
       }}
     >
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.cyan }}>{k}</span>
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text, wordBreak: 'break-all' }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: T.cyan }}>{k}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: T.text, wordBreak: 'break-all' }}>
         {masked ? v.slice(0, 24) + '…' : v}
       </span>
     </div>

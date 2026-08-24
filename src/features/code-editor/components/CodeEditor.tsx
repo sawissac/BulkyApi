@@ -1,17 +1,17 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useDispatch, useSelector } from 'react-redux';
-import { Code2, Play, Loader2, ChevronRight, SkipForward, Footprints, BookOpen, WandSparkles, Square } from 'lucide-react';
+import { Code2, Play, ChevronRight, SkipForward, Footprints, BookOpen, WandSparkles, Square } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import { selectCode, setCode } from '@/store/editorSlice';
 import { selectActiveItem, selectActiveCollection } from '@/store/collectionsSlice';
 import { setSidebarTab } from '@/store/uiSlice';
 import { selectEnvVars } from '@/store/collectionsSlice';
-import { METHOD_CLR } from '@/lib/themes';
 import { EXAMPLE_SCRIPTS } from '@/lib/sampleData';
 import type { ExampleScript } from '@/lib/sampleData';
+import MethodPill from '@/components/MethodPill';
 import ExampleDialog from './ExampleDialog';
 import type { EditorInstance } from './MonacoCodeEditor';
 import * as prettier from 'prettier/standalone';
@@ -19,6 +19,22 @@ import * as babelPlugin from 'prettier/plugins/babel';
 import * as estreePlugin from 'prettier/plugins/estree';
 
 const MonacoCodeEditor = dynamic(() => import('./MonacoCodeEditor'), { ssr: false });
+
+/** Toolbar toggle: flat, bordered, fills with the accent tint when active. */
+const TOOL_BTN =
+  'flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-app-border bg-transparent px-2.5 text-app-dim transition-colors duration-200 ' +
+  'hover:border-app-border-accent hover:bg-app-selected hover:text-app-accent ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel ' +
+  'disabled:pointer-events-none disabled:opacity-50 ' +
+  'data-active:border-app-border-accent data-active:bg-app-accent-faint data-active:text-app-accent';
+
+/** Run / Stop / Next: the pane's solid action blocks. No gradient, no glow. */
+const ACTION_BTN =
+  'flex h-8 shrink-0 items-center gap-1.5 rounded-md border-0 px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid ' +
+  'transition-transform duration-200 hover:scale-105 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel';
+
+const TOOL_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.07em]';
 
 type Props = {
   T: Theme;
@@ -52,6 +68,19 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
     setShowExamples(true);
   };
 
+  // Escape closes the examples menu — it had no keyboard dismissal before
+  useEffect(() => {
+    if (!showExamples) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowExamples(false);
+        exBtnRef.current?.querySelector('button')?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showExamples]);
+
   const handleFormat = async () => {
     try {
       const formatted = await prettier.format(code, {
@@ -68,168 +97,114 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
     }
   };
 
-  const mc = activeItem ? (METHOD_CLR[activeItem.method] ?? T.textDim) : null;
-
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', background: T.editorBg, minWidth: 0, height: '100%', overflow: 'hidden' }}>
+    <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-app-editor">
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', height: 44, background: T.bgPanel, borderBottom: `1px solid ${T.border}`, flexShrink: 0, minWidth: 0 }}>
-        <Code2 size={13} color={T.cyanDim} style={{ flexShrink: 0 }} />
+      <div className="flex h-11 min-w-0 shrink-0 items-center gap-2 border-b border-app-border bg-app-panel px-3">
+        <Code2 size={14} className="shrink-0 text-app-accent-dim" aria-hidden="true" />
 
         {/* Breadcrumb */}
         {activeItem && activeCollection ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
             <button
+              type="button"
               onClick={() => dispatch(setSidebarTab('collections'))}
               title="Go to collection"
-              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 80 }}
+              className="max-w-[100px] shrink-0 truncate rounded-sm border-0 bg-transparent p-0 text-[11px] font-semibold uppercase tracking-[0.1em] text-app-dim transition-colors duration-200 hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
             >
               {activeCollection.name}
             </button>
-            <ChevronRight size={10} color={T.textDim} style={{ flexShrink: 0 }} />
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', color: T.textBright, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+            <ChevronRight size={12} className="shrink-0 text-app-dim" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-[12px] font-bold tracking-[0.02em] text-app-bright">
               {activeItem.name}
             </span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700, color: mc!, background: `${mc}18`, border: `1px solid ${mc}30`, padding: '1px 5px', borderRadius: 4, flexShrink: 0 }}>
-              {activeItem.method}
-            </span>
+            <MethodPill method={activeItem.method} sm />
           </div>
         ) : (
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
+          <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-app-dim">
             Scratch Pad
           </span>
         )}
 
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim, flexShrink: 0 }}>⌘↵</span>
+        <span className="shrink-0 font-mono text-[11px] text-app-dim" title="Run shortcut">⌘↵</span>
 
-        {/* Format button */}
         <button
+          type="button"
           onClick={handleFormat}
           title="Format document (Shift+Alt+F)"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6,
-            border: `1px solid ${T.border}`,
-            background: 'transparent',
-            color: T.textDim,
-            cursor: 'pointer', transition: 'all 0.15s',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = T.cyan; e.currentTarget.style.borderColor = T.borderAccent; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = T.textDim; e.currentTarget.style.borderColor = T.border; }}
+          className={TOOL_BTN}
         >
-          <WandSparkles size={11} />
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.07em' }}>
-            Format
-          </span>
+          <WandSparkles size={13} aria-hidden="true" />
+          <span className={TOOL_LABEL}>Format</span>
         </button>
 
-        {/* Examples dropdown */}
-        <div ref={exBtnRef} style={{ position: 'relative', flexShrink: 0 }}>
+        <div ref={exBtnRef} className="relative shrink-0">
           <button
+            type="button"
             onClick={toggleExamples}
             title="Load an example script"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6,
-              border: `1px solid ${showExamples ? T.borderAccent : T.border}`,
-              background: showExamples ? T.cyanFaint : 'transparent',
-              color: showExamples ? T.cyan : T.textDim,
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}
+            aria-haspopup="menu"
+            aria-expanded={showExamples}
+            data-active={showExamples || undefined}
+            className={TOOL_BTN}
           >
-            <BookOpen size={11} />
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.07em' }}>
-              Examples
-            </span>
+            <BookOpen size={13} aria-hidden="true" />
+            <span className={TOOL_LABEL}>Examples</span>
           </button>
         </div>
 
-        {/* Step mode toggle */}
         <button
+          type="button"
           onClick={onToggleStep}
           disabled={running}
           title={stepMode ? 'Step mode on — click to disable' : 'Enable step-by-step mode'}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6,
-            border: `1px solid ${stepMode ? T.borderAccent : T.border}`,
-            background: stepMode ? T.cyanFaint : 'transparent',
-            color: stepMode ? T.cyan : T.textDim,
-            cursor: running ? 'not-allowed' : 'pointer',
-            opacity: running ? 0.5 : 1,
-            transition: 'all 0.15s',
-            flexShrink: 0,
-          }}
+          aria-pressed={stepMode}
+          data-active={stepMode || undefined}
+          className={TOOL_BTN}
         >
-          <Footprints size={11} />
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.07em' }}>
-            Step
-          </span>
+          <Footprints size={13} aria-hidden="true" />
+          <span className={TOOL_LABEL}>Step</span>
         </button>
 
-        {/* Next button — only when paused in step mode */}
+        {/* Next — only when paused in step mode */}
         {paused && (
           <button
+            type="button"
             onClick={onNext}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 9999, border: 'none',
-              background: `linear-gradient(135deg, ${T.warn}, #d97706)`,
-              color: 'white',
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: `0 4px 16px ${T.warn}44`,
-              animation: 'pulse 1s ease-in-out infinite',
-              flexShrink: 0,
-            }}
+            className={`${ACTION_BTN} animate-[pulse_1s_ease-in-out_infinite] bg-app-warn focus-visible:ring-app-warn`}
           >
-            <SkipForward size={11} fill="white" />
+            <SkipForward size={13} fill="currentColor" aria-hidden="true" />
             Next
           </button>
         )}
 
-        {/* Stop button — only while running */}
+        {/* Stop — only while running */}
         {running && !paused && (
           <button
+            type="button"
             onClick={onStop}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 9999, border: 'none',
-              background: `linear-gradient(135deg, ${T.error ?? '#dc2626'}, #b91c1c)`,
-              color: 'white',
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(220,38,38,0.3)',
-              flexShrink: 0,
-            }}
+            className={`${ACTION_BTN} bg-app-error focus-visible:ring-app-error`}
           >
-            <Square size={10} fill="white" />
+            <Square size={12} fill="currentColor" aria-hidden="true" />
             Stop
           </button>
         )}
 
-        {/* Run button — hidden when running or paused */}
+        {/* Run — hidden while running or paused */}
         {!running && !paused && (
           <button
+            type="button"
             onClick={onRun}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 9999, border: 'none',
-              background: 'linear-gradient(135deg,#0891b2,#2563eb)',
-              color: 'white',
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(34,211,238,0.25)',
-              transition: 'all 0.2s',
-              flexShrink: 0,
-            }}
+            className={`${ACTION_BTN} bg-app-accent focus-visible:ring-app-accent`}
           >
-            <Play size={11} fill="white" />Run
+            <Play size={13} fill="currentColor" aria-hidden="true" />
+            Run
           </button>
         )}
-
       </div>
 
       {/* Editor body */}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      <div className="relative flex-1 overflow-hidden">
         <MonacoCodeEditor
           value={code}
           onChange={(v) => dispatch(setCode(v))}
@@ -240,44 +215,30 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
         />
       </div>
 
-      {/* Examples overlay + dropdown */}
+      {/* Examples overlay + menu */}
       {showExamples && dropPos && (
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setShowExamples(false)} />
-          <div style={{
-            position: 'fixed', top: dropPos.top, right: dropPos.right, zIndex: 50,
-            background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: 8,
-            padding: 4, minWidth: 210,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
-          }}>
-            {EXAMPLE_SCRIPTS.map((ex) => {
-              const clr = ex.method === 'DOCS' ? '#a78bfa' : (METHOD_CLR[ex.method] ?? T.textDim);
-              return (
-                <button
-                  key={ex.label}
-                  onClick={() => { setSelectedExample(ex); setShowExamples(false); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                    padding: '6px 10px', borderRadius: 5, border: 'none',
-                    background: 'transparent', cursor: 'pointer', textAlign: 'left',
-                    transition: 'background 0.12s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = T.bgHover; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
-                    color: clr, background: `${clr}18`, border: `1px solid ${clr}30`,
-                    padding: '1px 5px', borderRadius: 4, flexShrink: 0, minWidth: 34, textAlign: 'center',
-                  }}>
-                    {ex.method === 'DOCS' ? 'DOCS' : ex.method}
-                  </span>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, color: T.text }}>
-                    {ex.label}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="fixed inset-0 z-49" onClick={() => setShowExamples(false)} />
+          <div
+            role="menu"
+            aria-label="Example scripts"
+            style={{ top: dropPos.top, right: dropPos.right }}
+            className="fixed z-50 min-w-[230px] rounded-lg border-2 border-app-border-mid bg-app-panel p-1"
+          >
+            {EXAMPLE_SCRIPTS.map((ex) => (
+              <button
+                key={ex.label}
+                type="button"
+                role="menuitem"
+                onClick={() => { setSelectedExample(ex); setShowExamples(false); }}
+                className="flex w-full items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-200 hover:bg-app-hover focus-visible:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent"
+              >
+                <span className="flex w-11 shrink-0 justify-center">
+                  <MethodPill method={ex.method} sm focusable={false} />
+                </span>
+                <span className="text-[12px] text-app-text">{ex.label}</span>
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -293,20 +254,20 @@ export default function CodeEditor({ T, onRun, onNext, onStop, running, stepMode
       )}
 
       {/* Status bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 12px', background: T.bgPanel, borderTop: `1px solid ${T.border}`, flexShrink: 0, minWidth: 0 }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim }}>JavaScript</span>
+      <div className="flex min-w-0 shrink-0 items-center gap-3 border-t border-app-border bg-app-panel px-3 py-1.5">
+        <span className="font-mono text-[11px] text-app-dim">JavaScript</span>
         {activeItem && (
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.cyanDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className="truncate font-mono text-[11px] text-app-accent-dim">
             {activeItem.name}
           </span>
         )}
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
         {stepMode && (
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, color: T.warn, letterSpacing: '0.1em' }}>
-            STEP MODE
+          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-app-warn">
+            Step mode
           </span>
         )}
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.cyanDim }}>Bulky Runtime v1.0</span>
+        <span className="shrink-0 font-mono text-[11px] text-app-accent-dim">Bulky Runtime v1.0</span>
       </div>
     </div>
   );

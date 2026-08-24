@@ -16,7 +16,7 @@ export default function ApiWaterfall({ T }: Props) {
     return (
       <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, opacity: 0.3 }}>
         <Code2 size={32} color={T.textDim} strokeWidth={1} />
-        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, color: T.textDim }}>No api.* calls found in script</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, color: T.textDim }}>No api.* calls found in script</span>
       </div>
     );
   }
@@ -36,9 +36,9 @@ export default function ApiWaterfall({ T }: Props) {
     <div style={{ padding: '10px 0' }}>
       {/* Time axis header */}
       <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 52px', gap: 6, padding: '0 10px 6px', borderBottom: `1px solid ${T.border}` }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Method / URL</span>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Timeline</span>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim, textAlign: 'right' }}>ms</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Method / URL</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Timeline</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim, textAlign: 'right' }}>ms</span>
       </div>
 
       {rows.map(({ call, startMs, endMs }) => {
@@ -57,8 +57,8 @@ export default function ApiWaterfall({ T }: Props) {
           >
             {/* Method + URL */}
             <div style={{ minWidth: 0 }}>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700, color: mc, marginRight: 4 }}>{call.method}</span>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: T.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{urlDisplay}</div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: mc, marginRight: 4 }}>{call.method}</span>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: T.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{urlDisplay}</div>
             </div>
 
             {/* Waterfall bar */}
@@ -77,14 +77,14 @@ export default function ApiWaterfall({ T }: Props) {
                 }}
               />
               {call.statusCode && (
-                <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: sc, fontWeight: 700 }}>
+                <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: 7, color: sc, fontWeight: 700 }}>
                   {call.statusCode}
                 </span>
               )}
             </div>
 
             {/* Duration */}
-            <div style={{ textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: call.duration ? T.textDim : 'transparent' }}>
+            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 8, color: call.duration ? T.textDim : 'transparent' }}>
               {call.duration ? call.duration : '—'}
             </div>
           </div>
@@ -94,8 +94,8 @@ export default function ApiWaterfall({ T }: Props) {
       {/* Total row */}
       {calls.some((c) => c.duration > 0) && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 10px 0', gap: 6 }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim }}>total</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.cyan, fontWeight: 700 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: T.textDim }}>total</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: T.cyan, fontWeight: 700 }}>
             {totalMs}ms
           </span>
         </div>

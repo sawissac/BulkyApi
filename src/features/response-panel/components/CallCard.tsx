@@ -54,7 +54,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         background: tab === id ? T.bgSelected : "transparent",
         border: "none",
         color: tab === id ? T.cyan : T.textDim,
-        fontFamily: "'Space Grotesk', sans-serif",
+        fontFamily: 'var(--font-display)',
         fontSize: 9,
         fontWeight: 700,
         letterSpacing: "0.08em",
@@ -92,7 +92,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           <span
             title={call.note}
             style={{
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--font-display)',
               fontSize: 11,
               fontWeight: 500,
               color: T.cyan,
@@ -142,7 +142,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         >
           <span
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: 'var(--font-mono)',
               fontSize: 8,
               fontWeight: 700,
               color: open ? T.cyan : T.textDim,
@@ -157,7 +157,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         <span
           style={{
             flex: 1,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
             fontSize: 9,
             color: open ? T.textBright : T.text,
             whiteSpace: "nowrap",
@@ -198,7 +198,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         {call.duration > 0 && (
           <span
             style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: 'var(--font-mono)',
               fontSize: 8,
               color: T.textDim,
               flexShrink: 0,
@@ -262,7 +262,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           ) : (
             <span
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: 'var(--font-mono)',
                 fontSize: 9,
                 color: T.error,
                 flexShrink: 0,
@@ -325,7 +325,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         >
           <span
             style={{
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--font-display)',
               fontSize: 11,
               color: T.textDim,
               fontStyle: "italic",

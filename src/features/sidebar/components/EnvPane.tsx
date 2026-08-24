@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
+import * as ui from '@/lib/ui';
 import {
-  selectActiveId,
   selectActiveCollection,
   selectEnvironments,
   selectEnvIdx,
@@ -18,7 +18,7 @@ import {
 
 type Props = { T: Theme };
 
-export default function EnvPane({ T }: Props) {
+export default function EnvPane({}: Props) {
   const dispatch = useDispatch();
   const activeCol = useSelector(selectActiveCollection);
   const environments = useSelector(selectEnvironments);
@@ -30,9 +30,9 @@ export default function EnvPane({ T }: Props) {
 
   if (!activeCol) {
     return (
-      <div style={{ padding: '16px', textAlign: 'center', color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10 }}>
+      <p className="p-4 text-center text-[12px] text-app-dim">
         Select a collection to manage environments.
-      </div>
+      </p>
     );
   }
 
@@ -51,87 +51,80 @@ export default function EnvPane({ T }: Props) {
   };
 
   return (
-    <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim }}>
-          {activeCol.name} Env
-        </span>
+    <div className="flex flex-col gap-1.5 p-2.5">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className={`${ui.label} truncate`}>{activeCol.name} Env</h2>
         <button
+          type="button"
           onClick={() => setAdding(true)}
-          style={{ background: 'transparent', border: 'none', color: T.cyanDim, cursor: 'pointer', lineHeight: 1, padding: '0 2px', display: 'flex' }}
-          title="Add Environment"
+          className={ui.iconBtn}
+          title="Add environment"
+          aria-label="Add environment"
         >
-          <Plus size={13} />
+          <Plus size={14} aria-hidden="true" />
         </button>
       </div>
 
-      {environments.map((env, i) => {
-        const isEditing = editingId === env.id;
-        return (
-          <div
-            key={env.id}
-            onClick={() => !isEditing && dispatch(setEnvIdx({ collectionId: activeCol.id, envIdx: i }))}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              border: `1px solid ${i === envIdx ? T.borderAccent : T.border}`,
-              background: i === envIdx ? T.bgSelected : 'transparent',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              const btn = e.currentTarget.querySelector<HTMLButtonElement>('.env-del');
-              if (btn) btn.style.opacity = '1';
-            }}
-            onMouseLeave={(e) => {
-              const btn = e.currentTarget.querySelector<HTMLButtonElement>('.env-del');
-              if (btn) btn.style.opacity = '0.6';
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: i === envIdx ? T.cyan : T.textDim, flexShrink: 0, transition: 'background 0.15s' }} />
-              {isEditing ? (
-                <input
-                  autoFocus
-                  value={editDraft}
-                  onChange={(e) => setEditDraft(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setEditingId(null); }}
-                  onBlur={commitRename}
-                  style={{ flex: 1, minWidth: 0, background: T.bg, border: `1px solid ${T.borderAccent}`, borderRadius: 4, padding: '2px 5px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 600, color: T.textBright, outline: 'none' }}
-                />
-              ) : (
+      <ul className="flex flex-col gap-1.5">
+        {environments.map((env, i) => {
+          const isEditing = editingId === env.id;
+          const isActive = i === envIdx;
+          return (
+            <li key={env.id} data-selected={isActive || undefined} className={`${ui.row} flex-col items-stretch!`}>
+              <div className="flex min-w-0 items-center gap-2">
                 <span
-                  onDoubleClick={(e) => { e.stopPropagation(); setEditingId(env.id); setEditDraft(env.name); }}
-                  style={{ flex: 1, minWidth: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 600, color: i === envIdx ? T.textBright : T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                  title="Double-click to rename"
+                  aria-hidden="true"
+                  className={`size-1.5 shrink-0 rounded-full transition-colors duration-200 ${isActive ? 'bg-app-accent' : 'bg-app-dim'}`}
+                />
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setEditingId(null); }}
+                    onBlur={commitRename}
+                    aria-label={`Rename ${env.name}`}
+                    className={`${ui.input} py-0.5`}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => dispatch(setEnvIdx({ collectionId: activeCol.id, envIdx: i }))}
+                    onDoubleClick={() => { setEditingId(env.id); setEditDraft(env.name); }}
+                    data-selected={isActive || undefined}
+                    aria-current={isActive ? 'true' : undefined}
+                    title="Click to activate, double-click to rename"
+                    className={ui.rowSelect}
+                  >
+                    {env.name}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => dispatch(duplicateEnvironment(env.id))}
+                  className={`${ui.iconBtn} ${ui.dim}`}
+                  title="Duplicate"
+                  aria-label={`Duplicate ${env.name}`}
                 >
-                  {env.name}
-                </span>
-              )}
-              <button
-                className="env-dup"
-                onClick={(e) => { e.stopPropagation(); dispatch(duplicateEnvironment(env.id)); }}
-                style={{ background: 'transparent', border: 'none', color: T.cyanDim, cursor: 'pointer', lineHeight: 1, padding: 0, opacity: 0.6, transition: 'opacity 0.15s', display: 'flex', flexShrink: 0 }}
-                title="Duplicate"
-              >
-                <Copy size={11} />
-              </button>
-              <button
-                className="env-del"
-                onClick={(e) => { e.stopPropagation(); if (confirm(`Delete environment "${env.name}"?`)) dispatch(removeEnvironment(env.id)); }}
-                style={{ background: 'transparent', border: 'none', color: T.error, cursor: 'pointer', lineHeight: 1, padding: 0, opacity: 0.6, transition: 'opacity 0.15s', display: 'flex', flexShrink: 0 }}
-                title="Delete"
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-            <div style={{ marginTop: 3, fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim, paddingLeft: 13 }}>
-              {Object.keys(env.vars).length} variables
-            </div>
-          </div>
-        );
-      })}
+                  <Copy size={13} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (confirm(`Delete environment "${env.name}"?`)) dispatch(removeEnvironment(env.id)); }}
+                  className={`${ui.iconBtnDanger} ${ui.dim}`}
+                  title="Delete"
+                  aria-label={`Delete ${env.name}`}
+                >
+                  <Trash2 size={13} aria-hidden="true" />
+                </button>
+              </div>
+              <p className={`${ui.meta} mt-1 pl-3.5`}>
+                {Object.keys(env.vars).length} variables
+              </p>
+            </li>
+          );
+        })}
+      </ul>
 
       {adding && (
         <input
@@ -144,16 +137,8 @@ export default function EnvPane({ T }: Props) {
           }}
           onBlur={commitAdd}
           placeholder="Environment name…"
-          style={{
-            background: T.bgHover,
-            border: `1px solid ${T.borderAccent}`,
-            borderRadius: 6,
-            padding: '6px 8px',
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 11,
-            color: T.textBright,
-            outline: 'none',
-          }}
+          aria-label="New environment name"
+          className={ui.input}
         />
       )}
     </div>

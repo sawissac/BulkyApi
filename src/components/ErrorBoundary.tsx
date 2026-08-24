@@ -18,7 +18,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           height: '100vh', gap: 12, background: '#0a0e1a', color: '#94a3b8',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: 'var(--font-mono)',
         }}>
           <span style={{ fontSize: 13, color: '#f87171' }}>Runtime error</span>
           <pre style={{ fontSize: 11, color: '#64748b', maxWidth: 600, whiteSpace: 'pre-wrap', textAlign: 'center' }}>

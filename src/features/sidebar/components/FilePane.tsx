@@ -3,6 +3,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { Download, Upload, BarChart2, Copy, FileText, FolderUp } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
+import * as ui from '@/lib/ui';
 import { selectCode, setCode } from '@/store/editorSlice';
 import {
   selectCollections,
@@ -15,25 +16,27 @@ import {
 import { setSidebarTab } from '@/store/uiSlice';
 import { downloadBlob, pickFile, readFileText } from '@/lib/fileUtils';
 import { parseCurl, curlToScript } from '@/lib/curlParser';
-import { selectEnvironments, selectEnvIdx } from '@/store/collectionsSlice';
 
 type Props = { T: Theme };
 
-const COLOR_KEYS = ['success', 'cyan', 'warn', 'purple'] as const;
+/**
+ * Each action gets its own accent so the list reads as a set of color blocks
+ * rather than five identical rows. All four are theme tokens — the previous
+ * hardcoded violet was unreadable on light themes.
+ */
+const TONES = {
+  save: 'var(--app-success)',
+  load: 'var(--app-accent)',
+  json: 'var(--app-warn)',
+  curl: 'var(--method-patch)',
+} as const;
 
-export default function FilePane({ T }: Props) {
+export default function FilePane({}: Props) {
   const dispatch = useDispatch();
   const code = useSelector(selectCode);
   const collections = useSelector(selectCollections);
   const activeId = useSelector(selectActiveId);
   const recents = useSelector(selectRecentItems);
-
-  const colorMap: Record<string, string> = {
-    success: T.success,
-    cyan: T.cyan,
-    warn: T.warn,
-    purple: '#a78bfa',
-  };
 
   const targetCollectionId = (() => {
     if (activeId) {
@@ -80,7 +83,7 @@ export default function FilePane({ T }: Props) {
       const json = JSON.parse(text);
       // Restore collections
       const imported = json.collections ? json.collections : (Array.isArray(json) ? json : [json]);
-      
+
       // Handle legacy format with top-level environments
       if (json.environments?.length) {
         for (const col of imported) {
@@ -93,7 +96,7 @@ export default function FilePane({ T }: Props) {
 
       dispatch(importCollections(imported));
       dispatch(setSidebarTab('collections'));
-    } catch (err) {
+    } catch {
       alert('Failed to parse collection JSON.');
     }
   };
@@ -120,65 +123,66 @@ export default function FilePane({ T }: Props) {
   };
 
   const ACTIONS = [
-    { icon: Download, label: 'Save Script', sub: 'Export current script as .js', colorKey: COLOR_KEYS[0], onClick: onSaveScript },
-    { icon: Upload,   label: 'Import Script', sub: 'Load a .js automation file', colorKey: COLOR_KEYS[1], onClick: onImportScript },
-    { icon: FolderUp, label: 'Import Collection', sub: 'Load collections from JSON', colorKey: COLOR_KEYS[2], onClick: onImportCollection },
-    { icon: BarChart2, label: 'Export Collection', sub: 'Save all collections as JSON', colorKey: COLOR_KEYS[2], onClick: onExportCollection },
-    { icon: Copy,     label: 'Import from cURL', sub: 'Paste a curl command', colorKey: COLOR_KEYS[3], onClick: onImportCurl },
+    { icon: Download,  label: 'Save Script',       sub: 'Export current script as .js',  tone: TONES.save, onClick: onSaveScript },
+    { icon: Upload,    label: 'Import Script',     sub: 'Load a .js automation file',    tone: TONES.load, onClick: onImportScript },
+    { icon: FolderUp,  label: 'Import Collection', sub: 'Load collections from JSON',    tone: TONES.json, onClick: onImportCollection },
+    { icon: BarChart2, label: 'Export Collection', sub: 'Save all collections as JSON',  tone: TONES.json, onClick: onExportCollection },
+    { icon: Copy,      label: 'Import from cURL',  sub: 'Paste a curl command',          tone: TONES.curl, onClick: onImportCurl },
   ];
 
   return (
-    <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, display: 'block', marginBottom: 4 }}>
-        File Actions
-      </span>
+    <div className="flex flex-col gap-1.5 p-2.5">
+      <h2 className={`${ui.label} mb-1`}>File Actions</h2>
 
-      {ACTIONS.map((a, i) => {
-        const color = colorMap[a.colorKey];
+      {ACTIONS.map((a) => {
         const Icon = a.icon;
         return (
-          <div
-            key={i}
+          <button
+            key={a.label}
+            type="button"
             onClick={a.onClick}
-            style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgHover, cursor: 'pointer', transition: 'all 0.15s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${color}50`; e.currentTarget.style.background = `${color}0a`; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.bgHover; }}
+            style={{ color: a.tone }}
+            // The card carries the tone as its text color, so the icon block's
+            // fill and border derive from it via `tint-current`.
+            className="group flex items-center gap-2.5 rounded-md border border-app-border bg-app-hover p-2 text-left transition-colors duration-200 hover:border-current/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-app-sidebar"
           >
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: `${color}15`, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon size={13} color={color} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 600, color: T.textBright }}>{a.label}</div>
-              <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 9, color: T.textDim, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.sub}</div>
-            </div>
-          </div>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md border tint-current transition-transform duration-200 group-hover:scale-110">
+              <Icon size={15} aria-hidden="true" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[12px] font-semibold text-app-bright">{a.label}</span>
+              <span className="mt-0.5 block truncate text-[11px] text-app-dim">{a.sub}</span>
+            </span>
+          </button>
         );
       })}
 
-      <div style={{ marginTop: 4, height: 1, background: T.border }} />
-      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim }}>
-        Recent
-      </span>
+      {/* Color block boundary rather than a hairline rule */}
+      <h2 className={`${ui.label} mt-3`}>Recent</h2>
 
       {recents.length === 0 ? (
-        <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 9, color: T.textDim, opacity: 0.6, padding: '4px 8px' }}>
-          No recent tests yet
-        </span>
+        <p className="px-2 py-1 text-[11px] text-app-dim">No recent tests yet</p>
       ) : (
-        recents.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => { dispatch(setActiveId(item.id)); dispatch(setCode(item.code)); dispatch(setSidebarTab('collections')); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 6, cursor: 'pointer', transition: 'background 0.12s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = T.bgHover; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <FileText size={11} color={T.cyanDim} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {item.name}
-            </span>
-          </div>
-        ))
+        <ul className="flex flex-col">
+          {recents.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(setActiveId(item.id));
+                  dispatch(setCode(item.code));
+                  dispatch(setSidebarTab('collections'));
+                }}
+                className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-2 py-1.5 text-left transition-colors duration-200 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-inset"
+              >
+                <FileText size={13} className="shrink-0 text-app-accent-dim" aria-hidden="true" />
+                <span className="min-w-0 truncate font-mono text-[11px] text-app-dim">
+                  {item.name}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

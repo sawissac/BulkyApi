@@ -33,7 +33,7 @@ export default function ResponsePanel({ T }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 44, background: T.bg, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
         <Terminal size={13} color={T.cyanDim} />
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
           Call Script
         </span>
 
@@ -92,7 +92,7 @@ export default function ResponsePanel({ T }: Props) {
             });
           })()}
         </div>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.cyanDim, marginLeft: 6 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: T.cyanDim, marginLeft: 6 }}>
           {builtCalls.length}
         </span>
       </div>
@@ -106,7 +106,7 @@ export default function ResponsePanel({ T }: Props) {
         ) : builtCalls.length === 0 ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, opacity: 0.3 }}>
             <Code2 size={32} color={T.textDim} strokeWidth={1} />
-            <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, color: T.textDim }}>No api.* calls found in script</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, color: T.textDim }}>No api.* calls found in script</span>
           </div>
         ) : (
           builtCalls.map((call, i) => (
@@ -120,7 +120,7 @@ export default function ResponsePanel({ T }: Props) {
         <div style={{ borderTop: `1px solid ${T.border}`, background: T.bgPanel, flexShrink: 0 }}>
           <div style={{ padding: '4px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6 }}>
             <ArrowUpFromLine size={10} color={T.cyanDim} />
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim, flex: 1 }}>
               Extracted
             </span>
             {activeEnv && (
@@ -131,7 +131,7 @@ export default function ResponsePanel({ T }: Props) {
                   }
                 }}
                 title={`Promote all to ${activeEnv.name}`}
-                style={{ background: T.bgHover, border: `1px solid ${T.borderAccent}`, borderRadius: 4, padding: '2px 7px', color: T.cyan, fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.07em' }}
+                style={{ background: T.bgHover, border: `1px solid ${T.borderAccent}`, borderRadius: 4, padding: '2px 7px', color: T.cyan, fontFamily: 'var(--font-display)', fontSize: 8, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.07em' }}
               >
                 promote all → {activeEnv.name}
               </button>
@@ -140,14 +140,14 @@ export default function ResponsePanel({ T }: Props) {
           <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {Object.entries(extractedVars).map(([k, v]) => (
               <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.cyan, flexShrink: 0 }}>{k}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: T.cyan, flexShrink: 0 }}>{k}</span>
                 <span style={{ color: T.textDim, fontSize: 9 }}>=</span>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: T.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
                 {activeEnv && (
                   <button
                     onClick={() => dispatch(setVar({ envId: activeEnv.id, key: k, value: v }))}
                     title={`Promote ${k} to ${activeEnv.name}`}
-                    style={{ background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4, padding: '1px 6px', color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, cursor: 'pointer', flexShrink: 0 }}
+                    style={{ background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4, padding: '1px 6px', color: T.textDim, fontFamily: 'var(--font-display)', fontSize: 8, cursor: 'pointer', flexShrink: 0 }}
                   >
                     → env
                   </button>
@@ -162,8 +162,8 @@ export default function ResponsePanel({ T }: Props) {
       {logs.length > 0 && (
         <div style={{ borderTop: `1px solid ${T.border}`, maxHeight: consoleExpanded ? 240 : 90, overflowY: 'auto', background: T.editorBg, flexShrink: 0, transition: 'max-height 0.2s ease' }}>
           <div style={{ padding: '3px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, position: 'sticky', top: 0, background: T.editorBg, zIndex: 1 }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Console</span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.textDim }}>{logs.length}</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textDim }}>Console</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: T.textDim }}>{logs.length}</span>
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setConsoleExpanded((e) => !e)}
@@ -176,7 +176,7 @@ export default function ResponsePanel({ T }: Props) {
           {logs.map((l, i) => (
             <div
               key={i}
-              style={{ padding: '3px 10px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, borderBottom: `1px solid ${T.border}`, color: l.level === 'error' ? T.error : l.level === 'warn' ? T.warn : T.textDim }}
+              style={{ padding: '3px 10px', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: `1px solid ${T.border}`, color: l.level === 'error' ? T.error : l.level === 'warn' ? T.warn : T.textDim }}
             >
               <span style={{ color: T.textDim, marginRight: 6 }}>[{l.level}]</span>{l.msg}
             </div>

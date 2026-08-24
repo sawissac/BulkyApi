@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { ChevronRight, ChevronDown, FileText, Plus, Trash2, FolderPlus, Download } from "lucide-react";
+import { ChevronRight, ChevronDown, FileText, Plus, Trash2, FolderPlus, Download, Pencil } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { CollectionItem } from "@/lib/sampleData";
-import { METHOD_CLR } from "@/lib/themes";
+import * as ui from "@/lib/ui";
+import MethodPill from "@/components/MethodPill";
 import {
   setActiveId,
   selectActiveId,
@@ -26,7 +27,14 @@ type Props = { T: Theme };
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
-export default function CollPane({ T }: Props) {
+/**
+ * Row actions stay out of the way until the row is hovered or something inside
+ * it takes focus — `group-focus-within` is what keeps them keyboard-reachable
+ * rather than hover-only.
+ */
+const ROW_ACTION = `transition-opacity duration-200 ${ui.reveal}`;
+
+export default function CollPane({}: Props) {
   const dispatch = useDispatch();
   const collections = useSelector(selectCollections);
   const activeId = useSelector(selectActiveId);
@@ -78,7 +86,7 @@ export default function CollPane({ T }: Props) {
         const json = JSON.parse(event.target?.result as string);
         const imported = Array.isArray(json) ? json : [json];
         dispatch(importCollections(imported));
-      } catch (err) {
+      } catch {
         alert("Failed to parse collection JSON.");
       }
     };
@@ -87,53 +95,41 @@ export default function CollPane({ T }: Props) {
   };
 
   return (
-    <div style={{ paddingTop: 4 }}>
-      <div style={{ padding: "4px 10px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: T.textDim }}>
-          Test Cases
-        </span>
-        <div style={{ display: "flex", gap: 6 }}>
-          <label
-            title="Import Collection"
-            style={{ background: "transparent", border: "none", color: T.cyanDim, cursor: "pointer", lineHeight: 1, padding: "0 2px", display: "flex" }}
-          >
-            <input type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
-            <Download size={13} />
+    <div className="pt-1">
+      <div className="flex items-center justify-between gap-2 px-2.5 py-1">
+        <h2 className={ui.label}>Test Cases</h2>
+        <div className="flex gap-0.5">
+          <label className={`${ui.iconBtn} cursor-pointer`} title="Import collection">
+            <input type="file" accept=".json" onChange={handleImport} className="sr-only" />
+            <Download size={14} aria-hidden="true" />
+            <span className="sr-only">Import collection</span>
           </label>
           <button
+            type="button"
             onClick={() => setAddingColl(true)}
-            title="New Collection"
-            style={{ background: "transparent", border: "none", color: T.cyanDim, cursor: "pointer", lineHeight: 1, padding: "0 2px", display: "flex" }}
+            title="New collection"
+            aria-label="New collection"
+            className={ui.iconBtn}
           >
-            <FolderPlus size={13} />
+            <FolderPlus size={14} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       {collections.map((col) => (
-        <div key={col.id} style={{ marginBottom: 2 }}>
-          {/* Collection header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "5px 8px",
-              cursor: "pointer",
-              background: T.bgHover,
-              borderTop: `1px solid ${T.border}`,
-              borderBottom: `1px solid ${T.border}`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.querySelectorAll<HTMLElement>(".coll-act").forEach((el) => (el.style.opacity = "1"));
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.querySelectorAll<HTMLElement>(".coll-act").forEach((el) => (el.style.opacity = "0"));
-            }}
-          >
-            <div onClick={() => dispatch(toggleCollectionOpen(col.id))} style={{ display: "flex", alignItems: "center", color: T.textDim }}>
-              {col.open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-            </div>
+        <div key={col.id} className="mb-0.5">
+          {/* Collection header — a solid block, not a bordered strip */}
+          <div className="group flex items-center gap-1 bg-app-hover px-2 py-1.5">
+            <button
+              type="button"
+              onClick={() => dispatch(toggleCollectionOpen(col.id))}
+              aria-expanded={col.open}
+              aria-label={col.open ? `Collapse ${col.name}` : `Expand ${col.name}`}
+              className="flex size-6 shrink-0 items-center justify-center rounded-sm border-0 bg-transparent text-app-dim transition-colors duration-200 hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+            >
+              {col.open ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />}
+            </button>
+
             {editing?.kind === "coll" && editing.id === col.id ? (
               <input
                 autoFocus
@@ -141,41 +137,47 @@ export default function CollPane({ T }: Props) {
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(null); }}
                 onBlur={commitEdit}
-                style={{ flex: 1, background: T.bg, border: `1px solid ${T.borderAccent}`, borderRadius: 4, padding: "1px 5px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, color: T.textBright, outline: "none", letterSpacing: "0.07em" }}
+                aria-label={`Rename ${col.name}`}
+                className={`${ui.input} py-0.5 text-[11px] font-bold uppercase tracking-[0.07em]`}
               />
             ) : (
-              <span
+              <button
+                type="button"
                 onClick={() => dispatch(toggleCollectionOpen(col.id))}
                 onDoubleClick={() => startEdit("coll", col.id, col.name)}
-                style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: T.textBright, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                 title="Double-click to rename"
+                className="min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
               >
                 {col.name}
-              </span>
+              </button>
             )}
+
             <button
-              className="coll-act"
-              onClick={(e) => { e.stopPropagation(); startEdit("coll", col.id, col.name); }}
+              type="button"
+              onClick={() => startEdit("coll", col.id, col.name)}
               title="Rename"
-              style={{ background: "transparent", border: "none", color: T.textDim, cursor: "pointer", padding: 0, opacity: 0, transition: "opacity 0.15s", fontSize: 10 }}
+              aria-label={`Rename ${col.name}`}
+              className={`${ui.iconBtn} size-6 ${ROW_ACTION}`}
             >
-              ✎
+              <Pencil size={12} aria-hidden="true" />
             </button>
             <button
-              className="coll-act"
-              onClick={(e) => { e.stopPropagation(); dispatch(addItem({ collectionId: col.id })); }}
-              title="Add Test"
-              style={{ background: "transparent", border: "none", color: T.cyan, cursor: "pointer", padding: 0, opacity: 0, transition: "opacity 0.15s", display: "flex" }}
+              type="button"
+              onClick={() => dispatch(addItem({ collectionId: col.id }))}
+              title="Add test"
+              aria-label={`Add test to ${col.name}`}
+              className={`${ui.iconBtn} size-6 text-app-accent ${ROW_ACTION}`}
             >
-              <Plus size={12} />
+              <Plus size={13} aria-hidden="true" />
             </button>
             <button
-              className="coll-act"
-              onClick={(e) => { e.stopPropagation(); if (confirm(`Delete collection "${col.name}"?`)) dispatch(removeCollection(col.id)); }}
-              title="Delete Collection"
-              style={{ background: "transparent", border: "none", color: T.error, cursor: "pointer", padding: 0, opacity: 0, transition: "opacity 0.15s", display: "flex" }}
+              type="button"
+              onClick={() => { if (confirm(`Delete collection "${col.name}"?`)) dispatch(removeCollection(col.id)); }}
+              title="Delete collection"
+              aria-label={`Delete collection ${col.name}`}
+              className={`${ui.iconBtnDanger} size-6 ${ui.reveal}`}
             >
-              <Trash2 size={11} />
+              <Trash2 size={12} aria-hidden="true" />
             </button>
           </div>
 
@@ -183,77 +185,58 @@ export default function CollPane({ T }: Props) {
           {col.open && col.items.map((item) => {
             const isActive = activeId === item.id;
             const isEditing = editing?.kind === "item" && editing.id === item.id;
-            const mc = METHOD_CLR[item.method] || T.textDim;
             return (
               <div
                 key={item.id}
-                onClick={() => !isEditing && onSelect(item)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "12px minmax(0,1fr) auto auto",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "5px 10px 5px 18px",
-                  cursor: "pointer",
-                  background: isActive ? T.bgSelected : "transparent",
-                  borderLeft: `2px solid ${isActive ? T.cyan : "transparent"}`,
-                  transition: "background 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.background = T.bgHover;
-                  e.currentTarget.querySelectorAll<HTMLElement>(".item-act").forEach((el) => (el.style.opacity = "1"));
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "transparent";
-                  e.currentTarget.querySelectorAll<HTMLElement>(".item-act").forEach((el) => (el.style.opacity = "0"));
-                }}
+                data-selected={isActive || undefined}
+                className="group flex items-center gap-1.5 border-l-2 border-transparent py-1 pl-4 pr-2.5 transition-colors duration-200 hover:bg-app-hover data-selected:border-app-accent data-selected:bg-app-selected"
               >
-                <FileText size={11} color={isActive ? T.cyan : T.textDim} />
+                <FileText
+                  size={13}
+                  aria-hidden="true"
+                  className={`shrink-0 ${isActive ? 'text-app-accent' : 'text-app-dim'}`}
+                />
+
                 {isEditing ? (
                   <input
                     autoFocus
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(null); }}
                     onBlur={commitEdit}
-                    style={{ background: T.bg, border: `1px solid ${T.borderAccent}`, borderRadius: 4, padding: "1px 5px", fontFamily: "'Poppins', sans-serif", fontSize: 11, color: T.textBright, outline: "none", minWidth: 0, width: "100%" }}
+                    aria-label={`Rename ${item.name}`}
+                    className={`${ui.input} py-0.5`}
                   />
                 ) : (
-                  <span
-                    onDoubleClick={(e) => { e.stopPropagation(); startEdit("item", item.id, item.name); }}
-                    style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, color: isActive ? T.textBright : T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                  <button
+                    type="button"
+                    onClick={() => onSelect(item)}
+                    onDoubleClick={() => startEdit("item", item.id, item.name)}
+                    aria-current={isActive ? 'true' : undefined}
                     title="Double-click to rename"
+                    className={`min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${isActive ? 'font-semibold text-app-bright' : 'text-app-text'}`}
                   >
                     {item.name}
-                  </span>
+                  </button>
                 )}
+
                 <button
-                  className="item-act"
-                  onClick={(e) => { e.stopPropagation(); cycleMethod(item); }}
+                  type="button"
+                  onClick={() => cycleMethod(item)}
                   title="Click to cycle method"
-                  style={{
-                    background: `${mc}18`,
-                    border: `1px solid ${mc}30`,
-                    color: mc,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 8,
-                    fontWeight: 700,
-                    padding: "1px 4px",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    transition: "opacity 0.15s",
-                  }}
+                  aria-label={`Method ${item.method}, click to change`}
+                  className="shrink-0 rounded-md border-0 bg-transparent p-0 transition-transform duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
                 >
-                  {item.method}
+                  <MethodPill method={item.method} sm focusable={false} />
                 </button>
                 <button
-                  className="item-act"
-                  onClick={(e) => { e.stopPropagation(); dispatch(removeItem({ collectionId: col.id, itemId: item.id })); }}
+                  type="button"
+                  onClick={() => dispatch(removeItem({ collectionId: col.id, itemId: item.id }))}
                   title="Delete"
-                  style={{ background: "transparent", border: "none", color: T.error, cursor: "pointer", padding: 0, opacity: 0, transition: "opacity 0.15s", display: "flex" }}
+                  aria-label={`Delete ${item.name}`}
+                  className={`${ui.iconBtnDanger} size-6 ${ui.reveal}`}
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={12} aria-hidden="true" />
                 </button>
               </div>
             );
@@ -263,15 +246,16 @@ export default function CollPane({ T }: Props) {
 
       {/* New collection input */}
       {addingColl && (
-        <div style={{ padding: "8px 10px" }}>
+        <div className="px-2.5 py-2">
           <input
             autoFocus
             value={collDraft}
             onChange={(e) => setCollDraft(e.target.value)}
             placeholder="Collection name…"
+            aria-label="New collection name"
             onKeyDown={(e) => { if (e.key === "Enter") commitNewColl(); if (e.key === "Escape") { setAddingColl(false); setCollDraft(""); } }}
             onBlur={commitNewColl}
-            style={{ width: "100%", background: T.bgHover, border: `1px solid ${T.borderAccent}`, borderRadius: 6, padding: "5px 8px", fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, color: T.textBright, outline: "none" }}
+            className={ui.input}
           />
         </div>
       )}

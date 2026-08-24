@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { X, Play } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
 import type { ExampleScript } from '@/lib/sampleData';
-import { METHOD_CLR } from '@/lib/themes';
+import MethodPill from '@/components/MethodPill';
 
 type Props = {
   T: Theme;
@@ -15,8 +15,9 @@ type Props = {
   onClose: () => void;
 };
 
-export default function ExampleDialog({ T, example, onLoad, onClose }: Props) {
-  const clr = example.method === 'DOCS' ? '#a78bfa' : (METHOD_CLR[example.method] ?? T.textDim);
+export default function ExampleDialog({ example, onLoad, onClose }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -24,74 +25,71 @@ export default function ExampleDialog({ T, example, onLoad, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Move focus into the dialog so keyboard users are not left behind it
+  useEffect(() => { closeRef.current?.focus(); }, []);
+
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+      // Solid scrim rather than a backdrop-blur: the flat system has no blur, and
+      // 65% black already isolates the foreground.
+      className="fixed inset-0 z-200 flex items-center justify-center bg-black/65 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
-        width: 'min(680px, 92vw)',
-        maxHeight: '80vh',
-        background: T.bgPanel,
-        border: `1px solid ${T.borderMid}`,
-        borderRadius: 14,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.7)',
-        animation: 'fadeUp 0.18s ease',
-        overflow: 'hidden',
-      }}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${example.label} example`}
+        className="flex max-h-[80vh] w-[min(680px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
+      >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-          <span style={{
-            fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700,
-            color: clr, background: `${clr}18`, border: `1px solid ${clr}30`,
-            padding: '2px 7px', borderRadius: 4, flexShrink: 0,
-          }}>
-            {example.method}
-          </span>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: T.textBright, flex: 1 }}>
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-app-border px-5 py-3.5">
+          <MethodPill method={example.method} />
+          <span className="flex-1 text-[15px] font-bold tracking-[-0.01em] text-app-bright">
             {example.label}
           </span>
           <button
+            ref={closeRef}
+            type="button"
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', padding: 4, display: 'flex', lineHeight: 1 }}
+            aria-label="Close example preview"
+            className="flex size-8 items-center justify-center rounded-md border-0 bg-transparent text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
           >
-            <X size={15} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
         {/* Body — markdown */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', color: T.text }}>
+        <div className="flex-1 overflow-y-auto px-5 py-4 text-app-text">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              p: ({ node, ...props }) => (
-                <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: 12, lineHeight: 1.7, color: T.textDim, marginBottom: '1em' }} {...props} />
+              p: (props) => (
+                <p className="mb-4 text-[13px] leading-relaxed text-app-dim" {...props} />
               ),
-              pre: ({ node, ...props }) => (
-                <pre style={{ background: T.editorBg, border: `1px solid ${T.border}`, borderRadius: 8, padding: '14px 16px', overflowX: 'auto', marginBottom: '1em' }} {...props} />
+              pre: (props) => (
+                <pre className="mb-4 overflow-x-auto rounded-md border border-app-border bg-app-editor px-4 py-3.5" {...props} />
               ),
-              code: ({ node, className, children, ...props }) => {
+              code: ({ className, children, ...props }) => {
                 const isBlock = /language-/.test(className ?? '');
                 return isBlock ? (
-                  <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.text, display: 'block' }} {...props}>
+                  <code className="block font-mono text-[12px] text-app-text" {...props}>
                     {children}
                   </code>
                 ) : (
-                  <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, background: T.bgHover, border: `1px solid ${T.border}`, padding: '1px 5px', borderRadius: 4, color: T.cyan }} {...props}>
+                  <code className="rounded-sm border border-app-border bg-app-hover px-1.5 py-px font-mono text-[12px] text-app-accent" {...props}>
                     {children}
                   </code>
                 );
               },
-              table: ({ node, ...props }) => (
-                <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: '1em', fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }} {...props} />
+              table: (props) => (
+                <table className="mb-4 w-full border-collapse font-mono text-[12px]" {...props} />
               ),
-              th: ({ node, ...props }) => (
-                <th style={{ padding: '5px 10px', borderBottom: `2px solid ${T.borderAccent}`, textAlign: 'left', color: T.cyan, fontWeight: 700 }} {...props} />
+              th: (props) => (
+                <th className="border-b-2 border-app-border-accent px-2.5 py-1.5 text-left font-bold text-app-accent" {...props} />
               ),
-              td: ({ node, ...props }) => (
-                <td style={{ padding: '4px 10px', borderBottom: `1px solid ${T.border}`, color: T.textDim }} {...props} />
+              td: (props) => (
+                <td className="border-b border-app-border px-2.5 py-1 text-app-dim" {...props} />
               ),
             }}
           >
@@ -100,33 +98,20 @@ export default function ExampleDialog({ T, example, onLoad, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-5 py-3">
           <button
+            type="button"
             onClick={onClose}
-            style={{
-              padding: '6px 14px', borderRadius: 8,
-              border: `1px solid ${T.border}`,
-              background: 'transparent',
-              color: T.textDim,
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
-              cursor: 'pointer',
-            }}
+            className="h-9 rounded-md border border-app-border bg-transparent px-4 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={onLoad}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 16px', borderRadius: 8, border: 'none',
-              background: 'linear-gradient(135deg,#0891b2,#2563eb)',
-              color: 'white',
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(34,211,238,0.25)',
-            }}
+            className="flex h-9 items-center gap-1.5 rounded-md border-0 bg-app-accent px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
           >
-            <Play size={10} fill="white" />
+            <Play size={12} fill="currentColor" aria-hidden="true" />
             Load into Editor
           </button>
         </div>

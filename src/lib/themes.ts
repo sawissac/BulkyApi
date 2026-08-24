@@ -22,7 +22,7 @@ export type Theme = {
   error: string;
 };
 
-export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green' | 'rose' | 'amber' | 'slate';
+export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green' | 'rose' | 'amber' | 'slate' | 'flat';
 
 export const THEMES: Record<ThemeKey, Theme> = {
   midnight: {
@@ -88,8 +88,8 @@ export const THEMES: Record<ThemeKey, Theme> = {
     editorBg:     '#f8fafc',
     gutterBg:     '#f1f5f9',
     lineNum:      'rgba(2,132,199,0.3)',
-    success:      '#059669',
-    warn:         '#d97706',
+    success:      '#047857',
+    warn:         '#b45309',
     error:        '#dc2626',
   },
   purple: {
@@ -202,6 +202,35 @@ export const THEMES: Record<ThemeKey, Theme> = {
     warn:         '#f59e0b',
     error:        '#ef4444',
   },
+  /**
+   * Flat: poster-style light theme. Structure comes from solid color blocks
+   * (gray-100 canvas / white panels / gray-200 chrome), never from shadow.
+   * Accent shades are stepped one notch darker than the raw 500-level palette
+   * so 8-11px UI text still clears WCAG AA on both white and gray-200.
+   */
+  flat: {
+    isLight: true,
+    bg:           '#f3f4f6',
+    bgPanel:      '#ffffff',
+    bgSidebar:    '#e5e7eb',
+    bgHover:      'rgba(17,24,39,0.06)',
+    bgSelected:   'rgba(59,130,246,0.12)',
+    border:       'rgba(17,24,39,0.10)',
+    borderMid:    'rgba(17,24,39,0.16)',
+    borderAccent: '#2563eb',
+    cyan:         '#1d4ed8',
+    cyanDim:      '#2563eb',
+    cyanFaint:    'rgba(59,130,246,0.10)',
+    text:         '#374151',
+    textBright:   '#111827',
+    textDim:      '#4b5563',
+    editorBg:     '#ffffff',
+    gutterBg:     '#f3f4f6',
+    lineNum:      '#9ca3af',
+    success:      '#047857',
+    warn:         '#b45309',
+    error:        '#dc2626',
+  },
 };
 
 export const METHOD_CLR: Record<string, string> = {
@@ -213,6 +242,24 @@ export const METHOD_CLR: Record<string, string> = {
   OPTIONS: '#6366f1',
   HEAD:    '#64748b',
   SSE:     '#f472b6',
+  DOCS:    '#a78bfa',
+};
+
+/**
+ * Same hues, seated for light surfaces. The 400/500-level set above is tuned for
+ * dark panels and drops to ~2:1 on white (GET cyan is the worst offender), so
+ * light themes get the 700-level equivalents instead. All clear AA on white.
+ */
+export const METHOD_CLR_LIGHT: Record<string, string> = {
+  GET:     '#0e7490',
+  POST:    '#047857',
+  PUT:     '#b45309',
+  PATCH:   '#6d28d9',
+  DELETE:  '#b91c1c',
+  OPTIONS: '#4338ca',
+  HEAD:    '#475569',
+  SSE:     '#be185d',
+  DOCS:    '#6d28d9',
 };
 
 export const STATUS_TXT: Record<number, string> = {
@@ -236,4 +283,48 @@ export function statusColor(code: number | null, T: Theme): string {
   if (code < 300) return T.success;
   if (code < 400) return T.warn;
   return T.error;
+}
+
+/**
+ * Single source of truth for turning a Theme into CSS custom properties.
+ *
+ * Every visual token the app uses is published as `--app-*` so components can
+ * style with real CSS (Tailwind utilities, `:hover`, `:focus-visible`) instead
+ * of prop-drilled inline styles. `globals.css` maps these onto Tailwind's
+ * `app-*` color namespace, so `bg-app-panel` / `text-app-dim` / `border-app-border`
+ * all resolve to the active theme with no JS involved.
+ */
+export function themeVars(T: Theme): Record<string, string> {
+  return {
+    '--app-bg': T.bg,
+    '--app-panel': T.bgPanel,
+    '--app-sidebar': T.bgSidebar,
+    '--app-hover': T.bgHover,
+    '--app-selected': T.bgSelected,
+    '--app-border': T.border,
+    '--app-border-mid': T.borderMid,
+    '--app-border-accent': T.borderAccent,
+    '--app-accent': T.cyan,
+    '--app-accent-dim': T.cyanDim,
+    '--app-accent-faint': T.cyanFaint,
+    '--app-text': T.text,
+    '--app-bright': T.textBright,
+    '--app-dim': T.textDim,
+    '--app-editor': T.editorBg,
+    '--app-gutter': T.gutterBg,
+    '--app-line-num': T.lineNum,
+    '--app-success': T.success,
+    '--app-warn': T.warn,
+    '--app-error': T.error,
+    '--app-on-solid': T.isLight ? '#ffffff' : T.bg,
+    ...methodVars(T),
+  };
+}
+
+/** Per-method color tokens (`--method-get`, `--method-post`, ...). */
+function methodVars(T: Theme): Record<string, string> {
+  const set = T.isLight ? METHOD_CLR_LIGHT : METHOD_CLR;
+  return Object.fromEntries(
+    Object.entries(set).map(([method, color]) => [`--method-${method.toLowerCase()}`, color]),
+  );
 }

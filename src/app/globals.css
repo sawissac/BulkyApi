@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -6,11 +6,33 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Runtime app theme -> Tailwind utilities (bg-app-panel, text-app-dim, ...).
+     Values are written by themeVars() in src/lib/themes.ts. */
+  --color-app-bg: var(--app-bg);
+  --color-app-panel: var(--app-panel);
+  --color-app-sidebar: var(--app-sidebar);
+  --color-app-hover: var(--app-hover);
+  --color-app-selected: var(--app-selected);
+  --color-app-border: var(--app-border);
+  --color-app-border-mid: var(--app-border-mid);
+  --color-app-border-accent: var(--app-border-accent);
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-dim: var(--app-accent-dim);
+  --color-app-accent-faint: var(--app-accent-faint);
+  --color-app-text: var(--app-text);
+  --color-app-bright: var(--app-bright);
+  --color-app-dim: var(--app-dim);
+  --color-app-editor: var(--app-editor);
+  --color-app-gutter: var(--app-gutter);
+  --color-app-success: var(--app-success);
+  --color-app-warn: var(--app-warn);
+  --color-app-error: var(--app-error);
+  --color-app-on-solid: var(--app-on-solid);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-heading);
+  --font-sans: var(--app-font-display);
+  --font-mono: var(--app-font-mono);
+  --font-display: var(--app-font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,7 +71,52 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Flat "tag" fill: a tinted block derived from the element's own text color, so a
+   tag needs one color decision instead of three. Tailwind's `/opacity` modifier is
+   a no-op on `currentColor`, hence the explicit color-mix. */
+@utility tint-current {
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+}
+
 :root {
+  --app-font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Fallbacks = the default 'ocean' theme; themeVars() overrides these on the app root. */
+  --app-bg: #061525;
+  --app-panel: #0a2035;
+  --app-sidebar: #051220;
+  --app-hover: rgba(50,130,184,0.08);
+  --app-selected: rgba(3,246,255,0.08);
+  --app-border: rgba(50,130,184,0.15);
+  --app-border-mid: rgba(50,130,184,0.25);
+  --app-border-accent: rgba(3,246,255,0.3);
+  --app-accent: #03f6ff;
+  --app-accent-dim: rgba(3,246,255,0.6);
+  --app-accent-faint: rgba(3,246,255,0.08);
+  --app-text: #9dc8e8;
+  --app-bright: #daf0ff;
+  --app-dim: rgba(100,160,200,0.7);
+  --app-editor: #040f1c;
+  --app-gutter: #05111e;
+  --app-line-num: rgba(3,246,255,0.18);
+  --app-success: #10b981;
+  --app-warn: #f59e0b;
+  --app-error: #ef4444;
+  --app-on-solid: #061525;
+
+  /* Method colors, dark-theme defaults; themeVars() swaps in the light set. */
+  --method-get: #22d3ee;
+  --method-post: #10b981;
+  --method-put: #f59e0b;
+  --method-patch: #a78bfa;
+  --method-delete: #ef4444;
+  --method-options: #6366f1;
+  --method-head: #64748b;
+  --method-sse: #f472b6;
+  --method-docs: #a78bfa;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
   --card: oklch(1 0 0);
@@ -138,11 +205,27 @@
   }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(34,211,238,0.2); border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(34,211,238,0.4); }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--app-accent) 25%, transparent);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--app-accent) 50%, transparent);
+  }
+  * { scrollbar-color: color-mix(in srgb, var(--app-accent) 25%, transparent) transparent; }
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 @keyframes pulse { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
-@keyframes glow { 0%,100% { box-shadow: 0 0 6px rgba(34,211,238,0.3); } 50% { box-shadow: 0 0 14px rgba(34,211,238,0.7); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

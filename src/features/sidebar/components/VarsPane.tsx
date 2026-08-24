@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
+import * as ui from '@/lib/ui';
 import {
   selectActiveEnv,
   setVar,
@@ -18,7 +19,10 @@ const isSensitive = (k: string) => SENSITIVE.some((s) => k.includes(s));
 
 type EditCell = { key: string; field: 'key' | 'value' } | null;
 
-export default function VarsPane({ T }: Props) {
+/** Inline cell editor — mono, compact, hard accent border while focused. */
+const CELL_INPUT = `${ui.input} py-0.5 font-mono text-[11px]`;
+
+export default function VarsPane({}: Props) {
   const dispatch = useDispatch();
   const env = useSelector(selectActiveEnv);
   const [editCell, setEditCell] = useState<EditCell>(null);
@@ -30,9 +34,9 @@ export default function VarsPane({ T }: Props) {
 
   if (!env) {
     return (
-      <div style={{ padding: '16px', textAlign: 'center', color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 10 }}>
+      <p className="p-4 text-center text-[12px] text-app-dim">
         Select a collection and create an environment to manage variables.
-      </div>
+      </p>
     );
   }
 
@@ -63,95 +67,81 @@ export default function VarsPane({ T }: Props) {
     setShowAdding(false);
   };
 
-  const inputStyle: React.CSSProperties = {
-    background: T.bg,
-    border: `1px solid ${T.borderAccent}`,
-    borderRadius: 4,
-    padding: '2px 5px',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 9,
-    color: T.textBright,
-    outline: 'none',
-    width: '100%',
-    minWidth: 0,
-  };
+  const cancelAdd = () => { setShowAdding(false); setAddingKey(''); setAddingVal(''); };
 
   return (
-    <div style={{ padding: '10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {env.name} Variables
-        </span>
+    <div className="p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className={`${ui.label} truncate`}>{env.name} Variables</h2>
         <button
+          type="button"
           onClick={() => setShowAdding(true)}
-          style={{ background: 'transparent', border: 'none', color: T.cyanDim, cursor: 'pointer', lineHeight: 1, padding: '0 2px', display: 'flex', flexShrink: 0 }}
-          title="Add Variable"
+          className={ui.iconBtn}
+          title="Add variable"
+          aria-label="Add variable"
         >
-          <Plus size={13} />
+          <Plus size={14} aria-hidden="true" />
         </button>
       </div>
 
-      {Object.entries(env.vars).map(([k, v]) => {
-        const isEditingKey = editCell?.key === k && editCell.field === 'key';
-        const isEditingVal = editCell?.key === k && editCell.field === 'value';
-        const sensitive = isSensitive(k);
-        const show = revealed[k];
-        const display = sensitive && !show ? '•'.repeat(Math.min(v.length, 18)) : v;
-        return (
-          <div
-            key={k}
-            style={{
-              marginBottom: 5,
-              padding: 6,
-              borderRadius: 6,
-              border: `1px solid ${T.border}`,
-              background: T.bgHover,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-            }}
-          >
-            {/* Top row: key + actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-              {isEditingKey ? (
-                <input
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') commitEdit(); if (e.key === 'Escape') setEditCell(null); }}
-                  onBlur={commitEdit}
-                  style={inputStyle}
-                />
-              ) : (
-                <span
-                  onClick={() => startEdit(k, 'key', k)}
-                  style={{ flex: 1, minWidth: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.cyan, cursor: 'text', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                  title={`{{${k}}} — click to rename`}
-                >
-                  {`{{${k}}}`}
-                </span>
-              )}
-              {sensitive && (
+      <ul className="flex flex-col gap-1.5">
+        {Object.entries(env.vars).map(([k, v]) => {
+          const isEditingKey = editCell?.key === k && editCell.field === 'key';
+          const isEditingVal = editCell?.key === k && editCell.field === 'value';
+          const sensitive = isSensitive(k);
+          const show = revealed[k];
+          const display = sensitive && !show ? '•'.repeat(Math.min(v.length, 18)) : v;
+          return (
+            <li
+              key={k}
+              className="group flex flex-col gap-1 rounded-md border border-app-border bg-app-hover p-2"
+            >
+              {/* Key row */}
+              <div className="flex min-w-0 items-center gap-1">
+                {isEditingKey ? (
+                  <input
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') commitEdit(); if (e.key === 'Escape') setEditCell(null); }}
+                    onBlur={commitEdit}
+                    aria-label={`Rename variable ${k}`}
+                    className={CELL_INPUT}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEdit(k, 'key', k)}
+                    title={`{{${k}}} — click to rename`}
+                    className="min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left font-mono text-[11px] text-app-accent transition-colors duration-200 hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                  >
+                    {`{{${k}}}`}
+                  </button>
+                )}
+                {sensitive && (
+                  <button
+                    type="button"
+                    onClick={() => setRevealed((r) => ({ ...r, [k]: !r[k] }))}
+                    className={ui.iconBtn}
+                    title={show ? 'Hide value' : 'Reveal value'}
+                    aria-label={show ? `Hide value of ${k}` : `Reveal value of ${k}`}
+                    aria-pressed={!!show}
+                  >
+                    {show ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+                  </button>
+                )}
                 <button
-                  onClick={() => setRevealed((r) => ({ ...r, [k]: !r[k] }))}
-                  style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', padding: 0, display: 'flex', flexShrink: 0 }}
-                  title={show ? 'Hide' : 'Reveal'}
+                  type="button"
+                  onClick={() => dispatch(deleteVar({ envId: env.id, key: k }))}
+                  className={`${ui.iconBtnDanger} ${ui.dim}`}
+                  title="Delete"
+                  aria-label={`Delete variable ${k}`}
                 >
-                  {show ? <EyeOff size={11} /> : <Eye size={11} />}
+                  <Trash2 size={13} aria-hidden="true" />
                 </button>
-              )}
-              <button
-                onClick={() => dispatch(deleteVar({ envId: env.id, key: k }))}
-                style={{ background: 'transparent', border: 'none', color: T.error, cursor: 'pointer', padding: 0, display: 'flex', flexShrink: 0, opacity: 0.7 }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-                title="Delete"
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-            {/* Value row */}
-            <div style={{ minWidth: 0 }}>
+              </div>
+
+              {/* Value row */}
               {isEditingVal ? (
                 <input
                   autoFocus
@@ -159,50 +149,49 @@ export default function VarsPane({ T }: Props) {
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') commitEdit(); if (e.key === 'Escape') setEditCell(null); }}
                   onBlur={commitEdit}
-                  style={inputStyle}
+                  aria-label={`Value of ${k}`}
+                  className={CELL_INPUT}
                 />
               ) : (
-                <span
+                <button
+                  type="button"
                   onClick={() => startEdit(k, 'value', v)}
-                  style={{ display: 'block', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.textDim, cursor: 'text', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                   title={v || 'Click to edit'}
+                  aria-label={`Edit value of ${k}`}
+                  className="w-full min-w-0 truncate rounded-sm border-0 bg-transparent p-0 text-left font-mono text-[11px] text-app-dim transition-colors duration-200 hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
                 >
-                  {display || <em style={{ opacity: 0.4 }}>empty</em>}
-                </span>
+                  {display || <em className="opacity-60">empty</em>}
+                </button>
               )}
-            </div>
-          </div>
-        );
-      })}
+            </li>
+          );
+        })}
+      </ul>
 
       {showAdding && (
-        <div style={{ marginTop: 6, padding: 6, borderRadius: 6, border: `1px solid ${T.borderAccent}`, background: T.bgHover, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="mt-2 flex flex-col gap-1.5 rounded-md border-2 border-app-border-accent bg-app-hover p-2">
           <input
             autoFocus
             placeholder="key"
+            aria-label="New variable key"
             value={addingKey}
             onChange={(e) => setAddingKey(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') { setShowAdding(false); setAddingKey(''); setAddingVal(''); } }}
-            style={inputStyle}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') cancelAdd(); }}
+            className={CELL_INPUT}
           />
           <input
             placeholder="value"
+            aria-label="New variable value"
             value={addingVal}
             onChange={(e) => setAddingVal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') { setShowAdding(false); setAddingKey(''); setAddingVal(''); } }}
-            style={inputStyle}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') cancelAdd(); }}
+            className={CELL_INPUT}
           />
-          <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => { setShowAdding(false); setAddingKey(''); setAddingVal(''); }}
-              style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.textDim, fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}
-            >
+          <div className="flex justify-end gap-1.5">
+            <button type="button" onClick={cancelAdd} className={ui.ghostBtn}>
               Cancel
             </button>
-            <button
-              onClick={commitAdd}
-              style={{ background: T.cyanFaint, border: `1px solid ${T.borderAccent}`, color: T.cyan, fontFamily: "'Space Grotesk', sans-serif", fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}
-            >
+            <button type="button" onClick={commitAdd} data-active className={ui.ghostBtn}>
               Add
             </button>
           </div>

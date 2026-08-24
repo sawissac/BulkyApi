@@ -19,10 +19,10 @@ export default function StatusTab({ T, call }: Props) {
 
   const statLabel = (val: string, lbl: string, color: string) => (
     <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgHover }}>
-      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 7, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, marginBottom: 4 }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 7, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, marginBottom: 4 }}>
         {lbl}
       </div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {val}
       </div>
     </div>
@@ -31,14 +31,14 @@ export default function StatusTab({ T, call }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, borderRadius: 10, border: `1px solid ${c}25`, background: `${c}0a` }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 40, fontWeight: 700, color: c, lineHeight: 1 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 40, fontWeight: 700, color: c, lineHeight: 1 }}>
           {call.statusCode || '—'}
         </div>
         <div>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 700, color: c }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: c }}>
             {call.statusCode ? (STATUS_TXT[call.statusCode] || call.status) : call.status}
           </div>
-          <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 10, color: T.textDim, marginTop: 3 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: T.textDim, marginTop: 3 }}>
             {call.method} {path}
           </div>
         </div>

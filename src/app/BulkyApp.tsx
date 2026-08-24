@@ -1,24 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { SlidersHorizontal, Maximize2, Minimize2 } from "lucide-react";
-import { useFullscreen } from "@/hooks/useFullscreen";
-import { THEMES } from "@/lib/themes";
+import { THEMES, themeVars } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
 import { useScriptRunner } from "@/hooks/useScriptRunner";
 import {
   selectTheme,
   selectTweaksOpen,
-  setTweaksOpen,
   selectViewByItemId,
   setResponseView,
   selectLayout,
 } from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
-import { selectEnvVars, selectActiveEnv } from "@/store/collectionsSlice";
+import { selectEnvVars } from "@/store/collectionsSlice";
 import {
-  selectBuiltCalls,
   selectRunning,
   selectStepMode,
   selectPaused,
@@ -31,6 +27,7 @@ import {
   selectActiveItem,
   saveItemCode,
 } from "@/store/collectionsSlice";
+import ActivityRail from "@/features/sidebar/components/ActivityRail";
 import Sidebar from "@/features/sidebar/components/Sidebar";
 import CodeEditor from "@/features/code-editor/components/CodeEditor";
 import ResponsePanel from "@/features/response-panel/components/ResponsePanel";
@@ -41,6 +38,76 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 
+const LAYOUT_SIZES = {
+  balanced: { side: "25%", editor: "50%", resp: "25%" },
+  "editor-focus": { side: "18%", editor: "64%", resp: "18%" },
+  "response-focus": { side: "18%", editor: "32%", resp: "50%" },
+} as const;
+
+const HANDLE =
+  "w-px bg-app-border transition-colors duration-200 hover:bg-app-border-accent " +
+  "data-[resize-handle-active]:bg-app-accent [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full [&>div]:bg-current";
+
+/**
+ * Application shell: a fixed vertical rail on the left, then three resizable
+ * panes — sidebar, script editor, response panel — filling the rest of the
+ * viewport. It owns the wiring between the active collection item, the editor
+ * buffer and the runner, and mounts the tweaks panel when it is open. This is
+ * the only place that composes those pieces; individual panes are mounted
+ * nowhere else.
+ *
+ * @remarks
+ * Status: stable — Type: page shell
+ *
+ * State & behavior: no local state. Four effects do the work. The first mirrors
+ * the active theme's variables onto `<html>` so portalled UI (dialogs, tweaks
+ * panel) and document chrome (scrollbars) read the same tokens as the app root;
+ * the inline `style` on the root applies them again so the very first paint is
+ * already themed and does not flash. The second re-analyzes the script 300ms
+ * after the code or environment settles, skipping analysis while a run is in
+ * flight and on the render that follows an item switch — `isSwitchingItemRef`
+ * carries that flag, since the code change there comes from the store, not the
+ * user. The third loads an item's code and restores its stored call results
+ * when `activeId` changes, and clears the runner when nothing is active. The
+ * fourth writes edits back to the active item 400ms after typing stops.
+ *
+ * Variants: pane sizes follow the `layout` setting — `balanced`,
+ * `editor-focus`, `response-focus`. Changing it remounts the panel group by
+ * key, which is what resets panes a user has dragged.
+ *
+ * Composition: renders {@link ActivityRail}, {@link Sidebar},
+ * {@link CodeEditor}, {@link ResponsePanel} and, when open,
+ * {@link TweaksPanel}. Expects the Redux provider above it.
+ *
+ * Accessibility: the pane group is the page's `main` landmark; the rail
+ * provides the `nav` landmark. Resize handles come from the resizable
+ * primitives and are keyboard-operable.
+ *
+ * Test ids: none of its own — the rail, panes and tweaks panel carry theirs.
+ *
+ * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ *
+ * Edge cases:
+ * - Unknown `layout` value falls back to `editor-focus` sizing.
+ * - No active item → the runner is cleared and the editor keeps the last buffer.
+ * - Both debounce timers are cleared on unmount, so a pending analyze or save
+ *   cannot dispatch after teardown.
+ *
+ * Dependencies: `react-redux`, internal `useScriptRunner` hook, `analyzeScript`.
+ *
+ * @example
+ * ```tsx
+ * export default function Page() {
+ *   return (
+ *     <Providers>
+ *       <BulkyApp />
+ *     </Providers>
+ *   );
+ * }
+ * ```
+ *
+ * @see {@link ActivityRail}
+ */
 export default function BulkyApp() {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
@@ -49,8 +116,6 @@ export default function BulkyApp() {
   const viewByItemId = useSelector(selectViewByItemId);
   const code = useSelector(selectCode);
   const envVars = useSelector(selectEnvVars);
-  const activeEnv = useSelector(selectActiveEnv);
-  const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
   const activeItem = useSelector(selectActiveItem);
@@ -58,22 +123,21 @@ export default function BulkyApp() {
   const paused = useSelector(selectPaused);
 
   const { onRun, onNext, onStop } = useScriptRunner();
-  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const T = THEMES[theme] || THEMES.ocean;
-  const [sidebarSize, setSidebarSize] = useState(20);
+  const L = LAYOUT_SIZES[layout] ?? LAYOUT_SIZES["editor-focus"];
 
-  const layoutSizes = {
-    balanced: { side: "25%", editor: "50%", resp: "25%" },
-    "editor-focus": { side: "18%", editor: "64%", resp: "18%" },
-    "response-focus": { side: "18%", editor: "32%", resp: "50%" },
-  } as const;
-  const L = layoutSizes[layout] ?? layoutSizes["editor-focus"];
+  useEffect(() => {
+    const root = document.documentElement;
+    const vars = themeVars(T);
+    for (const [key, value] of Object.entries(vars)) {
+      root.style.setProperty(key, value);
+    }
+    root.style.colorScheme = T.isLight ? "light" : "dark";
+  }, [T]);
 
-  // Flag: skip syncAnalyzedCalls when code change comes from an item switch
   const isSwitchingItemRef = useRef(false);
 
-  // Debounce analyze on code/env change (skip during run or item switch)
   const analyzeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const switching = isSwitchingItemRef.current;
@@ -86,7 +150,6 @@ export default function BulkyApp() {
     return () => clearTimeout(analyzeTimerRef.current ?? undefined);
   }, [code, envVars, running, dispatch]);
 
-  // When activeId switches: load the item's code and restore its stored call results
   const prevActiveIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (activeId && activeId !== prevActiveIdRef.current) {
@@ -108,7 +171,6 @@ export default function BulkyApp() {
     }
   }, [activeId, activeItem, envVars, dispatch, viewByItemId]);
 
-  // Debounce syncing code edits back to active collection item
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!activeId) return;
@@ -121,174 +183,21 @@ export default function BulkyApp() {
 
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100vw",
-        height: "100vh",
-        background: T.bg,
-        color: T.text,
-        overflow: "hidden",
-      }}
+      style={themeVars(T) as React.CSSProperties}
+      className="flex h-screen w-screen overflow-hidden bg-app-bg font-sans text-app-text"
     >
-      {/* Top bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "0 14px",
-          height: 44,
-          background: T.bgSidebar,
-          borderBottom: `1px solid ${T.border}`,
-          flexShrink: 0,
-        }}
-      >
-        <img
-          src="/favicon.svg"
-          alt="Bulky API"
-          width={22}
-          height={22}
-          style={{ flexShrink: 0, borderRadius: 5 }}
-        />
-        <span
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: T.textBright,
-          }}
-        >
-          Bulky API
-        </span>
-        <div style={{ height: 14, width: 1, background: T.border }} />
-        <span
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 9,
-            color: T.textDim,
-            padding: "2px 8px",
-            borderRadius: 4,
-            border: `1px solid ${T.border}`,
-            background: T.bgHover,
-          }}
-        >
-          {activeEnv?.name ?? "—"}
-        </span>
-        <div style={{ flex: 1 }} />
-        {running && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "3px 10px",
-              borderRadius: 9999,
-              background: T.cyanFaint,
-              border: `1px solid ${T.borderAccent}`,
-            }}
-          >
-            <div
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: paused ? T.warn : T.cyan,
-                animation: paused ? "none" : "pulse 0.7s ease-in-out infinite",
-              }}
-            />
-            <span
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 8,
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                color: paused ? T.warn : T.cyanDim,
-              }}
-            >
-              {paused ? "PAUSED" : "RUNNING"}
-            </span>
-          </div>
-        )}
-        <span
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 9,
-            color: T.textDim,
-          }}
-        >
-          {builtCalls.length} calls
-        </span>
-        <button
-          onClick={toggleFullscreen}
-          title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          style={{
-            background: T.bgHover,
-            border: `1px solid ${T.border}`,
-            borderRadius: 6,
-            padding: "4px 8px",
-            color: T.textDim,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            transition: "all 0.15s",
-          }}
-        >
-          {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-        </button>
-        <button
-          onClick={() => dispatch(setTweaksOpen(!tweaksOpen))}
-          style={{
-            background: T.bgHover,
-            border: `1px solid ${tweaksOpen ? T.borderAccent : T.border}`,
-            borderRadius: 6,
-            padding: "4px 8px",
-            color: tweaksOpen ? T.cyan : T.textDim,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            transition: "all 0.15s",
-          }}
-        >
-          <SlidersHorizontal size={12} />
-          <span
-            style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.07em",
-            }}
-          >
-            Tweaks
-          </span>
-        </button>
-      </div>
+      <ActivityRail />
 
-      {/* 3-pane layout */}
-      <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+      <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <ResizablePanelGroup
           key={layout}
           orientation="horizontal"
-          style={{ height: "100%" }}
+          className="h-full"
         >
-          <ResizablePanel
-            defaultSize={L.side}
-            minSize="15%"
-            maxSize="40%"
-            onResize={(s) => setSidebarSize(s.asPercentage)}
-          >
-            <Sidebar T={T} narrow={sidebarSize < 18} />
+          <ResizablePanel defaultSize={L.side} minSize="15%" maxSize="40%">
+            <Sidebar T={T} />
           </ResizablePanel>
-          <ResizableHandle
-            withHandle
-            style={{ background: T.border, width: 1 }}
-            className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
-          />
+          <ResizableHandle withHandle className={HANDLE} />
           <ResizablePanel defaultSize={L.editor} minSize="25%">
             <CodeEditor
               T={T}
@@ -301,16 +210,12 @@ export default function BulkyApp() {
               onToggleStep={() => dispatch(setStepMode(!stepMode))}
             />
           </ResizablePanel>
-          <ResizableHandle
-            withHandle
-            style={{ background: T.border, width: 1 }}
-            className="[&>div]:bg-current [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full"
-          />
+          <ResizableHandle withHandle className={HANDLE} />
           <ResizablePanel defaultSize={L.resp} minSize="15%" maxSize="70%">
             <ResponsePanel T={T} />
           </ResizablePanel>
         </ResizablePanelGroup>
-      </div>
+      </main>
 
       {tweaksOpen && <TweaksPanel T={T} />}
     </div>
