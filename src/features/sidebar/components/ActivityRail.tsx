@@ -2,7 +2,10 @@
 
 import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
+import Link from "next/link";
 import {
+  CircleUserRound,
+  CloudOff,
   FileLock,
   FolderDown,
   FolderOpen,
@@ -22,6 +25,12 @@ import {
 } from "@/store/uiSlice";
 import { selectActiveEnv } from "@/store/collectionsSlice";
 import { selectRunning, selectPaused } from "@/store/runnerSlice";
+import {
+  selectAuthStatus,
+  selectSupabaseConfigured,
+  selectSyncStatus,
+  selectUserEmail,
+} from "@/store/authSlice";
 
 /**
  * Rail control: 36px square hit area, flat, accent tint when active. The
@@ -46,7 +55,7 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
 /**
  * Fixed 48px vertical rail pinned to the window's left edge: brand mark, active
  * environment, the sidebar section tabs, and the app-level controls (run status,
- * fullscreen, tweaks). It replaces the former full-width top bar, so
+ * account, fullscreen, tweaks). It replaces the former full-width top bar, so
  * the three resizable panes start at the top of the viewport. Reach for
  * {@link Sidebar} for the pane body the tabs here select.
  *
@@ -56,15 +65,19 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  * State & behavior: one piece of local state — whether the display-mode picker
  * is open. The selected tab and tweaks-panel flag live in `uiSlice`; run status
  * and pause flag come from `runnerSlice`; the environment badge reads
- * `collectionsSlice`. The laptop control opens {@link DisplayModeDialog}, which
- * changes nothing until the user confirms; the confirmed choice goes to
- * `useDisplayMode`, which enters or leaves fullscreen there and then. The running
- * badge only mounts while a script runs.
+ * `collectionsSlice`; the account control reads `authSlice`. The laptop control
+ * opens {@link DisplayModeDialog}, which changes nothing until the user
+ * confirms; the confirmed choice goes to `useDisplayMode`, which enters or
+ * leaves fullscreen there and then. The running badge only mounts while a
+ * script runs. The account control is a link to `/login` rather than a dialog,
+ * because signing in leaves and returns via an emailed link.
  *
  * Variants:
  * - idle — no status dot.
  * - running — pulsing accent dot.
  * - paused — same dot, warn color, animation stopped.
+ * - account — person icon signed in or out, struck-through cloud when Supabase
+ *   is not configured, plus a red dot when the last sync failed.
  *
  * Composition: renders no children. Pairs with {@link Sidebar}, whose tab panel
  * carries `id="sidebar-pane"` — the target of `aria-controls` here.
@@ -77,7 +90,8 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  *
  * Test ids: root `activity-rail-nav`, env button `activity-rail-env-button`,
  * tabs `activity-rail-tab-<tab-id>`, status `activity-rail-status`,
- * display mode `activity-rail-display-button`, tweaks `activity-rail-tweaks-button`.
+ * account `activity-rail-account-link`, display mode
+ * `activity-rail-display-button`, tweaks `activity-rail-tweaks-button`.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
@@ -88,9 +102,11 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  *   the tooltip.
  * - Every reload comes up in URL view; fullscreen is never restored on its own,
  *   so the laptop control always starts out showing URL view.
+ * - The account control stays visible with no Supabase project configured; it
+ *   leads to an explanation of local-only mode rather than a dead sign-in form.
  *
- * Dependencies: `lucide-react`, `react-redux`, internal `useDisplayMode` hook,
- * `@/components/ui/tooltip` (Radix `Tooltip` wrapper).
+ * Dependencies: `lucide-react`, `react-redux`, `next/link`, internal
+ * `useDisplayMode` hook, `@/components/ui/tooltip` (Radix `Tooltip` wrapper).
  *
  * @example
  * ```tsx
@@ -112,8 +128,21 @@ export default function ActivityRail() {
   const paused = useSelector(selectPaused);
   const { mode, isFullscreen, apply } = useDisplayMode();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const syncConfigured = useSelector(selectSupabaseConfigured);
+  const authStatus = useSelector(selectAuthStatus);
+  const syncStatus = useSelector(selectSyncStatus);
+  const email = useSelector(selectUserEmail);
 
   const modeLabel = isFullscreen ? "Fullscreen view" : "URL view";
+
+  const signedIn = authStatus === "signed-in";
+  const accountLabel = !syncConfigured
+    ? "Sync unavailable — running local-only"
+    : signedIn
+      ? syncStatus === "error"
+        ? `Signed in as ${email ?? "your account"} — last sync failed`
+        : `Signed in as ${email ?? "your account"}`
+      : "Sign in to sync across devices";
 
   return (
     <nav
@@ -203,6 +232,31 @@ export default function ActivityRail() {
           <TooltipContent side="right">{paused ? "Paused" : "Running"}</TooltipContent>
         </Tooltip>
       )}
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            href="/login"
+            aria-label={accountLabel}
+            data-active={signedIn || undefined}
+            data-testid="activity-rail-account-link"
+            className={RAIL_BTN}
+          >
+            {syncConfigured ? (
+              <CircleUserRound size={15} aria-hidden="true" />
+            ) : (
+              <CloudOff size={15} aria-hidden="true" />
+            )}
+            {signedIn && syncStatus === "error" && (
+              <span
+                aria-hidden="true"
+                className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-app-error"
+              />
+            )}
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right">{accountLabel}</TooltipContent>
+      </Tooltip>
 
       <Tooltip>
         <TooltipTrigger asChild>

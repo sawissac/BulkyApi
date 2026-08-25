@@ -1,16 +1,16 @@
 # Graph Report - BulkyApi  (2026-08-25)
 
 ## Corpus Check
-- 78 files · ~43,703 words
+- 90 files · ~49,269 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 664 nodes · 1100 edges · 94 communities (31 shown, 63 thin omitted)
-- Extraction: 96% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.86)
+- 717 nodes · 1214 edges · 96 communities (32 shown, 64 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `14c636f7`
+- Built from commit: `73f79062`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -45,14 +45,14 @@
 - [[_COMMUNITY_ESLint Config|ESLint Config]]
 - [[_COMMUNITY_Next.js Config|Next.js Config]]
 - [[_COMMUNITY_PWA Manifest|PWA Manifest]]
-- [[_COMMUNITY_SSE Event Components|SSE Event Components]]
-- [[_COMMUNITY_Button Group Separator|Button Group Separator]]
+- [[_COMMUNITY_Proxy API Route|Proxy API Route]]
+- [[_COMMUNITY_Service Worker Config|Service Worker Config]]
 - [[_COMMUNITY_Runner Slice Pruning|Runner Slice Pruning]]
 - [[_COMMUNITY_Keyboard Shortcuts|Keyboard Shortcuts]]
 - [[_COMMUNITY_Next.js Type Reference|Next.js Type Reference]]
 - [[_COMMUNITY_PostCSS Config Note|PostCSS Config Note]]
-- [[_COMMUNITY_Test Case Concept|Test Case Concept]]
-- [[_COMMUNITY_Boom Debug Marker|Boom Debug Marker]]
+- [[_COMMUNITY_Next.js Env Reference|Next.js Env Reference]]
+- [[_COMMUNITY_ESLint Config Note|ESLint Config Note]]
 - [[_COMMUNITY_Button Group Text|Button Group Text]]
 - [[_COMMUNITY_Resizable Panel|Resizable Panel]]
 - [[_COMMUNITY_Resizable Handle|Resizable Handle]]
@@ -104,6 +104,8 @@
 - [[_COMMUNITY_Community 91|Community 91]]
 - [[_COMMUNITY_Community 92|Community 92]]
 - [[_COMMUNITY_Community 93|Community 93]]
+- [[_COMMUNITY_Community 94|Community 94]]
+- [[_COMMUNITY_Community 95|Community 95]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Theme` - 22 edges
@@ -146,109 +148,113 @@
 - **Run/Step/Stop Execution Control Flow** — codeeditor_codeeditor, codeeditor_props, monacocodeeditor_monacocodeeditor [EXTRACTED 1.00]
 - **Example Script Selection & Load Flow** — codeeditor_codeeditor, sampledata_example_scripts, exampledialog_exampledialog, editorslice_setcode [EXTRACTED 1.00]
 
-## Communities (94 total, 63 thin omitted)
+## Communities (96 total, 64 thin omitted)
 
 ### Community 0 - "Response Panel Components & Props"
 Cohesion: 0.05
-Nodes (50): BulkyApp(), LAYOUT_SIZES, ActivityRail(), TABS, DisplayModeDialogProps, OPTIONS, Props, PANE_LABELS (+42 more)
+Nodes (54): BulkyApp(), LAYOUT_SIZES, DisplayModeDialogProps, OPTIONS, Props, JNodeProps, Props, HTTP_METHODS (+46 more)
 
 ### Community 1 - "Layout & Display Modes"
-Cohesion: 0.06
-Nodes (37): Props, Props, ConfirmDialogProps, CurlImportDialogProps, Props, CYCLE_METHODS, METHOD_INFO, MethodPillProps (+29 more)
+Cohesion: 0.05
+Nodes (43): Props, MonacoCodeEditor, Props, Props, ConfirmDialogProps, CurlImportDialogProps, Props, Props (+35 more)
 
 ### Community 2 - "App Bootstrap & Providers"
 Cohesion: 0.05
-Nodes (60): Button, ButtonGroup, ButtonGroup, CodeEditor, handleFormat, toggleExamples, collectionsReducer, selectActiveCollection (+52 more)
+Nodes (48): Props, Props, CallCard(), DetailTab, Props, CYCLE_METHODS, METHOD_INFO, MethodPillProps (+40 more)
 
 ### Community 3 - "Error Boundary & Mock Fixtures"
-Cohesion: 0.05
-Nodes (32): metadata, viewport, ServiceWorkerRegister(), MonacoCodeEditor, Props, Props, EditorInstance, Props (+24 more)
+Cohesion: 0.06
+Nodes (38): metadata, viewport, LegacyEnvState, ServiceWorkerRegister(), GET(), ErrorBoundary, Props, State (+30 more)
 
 ### Community 4 - "Sidebar Dialogs & Panes"
 Cohesion: 0.06
 Nodes (52): ApiDocs, ApiWaterfall, AuthTab, Dot, CallCard, CollectionsState (type), findCollectionForEnv, EditorState (type) (+44 more)
 
 ### Community 5 - "Code Editor & Method Detail"
-Cohesion: 0.08
-Nodes (25): Props, Props, CallCard(), DetailTab, Props, Props, JNodeProps, Props (+17 more)
+Cohesion: 0.07
+Nodes (29): hydrateCollections, hydrateEditor, ErrorBoundary, Add error boundary, Add proxy timeout, Cap persisted response size, Fix error: any, Replace opts as never casts (+21 more)
 
 ### Community 6 - "Sidebar & Curl Parsing"
-Cohesion: 0.08
-Nodes (27): ErrorBoundary, Props, State, HTTP_METHODS, MOCK_CALL, MOCK_CALL_CACHED, MOCK_CALL_ERROR, MOCK_CALL_SSE (+19 more)
-
-### Community 7 - "Response Panel Tab Set"
 Cohesion: 0.07
 Nodes (27): 10. Theming & Layout, 11. Error Handling, 12. Best Practices, 1. Overview, 2. Interface Layout, 3.1 Available API Methods, 3.2 Using Environment Variables, 3.3 Chaining Calls (+19 more)
 
+### Community 7 - "Response Panel Tab Set"
+Cohesion: 0.1
+Nodes (16): ActivityRail(), TABS, useDisplayMode(), authSlice, AuthState, AuthStatus, initialState, selectAuthStatus() (+8 more)
+
 ### Community 8 - "Code Editor State Wiring"
-Cohesion: 0.2
-Nodes (14): isSseBody(), ParsedSseEvent, parseSseBody(), Props, RespTab(), ViewMode, buildInterface(), camelToPascal() (+6 more)
+Cohesion: 0.1
+Nodes (24): ButtonGroup, CodeEditor, handleFormat, toggleExamples, selectActiveCollection, selectActiveItem, selectEnvVars, selectCode (+16 more)
 
 ### Community 9 - "Redux Store Architecture"
-Cohesion: 0.18
-Nodes (11): Props, TONES, ImportCollectionDialogProps, curlToScript(), parseCurl(), ParsedCurl, tokenize(), downloadBlob() (+3 more)
+Cohesion: 0.12
+Nodes (16): Props, TONES, ImportCollectionDialogProps, curlToScript(), parseCurl(), ParsedCurl, tokenize(), downloadBlob() (+8 more)
 
 ### Community 10 - "SSE Response Parsing"
 Cohesion: 0.12
-Nodes (16): Next.js 16 Breaking-Changes Notice, Graphify Knowledge-Graph Usage Rules, Writing a Script (SOP §3), Script API Surface (api.get/post/put/patch/delete), Bulky API Project, localforage Persistence, lucide-react Icons, Monaco Editor (@monaco-editor/react) (+8 more)
+Nodes (18): BulkyApp, Home(), BulkyApp, React Component JSDoc Convention, CodeEditor Props, Abort running script, Console height toggle, Debounce saveItemCode (+10 more)
 
 ### Community 11 - "File Import & Curl Parsing"
+Cohesion: 0.2
+Nodes (14): isSseBody(), ParsedSseEvent, parseSseBody(), Props, RespTab(), ViewMode, buildInterface(), camelToPascal() (+6 more)
+
+### Community 12 - "Project Docs & Dependencies"
+Cohesion: 0.2
+Nodes (16): CollPane, ConfirmDialog, EnvPane, Input, NewCollectionDialog, NewEnvironmentDialog, Sidebar, CollPane testid contract (+8 more)
+
+### Community 13 - "Persistence & Improvement Notes"
+Cohesion: 0.12
+Nodes (16): Next.js 16 Breaking-Changes Notice, Graphify Knowledge-Graph Usage Rules, Writing a Script (SOP §3), Script API Surface (api.get/post/put/patch/delete), Bulky API Project, localforage Persistence, lucide-react Icons, Monaco Editor (@monaco-editor/react) (+8 more)
+
+### Community 14 - "BulkyApp Debounce & Improvements"
 Cohesion: 0.13
 Nodes (14): ActivityRail (src/features/sidebar/components/ActivityRail.tsx), CodeEditor (src/features/code-editor/components/CodeEditor.tsx), CollPane (src/features/sidebar/components/CollPane.tsx), ConfirmDialog (src/components/ConfirmDialog.tsx), data-testid registry, DisplayModeDialog (src/features/sidebar/components/DisplayModeDialog.tsx), EnvPane (src/features/sidebar/components/EnvPane.tsx), Input (src/components/ui/input.tsx) (+6 more)
 
-### Community 12 - "Project Docs & Dependencies"
+### Community 15 - "State Hydration Flow"
 Cohesion: 0.13
 Nodes (14): API surface (in scripts), Author, Bulky API, code:bash (pnpm install), code:bash (pnpm build), code:block3 (src/), code:js (await api.get(url, opts?)), Features (+6 more)
 
-### Community 13 - "Persistence & Improvement Notes"
+### Community 16 - "UI Primitives & Mock Gallery"
 Cohesion: 0.27
 Nodes (12): curlToScript, parseCurl, ParsedCurl (type), tokenize, buildInterface, camelToPascal, capitalize, inferType (+4 more)
 
-### Community 14 - "BulkyApp Debounce & Improvements"
-Cohesion: 0.22
-Nodes (11): ActivityRail, DisplayModeDialog, Debounce timeout input, TweaksPanelPreview, ServiceWorkerRegister, ActivityRail testid contract, DisplayModeDialog testid contract, TweaksPanel testid contract (+3 more)
-
-### Community 15 - "State Hydration Flow"
-Cohesion: 0.2
-Nodes (9): BulkyApp, Home(), BulkyApp, React Component JSDoc Convention, CodeEditor Props, Debounce saveItemCode, Debounce syncAnalyzedCalls, Fix eslint-disable suppressions (+1 more)
-
-### Community 16 - "UI Primitives & Mock Gallery"
-Cohesion: 0.22
-Nodes (9): Abort running script, Console height toggle, Extract onRun to custom hook, Move timeout config to TweaksPanel, ResponsePanel, analyzeScript, extractNoteBeforeIndex, isInsideComment (+1 more)
-
 ### Community 17 - "Script Runner Hook"
-Cohesion: 0.25
-Nodes (9): Cap persisted response size, Replace opts as never casts, Stop spreading every call on every update, RootLayout, manifest(), persist.ts (localforage save/load), Persisted Response Size Cap Note, Project Layout (src/ tree) (+1 more)
+Cohesion: 0.28
+Nodes (9): ActivityRail, DisplayModeDialog, Debounce timeout input, TweaksPanelPreview, ActivityRail testid contract, DisplayModeDialog testid contract, TweaksPanel testid contract, TweaksPanel (+1 more)
 
 ### Community 18 - "Activity Rail & Display Mode Hooks"
-Cohesion: 0.22
-Nodes (9): hydrateCollections, hydrateEditor, ErrorBoundary, Add error boundary, loadPersistedState, HydrateStore, Providers, hydrateRunner (+1 more)
-
-### Community 19 - "Redux Reducers & Mock Store"
 Cohesion: 0.25
 Nodes (7): Bulky API — Improvement & Optimization Checklist v1.0.0, Code Quality / Architecture, Maintainability, Memory / Unbounded Growth, Performance, Security, UX / Missing Features
 
+### Community 19 - "Redux Reducers & Mock Store"
+Cohesion: 0.25
+Nodes (8): Button, ButtonGroup, Keyboard shortcut for Run, MocksComponentsPage, MonacoCodeEditor, ResizablePanelGroup / ResizablePanel / ResizableHandle, setLogs, MocksComponentsPage testid contract
+
 ### Community 20 - "Proxy Route & Security Notes"
 Cohesion: 0.4
-Nodes (5): Add proxy timeout, Fix error: any, SSRF risk in proxy — accepted, Proxy Permissiveness Note, POST proxy handler
+Nodes (6): CurlImportDialog, FilePane, downloadBlob, pickFile, readFileText, ImportCollectionDialog
 
 ### Community 21 - "Service Worker Shell Cache"
-Cohesion: 0.5
-Nodes (3): copy, SHELL, url
+Cohesion: 0.33
+Nodes (6): collectionsReducer, editorReducer, Prune viewByItemId, createMockStore, runnerReducer, uiSlice / uiReducer
 
 ### Community 22 - "Call Sync & Item Switching"
-Cohesion: 0.5
-Nodes (4): methodVars, themeVars, ghostBtn recipe, solidBtn recipe
+Cohesion: 0.6
+Nodes (4): config, isPublicPath(), proxy(), withAuthCookies()
 
 ### Community 23 - "Home Page Entry"
 Cohesion: 0.5
+Nodes (3): copy, SHELL, url
+
+### Community 24 - "removeItem Cross-Slice Cleanup"
+Cohesion: 0.5
 Nodes (4): applyStored, mergeCalls, switchToItem, syncAnalyzedCalls
 
-### Community 25 - "Brand Marks"
+### Community 27 - "ESLint Config"
 Cohesion: 0.67
 Nodes (3): removeItem (action/reducer), removeItem cleanup handler (extraReducers), removeItem cleanup handler (extraReducers)
 
-### Community 26 - "PostCSS Config"
+### Community 28 - "Next.js Config"
 Cohesion: 0.67
 Nodes (3): BulkyApi Favicon Icon, Bulky API Wordmark Logo, Bulky API Logo Mark
 
@@ -261,9 +267,9 @@ Nodes (3): BulkyApi Favicon Icon, Bulky API Wordmark Logo, Bulky API Logo Mark
   public/logo-mark.svg · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **301 isolated node(s):** `config`, `eslintConfig`, `nextConfig`, `SHELL`, `url` (+296 more)
+- **309 isolated node(s):** `config`, `eslintConfig`, `nextConfig`, `SHELL`, `url` (+304 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **63 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **64 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -274,11 +280,11 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Bulky API Logo Mark` and `BulkyApi Favicon Icon`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `MocksComponentsPage` connect `App Bootstrap & Providers` to `Sidebar Dialogs & Panes`, `BulkyApp Debounce & Improvements`, `State Hydration Flow`, `UI Primitives & Mock Gallery`, `Activity Rail & Display Mode Hooks`?**
-  _High betweenness centrality (0.023) - this node is a cross-community bridge._
-- **Why does `BulkyApp` connect `State Hydration Flow` to `App Bootstrap & Providers`, `BulkyApp Debounce & Improvements`, `UI Primitives & Mock Gallery`, `Script Runner Hook`, `Call Sync & Item Switching`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `ApiCall` connect `Sidebar Dialogs & Panes` to `UI Primitives & Mock Gallery`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+- **Why does `MocksComponentsPage` connect `Redux Reducers & Mock Store` to `Sidebar Dialogs & Panes`, `Code Editor & Method Detail`, `Code Editor State Wiring`, `SSE Response Parsing`, `Project Docs & Dependencies`, `Script Runner Hook`, `Proxy Route & Security Notes`, `Service Worker Shell Cache`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `BulkyApp` connect `SSE Response Parsing` to `Code Editor State Wiring`, `Script Runner Hook`, `Project Docs & Dependencies`, `Code Editor & Method Detail`?**
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **Why does `ApiCall` connect `Sidebar Dialogs & Panes` to `SSE Response Parsing`?**
+  _High betweenness centrality (0.013) - this node is a cross-community bridge._
 - **What connects `config`, `eslintConfig`, `nextConfig` to the rest of the system?**
-  _301 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _309 weakly-connected nodes found - possible documentation gaps or missing edges._

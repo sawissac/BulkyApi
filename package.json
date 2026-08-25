@@ -3,14 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4545",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 4545",
     "lint": "eslint"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@reduxjs/toolkit": "^2.11.2",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "localforage": "^1.10.0",
@@ -36,6 +38,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "monaco-editor": "^0.55.1",
+    "supabase": "^2.115.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
