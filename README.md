@@ -107,6 +107,21 @@ console.warn('msg');
 console.error('msg');
 ```
 
+## MCP server (Claude)
+
+`mcp/` is a stdio [MCP](https://modelcontextprotocol.io) server that hands Claude the same surface as the UI: the saved collections and environments, edits to them, and the `api.*` runner.
+
+```bash
+pnpm mcp:install
+pnpm mcp:build
+```
+
+Add `BULKY_EMAIL` and `BULKY_PASSWORD` to `.env.local` — the server signs in as that user, so RLS scopes what Claude can touch. It reuses the Supabase values already in the file. Magic-link accounts have no password until one is set at `/login` → **Set a password**.
+
+Claude Code picks up the project-scoped [`.mcp.json`](.mcp.json) automatically; `claude mcp add bulky-api -- node <abs-path>/mcp/dist/index.js` registers it globally instead. `.claude/skills/bulky-api/SKILL.md` teaches the workflows.
+
+16 tools across four groups — collections, environments, execution, and `bulky_whoami` for diagnostics. Execution tools (`bulky_http_request`, `bulky_run_script`, `bulky_curl_to_script`) work with no credentials at all. Details and limits: [`mcp/README.md`](mcp/README.md).
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |

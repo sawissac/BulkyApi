@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "bulky-api": {
+      "command": "node",
+      "args": ["mcp/dist/index.js"],
+      "env": {
+        "BULKY_EMAIL": "${BULKY_EMAIL:-}",
+        "BULKY_PASSWORD": "${BULKY_PASSWORD:-}"
+      }
+    }
+  }
+}

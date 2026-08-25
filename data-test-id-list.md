@@ -103,3 +103,23 @@ Shared primitive — fixed ids regardless of caller (not derived per instance). 
 `code-editor-rename-collection-input-clear-button` — CodeEditor / breadcrumb collection rename inline clear button
 `code-editor-rename-item-input` — CodeEditor / breadcrumb inline request rename field (via shared `Input`)
 `code-editor-rename-item-input-clear-button` — CodeEditor / breadcrumb request rename inline clear button
+
+## LoginPane (src/features/auth/components/LoginPane.tsx)
+
+`login-pane-root` — LoginPane / screen root
+`login-pane-back-link` — LoginPane / back-to-workspace link
+`login-pane-mode-link-button` — LoginPane / magic-link method switch
+`login-pane-mode-password-button` — LoginPane / password method switch
+`login-pane-email-input` — LoginPane / email field, both signed-out forms (via shared `Input`)
+`login-pane-email-input-clear-button` — LoginPane / email inline clear button
+`login-pane-submit-button` — LoginPane / send magic link
+`login-pane-password-input` — LoginPane / password field, password sign-in (via shared `Input`)
+`login-pane-password-input-clear-button` — LoginPane / password inline clear button
+`login-pane-password-submit-button` — LoginPane / password sign in
+`login-pane-new-password-input` — LoginPane / new password field, signed in (via shared `Input`)
+`login-pane-new-password-input-clear-button` — LoginPane / new password inline clear button
+`login-pane-confirm-password-input` — LoginPane / confirm password field, signed in (via shared `Input`)
+`login-pane-confirm-password-input-clear-button` — LoginPane / confirm password inline clear button
+`login-pane-set-password-button` — LoginPane / save password
+`login-pane-signout-button` — LoginPane / sign out
+`login-pane-status` — LoginPane / status and error live region

@@ -6,7 +6,10 @@
     "dev": "next dev -p 4545",
     "build": "next build",
     "start": "next start -p 4545",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mcp:install": "pnpm -C mcp install",
+    "mcp:build": "pnpm -C mcp build",
+    "mcp:smoke": "pnpm -C mcp smoke"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
