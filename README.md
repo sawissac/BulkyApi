@@ -107,20 +107,40 @@ console.warn('msg');
 console.error('msg');
 ```
 
-## MCP server (Claude)
+## Collections as JSON
 
-`mcp/` is a stdio [MCP](https://modelcontextprotocol.io) server that hands Claude the same surface as the UI: the saved collections and environments, edits to them, and the `api.*` runner.
+Collections are portable JSON, so one can be hand-authored and imported.
 
-```bash
-pnpm mcp:install
-pnpm mcp:build
+Two importers exist and they accept different shapes:
+
+| Control | Accepts |
+|---|---|
+| Collections pane → **Import collection** | one collection object, or an array of them |
+| File pane → **Import collection** | the above, plus `{ "collections": [...] }` and a legacy top-level `environments` |
+
+File pane → **Export collection** writes the wrapped `{ "collections": [...] }`
+form, so re-import that file through the *file* pane, not the collections dialog.
+Ids are reassigned on import, so ids in a hand-written file are placeholders.
+
+```jsonc
+[
+  {
+    "id": "placeholder",
+    "name": "Profile Service (dev)",
+    "open": true,
+    "envIdx": 0,
+    "environments": [
+      { "id": "placeholder", "name": "dev", "vars": { "baseUrl": "https://…", "token": "" } }
+    ],
+    "items": [
+      { "id": "placeholder", "name": "00 - Service document", "method": "GET", "code": "const r = await api.get(env.baseUrl + '/');" }
+    ]
+  }
+]
 ```
 
-Add `BULKY_EMAIL` and `BULKY_PASSWORD` to `.env.local` — the server signs in as that user, so RLS scopes what Claude can touch. It reuses the Supabase values already in the file. Magic-link accounts have no password until one is set at `/login` → **Set a password**.
-
-Claude Code picks up the project-scoped [`.mcp.json`](.mcp.json) automatically; `claude mcp add bulky-api -- node <abs-path>/mcp/dist/index.js` registers it globally instead. `.claude/skills/bulky-api/SKILL.md` teaches the workflows.
-
-16 tools across four groups — collections, environments, execution, and `bulky_whoami` for diagnostics. Execution tools (`bulky_http_request`, `bulky_run_script`, `bulky_curl_to_script`) work with no credentials at all. Details and limits: [`mcp/README.md`](mcp/README.md).
+`collections/` holds checked-in examples. `.claude/skills/bulky-collection/SKILL.md`
+walks Claude through authoring one.
 
 ## Keyboard shortcuts
 

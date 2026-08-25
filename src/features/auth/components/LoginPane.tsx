@@ -269,8 +269,8 @@ export default function LoginPane() {
 
               <form onSubmit={setPassword} className="flex flex-col gap-2 border-t border-app-border pt-3">
                 <p className="font-description text-[12px] leading-relaxed text-app-dim">
-                  Set a password to sign in without a link — and to let tools that talk to your
-                  account, like the MCP server, authenticate as you.
+                  Set a password to sign in without a link, on a device where opening mail is
+                  awkward.
                 </p>
                 <Input
                   icon={KeyRound}
