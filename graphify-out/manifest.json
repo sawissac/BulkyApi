@@ -32,8 +32,8 @@
     "hash": "6dcc0caa70694240a0b264281748b4f1"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/BulkyApp.tsx": {
-    "mtime": 1787627162.9896185,
-    "hash": "b157cc7f32d6de5c6d11fe6efe126b86"
+    "mtime": 1787643101.6839647,
+    "hash": "74fe7ee46511690b48ef80f6ffa24ff2"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/layout.tsx": {
     "mtime": 1787575154.739797,
@@ -48,15 +48,15 @@
     "hash": "44f9afda4ca8601915321baff0470565"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/providers.tsx": {
-    "mtime": 1787633806.8566186,
-    "hash": "dfb629da4040d5de863e104291448503"
+    "mtime": 1787643036.5905252,
+    "hash": "a41b756ad02cb150f87c29026cb84d44"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/mocks/components/mockStore.ts": {
     "mtime": 1787633947.5706594,
     "hash": "3569068ffe507e0b97a709a55f2e96db"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/mocks/components/page.tsx": {
-    "mtime": 1787627174.3199215,
+    "mtime": 1787627175.3199217,
     "hash": "4633e4c94cf10a1d6e26fbb72ff6d709"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/mocks/components/mockData.ts": {
@@ -128,7 +128,7 @@
     "hash": "22c1844b178f7153f6ac67a8d5459b6b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/code-editor/components/CodeEditor.tsx": {
-    "mtime": 1787627155.751703,
+    "mtime": 1787627156.751703,
     "hash": "d124215841c13d46641e4805d39c6813"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/auth/components/LoginPane.tsx": {

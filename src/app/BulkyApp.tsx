@@ -25,6 +25,7 @@ import {
 import {
   selectActiveId,
   selectActiveItem,
+  selectCollections,
   saveItemCode,
 } from "@/store/collectionsSlice";
 import ActivityRail from "@/features/sidebar/components/ActivityRail";
@@ -61,7 +62,7 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  * @remarks
  * Status: stable — Type: page shell
  *
- * State & behavior: no local state. Four effects do the work. The first mirrors
+ * State & behavior: no local state. Five effects do the work. The first mirrors
  * the active theme's variables onto `<html>` so portalled UI (dialogs, tweaks
  * panel) and document chrome (scrollbars) read the same tokens as the app root;
  * the inline `style` on the root applies them again so the very first paint is
@@ -71,7 +72,9 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  * carries that flag, since the code change there comes from the store, not the
  * user. The third loads an item's code and restores its stored call results
  * when `activeId` changes, and clears the runner when nothing is active. The
- * fourth writes edits back to the active item 400ms after typing stops.
+ * fourth writes edits back to the active item 400ms after typing stops. The
+ * fifth empties the editor buffer when the last collection goes away, so a
+ * deleted collection's script does not linger in the pad.
  *
  * Variants: pane sizes follow the `layout` setting — `balanced`,
  * `editor-focus`, `response-focus`. Changing it remounts the panel group by
@@ -91,7 +94,10 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  *
  * Edge cases:
  * - Unknown `layout` value falls back to `editor-focus` sizing.
- * - No active item → the runner is cleared and the editor keeps the last buffer.
+ * - No active item but collections remain → the runner is cleared and the
+ *   editor keeps its buffer as a scratch pad.
+ * - No collections at all → the editor buffer is emptied, both when the last
+ *   one is deleted and when a snapshot with none is hydrated.
  * - Both debounce timers are cleared on unmount, so a pending analyze or save
  *   cannot dispatch after teardown.
  *
@@ -121,6 +127,7 @@ export default function BulkyApp() {
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
   const activeItem = useSelector(selectActiveItem);
+  const collections = useSelector(selectCollections);
   const stepMode = useSelector(selectStepMode);
   const paused = useSelector(selectPaused);
 
@@ -172,6 +179,13 @@ export default function BulkyApp() {
       dispatch(switchToItem({ itemId: null, analyzedCalls: [] }));
     }
   }, [activeId, activeItem, envVars, dispatch, viewByItemId]);
+
+  const hadCollectionsRef = useRef(false);
+  useEffect(() => {
+    const has = collections.length > 0;
+    if (hadCollectionsRef.current && !has) dispatch(setCode(""));
+    hadCollectionsRef.current = has;
+  }, [collections, dispatch]);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {

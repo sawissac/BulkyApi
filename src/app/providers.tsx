@@ -30,6 +30,15 @@ function ServiceWorkerRegister() {
   return null;
 }
 
+/** The editor buffer belongs to the active request, so a restored snapshot
+ *  with no collections has no script to show. Start it empty instead of
+ *  leaving the previous session's code stranded in the pad. */
+function clearEditorWithoutCollections() {
+  if (store.getState().collections.collections.length === 0) {
+    store.dispatch(hydrateEditor({ code: '' }));
+  }
+}
+
 function applySnapshot(saved: Record<string, unknown> | PersistedShape) {
   const s = saved as Record<string, unknown>;
   if (s.collections) {
@@ -38,6 +47,7 @@ function applySnapshot(saved: Record<string, unknown> | PersistedShape) {
   if (s.editor) store.dispatch(hydrateEditor(s.editor as Parameters<typeof hydrateEditor>[0]));
   if (s.ui) store.dispatch(hydrateUi(s.ui as Parameters<typeof hydrateUi>[0]));
   if (s.runner) store.dispatch(hydrateRunner(s.runner as Parameters<typeof hydrateRunner>[0]));
+  clearEditorWithoutCollections();
 }
 
 /**
@@ -108,6 +118,7 @@ function HydrateStore() {
         if (saved.editor) store.dispatch(hydrateEditor(saved.editor as Parameters<typeof hydrateEditor>[0]));
         if (saved.ui) store.dispatch(hydrateUi(saved.ui as Parameters<typeof hydrateUi>[0]));
         if (saved.runner) store.dispatch(hydrateRunner(saved.runner as Parameters<typeof hydrateRunner>[0]));
+        clearEditorWithoutCollections();
       }
 
       const configured = isSupabaseConfigured();
