@@ -2,11 +2,32 @@
 
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { ChevronRight, ChevronDown, FileText, Plus, Trash2, FolderPlus, Download, Pencil } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Trash2,
+  FolderPlus,
+  Download,
+  Pencil,
+  Feather,
+  Blend,
+} from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { CollectionItem } from "@/lib/sampleData";
 import * as ui from "@/lib/ui";
 import MethodPill from "@/components/MethodPill";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import NewCollectionDialog from "./NewCollectionDialog";
+import ImportCollectionDialog from "./ImportCollectionDialog";
 import {
   setActiveId,
   selectActiveId,
@@ -25,8 +46,6 @@ import { setCode } from "@/store/editorSlice";
 
 type Props = { T: Theme };
 
-const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-
 /**
  * Row actions stay out of the way until the row is hovered or something inside
  * it takes focus — `group-focus-within` is what keeps them keyboard-reachable
@@ -34,15 +53,96 @@ const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
  */
 const ROW_ACTION = `transition-opacity duration-200 ${ui.reveal}`;
 
+/** Container that visually combines a `ButtonGroup`'s children, no border. */
+const GROUP_BOX = "rounded-md overflow-hidden";
+
+/** Ghost button hover matching the rest of the app's icon controls. */
+const GROUP_BTN =
+  "rounded-none hover:bg-app-hover hover:text-app-accent dark:hover:bg-app-hover";
+
+const GROUP_BTN_DANGER =
+  "rounded-none text-app-error hover:bg-app-error/10 hover:text-app-error dark:hover:bg-app-error/10";
+
+/** Collection list: one bordered card, corner blocks clipped to its radius by
+ *  `overflow-hidden`, collections divided by `divide-y` instead of each one
+ *  owning its own margin — reads as one group, not a stack of blocks. A
+ *  collection's own item rows sit inside its `divide-y` child and are
+ *  unaffected — the divider only ever falls between two collections. */
+const LIST =
+  "mx-2 mb-2 flex flex-col overflow-hidden rounded-md border border-app-border divide-y divide-app-border";
+
+/**
+ * Collection/request tree — collapsible collections, each holding a list of
+ * request items with inline rename, method-pill editing, add, and delete.
+ *
+ * @remarks
+ * Status: stable — Type: pane
+ *
+ * State & behavior: `editing`/`draft` track which single collection or item
+ * name is being edited, swapping that name for an `Input` committed on
+ * Enter/blur, discarded on Escape. `newCollOpen` gates
+ * {@link NewCollectionDialog}, `importOpen` gates
+ * {@link ImportCollectionDialog}. `pendingDelete` gates {@link ConfirmDialog}
+ * for both a collection (cascades to all its items) and a single item —
+ * delete never fires directly from a row. Selecting an item dispatches both
+ * `setActiveId` and `setCode` so the editor follows the click.
+ *
+ * Variants: none — an empty `collections` array simply renders an empty
+ * `LIST` card.
+ *
+ * Composition: renders {@link NewCollectionDialog}, {@link
+ * ImportCollectionDialog}, and {@link ConfirmDialog} as needed. Collections
+ * are one bordered `LIST` card with `divide-y` separators between
+ * collections, rather than gapped, individually-margined blocks; each
+ * collection's header and its own item rows share one flush block. Header
+ * actions (rename, add item, delete) and per-item delete are grouped into
+ * `ButtonGroup`s, revealed on hover/focus via `ui.reveal`/`ROW_ACTION`.
+ *
+ * Accessibility: the expand/collapse toggle carries `aria-expanded`; the
+ * active item's select button carries `aria-current`. All icon-only
+ * controls have an `aria-label` naming the target collection or item.
+ *
+ * Test ids: collection rename `coll-pane-rename-collection-input`, item
+ * rename `coll-pane-rename-item-input` (single instance each — only one row
+ * across the whole tree can be in edit mode at a time).
+ *
+ * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ *
+ * Edge cases: a collection or item name typed as only whitespace on rename
+ * is discarded, leaving the original name intact.
+ *
+ * Dependencies: `lucide-react`, `react-redux`, `@/components/MethodPill`,
+ * `@/components/ConfirmDialog`, `@/components/ui/input`,
+ * `@/components/ui/button`, `@/components/ui/button-group`,
+ * `@/components/ui/tooltip`, `./NewCollectionDialog`,
+ * `./ImportCollectionDialog`, `@/store/collectionsSlice`,
+ * `@/store/editorSlice`.
+ *
+ * @example
+ * ```tsx
+ * <CollPane T={theme} />
+ * ```
+ *
+ * @see {@link EnvPane}
+ * @see {@link VarsPane}
+ */
 export default function CollPane({}: Props) {
   const dispatch = useDispatch();
   const collections = useSelector(selectCollections);
   const activeId = useSelector(selectActiveId);
 
-  const [editing, setEditing] = useState<{ kind: "coll" | "item"; id: string } | null>(null);
+  const [editing, setEditing] = useState<{
+    kind: "coll" | "item";
+    id: string;
+  } | null>(null);
   const [draft, setDraft] = useState("");
-  const [addingColl, setAddingColl] = useState(false);
-  const [collDraft, setCollDraft] = useState("");
+  const [newCollOpen, setNewCollOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "coll"; id: string; name: string }
+    | { kind: "item"; collectionId: string; itemId: string; name: string }
+    | null
+  >(null);
 
   const onSelect = (item: CollectionItem) => {
     dispatch(setActiveId(item.id));
@@ -58,206 +158,293 @@ export default function CollPane({}: Props) {
     if (!editing) return;
     const v = draft.trim();
     if (v) {
-      if (editing.kind === "coll") dispatch(renameCollection({ id: editing.id, name: v }));
+      if (editing.kind === "coll")
+        dispatch(renameCollection({ id: editing.id, name: v }));
       else dispatch(renameItem({ itemId: editing.id, name: v }));
     }
     setEditing(null);
   };
 
-  const commitNewColl = () => {
-    const v = collDraft.trim();
-    if (v) dispatch(addCollection(v));
-    setCollDraft("");
-    setAddingColl(false);
-  };
-
-  const cycleMethod = (item: CollectionItem) => {
-    const idx = METHODS.indexOf(item.method);
-    const next = METHODS[(idx + 1) % METHODS.length];
-    dispatch(setItemMethod({ itemId: item.id, method: next }));
-  };
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        const imported = Array.isArray(json) ? json : [json];
-        dispatch(importCollections(imported));
-      } catch {
-        alert("Failed to parse collection JSON.");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = ""; // Reset input
+  const handleImportJson = (json: unknown) => {
+    const imported = Array.isArray(json) ? json : [json];
+    dispatch(importCollections(imported));
+    setImportOpen(false);
   };
 
   return (
     <div className="pt-1">
       <div className="flex items-center justify-between gap-2 px-2.5 py-1">
-        <h2 className={ui.label}>Test Cases</h2>
-        <div className="flex gap-0.5">
-          <label className={`${ui.iconBtn} cursor-pointer`} title="Import collection">
-            <input type="file" accept=".json" onChange={handleImport} className="sr-only" />
-            <Download size={14} aria-hidden="true" />
-            <span className="sr-only">Import collection</span>
-          </label>
-          <button
-            type="button"
-            onClick={() => setAddingColl(true)}
-            title="New collection"
-            aria-label="New collection"
-            className={ui.iconBtn}
-          >
-            <FolderPlus size={14} aria-hidden="true" />
-          </button>
-        </div>
+        <h2 className={ui.label}>Requests</h2>
+        <ButtonGroup className={GROUP_BOX}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setImportOpen(true)}
+                aria-label="Import collection"
+                className={GROUP_BTN}
+              >
+                <Download size={14} aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Import collection</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setNewCollOpen(true)}
+                aria-label="New collection"
+                className={GROUP_BTN}
+              >
+                <FolderPlus size={14} aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>New collection</TooltipContent>
+          </Tooltip>
+        </ButtonGroup>
       </div>
 
-      {collections.map((col) => (
-        <div key={col.id} className="mb-0.5">
-          {/* Collection header — a solid block, not a bordered strip */}
-          <div className="group flex items-center gap-1 bg-app-hover px-2 py-1.5">
-            <button
-              type="button"
-              onClick={() => dispatch(toggleCollectionOpen(col.id))}
-              aria-expanded={col.open}
-              aria-label={col.open ? `Collapse ${col.name}` : `Expand ${col.name}`}
-              className="flex size-6 shrink-0 items-center justify-center rounded-sm border-0 bg-transparent text-app-dim transition-colors duration-200 hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-            >
-              {col.open ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />}
-            </button>
-
-            {editing?.kind === "coll" && editing.id === col.id ? (
-              <input
-                autoFocus
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(null); }}
-                onBlur={commitEdit}
-                aria-label={`Rename ${col.name}`}
-                className={`${ui.input} py-0.5 text-[11px] font-bold uppercase tracking-[0.07em]`}
-              />
-            ) : (
+      <div className={LIST}>
+        {collections.map((col) => (
+          <div key={col.id}>
+            {/* Collection header — a solid block, not a bordered strip */}
+            <div className="group flex items-center gap-1 bg-app-hover px-2 py-1.5">
               <button
                 type="button"
                 onClick={() => dispatch(toggleCollectionOpen(col.id))}
-                onDoubleClick={() => startEdit("coll", col.id, col.name)}
-                title="Double-click to rename"
-                className="min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left text-[11px] font-bold uppercase tracking-[0.07em] text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                aria-expanded={col.open}
+                aria-label={
+                  col.open ? `Collapse ${col.name}` : `Expand ${col.name}`
+                }
+                className="flex size-6 shrink-0 items-center justify-center rounded-sm border-0 bg-transparent text-app-dim transition-colors duration-200 hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
               >
-                {col.name}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => startEdit("coll", col.id, col.name)}
-              title="Rename"
-              aria-label={`Rename ${col.name}`}
-              className={`${ui.iconBtn} size-6 ${ROW_ACTION}`}
-            >
-              <Pencil size={12} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => dispatch(addItem({ collectionId: col.id }))}
-              title="Add test"
-              aria-label={`Add test to ${col.name}`}
-              className={`${ui.iconBtn} size-6 text-app-accent ${ROW_ACTION}`}
-            >
-              <Plus size={13} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => { if (confirm(`Delete collection "${col.name}"?`)) dispatch(removeCollection(col.id)); }}
-              title="Delete collection"
-              aria-label={`Delete collection ${col.name}`}
-              className={`${ui.iconBtnDanger} size-6 ${ui.reveal}`}
-            >
-              <Trash2 size={12} aria-hidden="true" />
-            </button>
-          </div>
-
-          {/* Items */}
-          {col.open && col.items.map((item) => {
-            const isActive = activeId === item.id;
-            const isEditing = editing?.kind === "item" && editing.id === item.id;
-            return (
-              <div
-                key={item.id}
-                data-selected={isActive || undefined}
-                className="group flex items-center gap-1.5 border-l-2 border-transparent py-1 pl-4 pr-2.5 transition-colors duration-200 hover:bg-app-hover data-selected:border-app-accent data-selected:bg-app-selected"
-              >
-                <FileText
-                  size={13}
-                  aria-hidden="true"
-                  className={`shrink-0 ${isActive ? 'text-app-accent' : 'text-app-dim'}`}
-                />
-
-                {isEditing ? (
-                  <input
-                    autoFocus
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(null); }}
-                    onBlur={commitEdit}
-                    aria-label={`Rename ${item.name}`}
-                    className={`${ui.input} py-0.5`}
-                  />
+                {col.open ? (
+                  <ChevronDown size={13} aria-hidden="true" />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => onSelect(item)}
-                    onDoubleClick={() => startEdit("item", item.id, item.name)}
-                    aria-current={isActive ? 'true' : undefined}
-                    title="Double-click to rename"
-                    className={`min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${isActive ? 'font-semibold text-app-bright' : 'text-app-text'}`}
-                  >
-                    {item.name}
-                  </button>
+                  <ChevronRight size={13} aria-hidden="true" />
                 )}
+              </button>
+  
+              {editing?.kind === "coll" && editing.id === col.id ? (
+                <Input
+                  autoFocus
+                  icon={Feather}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEdit();
+                    if (e.key === "Escape") setEditing(null);
+                  }}
+                  onBlur={commitEdit}
+                  aria-label={`Rename ${col.name}`}
+                  data-testid="coll-pane-rename-collection-input"
+                  className="py-0.5 font-title text-[11px] font-semibold uppercase tracking-[0.07em]"
+                />
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => dispatch(toggleCollectionOpen(col.id))}
+                      onDoubleClick={() => startEdit("coll", col.id, col.name)}
+                      className="min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left font-title text-[11px] font-semibold uppercase tracking-[0.07em] text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                    >
+                      {col.name}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Double-click to rename</TooltipContent>
+                </Tooltip>
+              )}
+  
+              <ButtonGroup className={`${GROUP_BOX} ${ROW_ACTION}`}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => startEdit("coll", col.id, col.name)}
+                      aria-label={`Rename ${col.name}`}
+                      className={GROUP_BTN}
+                    >
+                      <Pencil size={12} aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Rename</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => dispatch(addItem({ collectionId: col.id }))}
+                      aria-label={`Add request to ${col.name}`}
+                      className={`${GROUP_BTN} text-app-accent hover:text-app-accent`}
+                    >
+                      <Plus size={12} aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Add request</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() =>
+                        setPendingDelete({
+                          kind: "coll",
+                          id: col.id,
+                          name: col.name,
+                        })
+                      }
+                      aria-label={`Delete collection ${col.name}`}
+                      className={GROUP_BTN_DANGER}
+                    >
+                      <Trash2 size={12} aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete collection</TooltipContent>
+                </Tooltip>
+              </ButtonGroup>
+            </div>
+  
+            {/* Items */}
+            {col.open &&
+              col.items.map((item) => {
+                const isActive = activeId === item.id;
+                const isEditing =
+                  editing?.kind === "item" && editing.id === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    data-selected={isActive || undefined}
+                    className="group flex items-center gap-1.5 border-l-2 border-transparent py-1 pl-4 pr-2.5 transition-colors duration-200 hover:bg-app-hover data-selected:border-app-accent data-selected:bg-app-selected"
+                  >
+                    <Blend
+                      size={13}
+                      aria-hidden="true"
+                      className={`shrink-0 ${isActive ? "text-app-accent" : "text-app-dim"}`}
+                    />
+  
+                    {isEditing ? (
+                      <Input
+                        autoFocus
+                        icon={Feather}
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitEdit();
+                          if (e.key === "Escape") setEditing(null);
+                        }}
+                        onBlur={commitEdit}
+                        aria-label={`Rename ${item.name}`}
+                        data-testid="coll-pane-rename-item-input"
+                        className="py-0.5"
+                      />
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => onSelect(item)}
+                            onDoubleClick={() =>
+                              startEdit("item", item.id, item.name)
+                            }
+                            aria-current={isActive ? "true" : undefined}
+                            className={`min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left font-title text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${isActive ? "font-semibold text-app-bright" : "text-app-text"}`}
+                          >
+                            {item.name}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Double-click to rename</TooltipContent>
+                      </Tooltip>
+                    )}
+  
+                    <MethodPill
+                      method={item.method}
+                      sm
+                      onMethodChange={(next) =>
+                        dispatch(setItemMethod({ itemId: item.id, method: next }))
+                      }
+                      description="Click to change the method label. This is a visual indicator only and does not affect the actual request."
+                    />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingDelete({
+                              kind: "item",
+                              collectionId: col.id,
+                              itemId: item.id,
+                              name: item.name,
+                            })
+                          }
+                          aria-label={`Delete ${item.name}`}
+                          className={`${ui.iconBtnDanger} size-6 ${ui.reveal}`}
+                        >
+                          <Trash2 size={12} aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
+                  </div>
+                );
+              })}
+          </div>
+        ))}
+      </div>
 
-                <button
-                  type="button"
-                  onClick={() => cycleMethod(item)}
-                  title="Click to cycle method"
-                  aria-label={`Method ${item.method}, click to change`}
-                  className="shrink-0 rounded-md border-0 bg-transparent p-0 transition-transform duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-                >
-                  <MethodPill method={item.method} sm focusable={false} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => dispatch(removeItem({ collectionId: col.id, itemId: item.id }))}
-                  title="Delete"
-                  aria-label={`Delete ${item.name}`}
-                  className={`${ui.iconBtnDanger} size-6 ${ui.reveal}`}
-                >
-                  <Trash2 size={12} aria-hidden="true" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+      {newCollOpen && (
+        <NewCollectionDialog
+          onCreate={(name) => {
+            dispatch(addCollection(name));
+            setNewCollOpen(false);
+          }}
+          onClose={() => setNewCollOpen(false)}
+        />
+      )}
 
-      {/* New collection input */}
-      {addingColl && (
-        <div className="px-2.5 py-2">
-          <input
-            autoFocus
-            value={collDraft}
-            onChange={(e) => setCollDraft(e.target.value)}
-            placeholder="Collection name…"
-            aria-label="New collection name"
-            onKeyDown={(e) => { if (e.key === "Enter") commitNewColl(); if (e.key === "Escape") { setAddingColl(false); setCollDraft(""); } }}
-            onBlur={commitNewColl}
-            className={ui.input}
-          />
-        </div>
+      {importOpen && (
+        <ImportCollectionDialog
+          onImport={handleImportJson}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={
+            pendingDelete.kind === "coll" ? "Delete collection" : "Delete request"
+          }
+          message={
+            pendingDelete.kind === "coll"
+              ? `Delete collection "${pendingDelete.name}" and all its requests? This can't be undone.`
+              : `Delete "${pendingDelete.name}"? This can't be undone.`
+          }
+          confirmLabel="Delete"
+          onConfirm={() => {
+            if (pendingDelete.kind === "coll")
+              dispatch(removeCollection(pendingDelete.id));
+            else
+              dispatch(
+                removeItem({
+                  collectionId: pendingDelete.collectionId,
+                  itemId: pendingDelete.itemId,
+                }),
+              );
+            setPendingDelete(null);
+          }}
+          onClose={() => setPendingDelete(null)}
+        />
       )}
     </div>
   );

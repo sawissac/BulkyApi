@@ -3,15 +3,16 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
 import {
-  Braces,
-  Files,
+  FileLock,
+  FolderDown,
   FolderOpen,
-  Globe,
   Laptop,
   SlidersHorizontal,
+  TableProperties,
 } from "lucide-react";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import DisplayModeDialog from "./DisplayModeDialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   selectSidebarTab,
   setSidebarTab,
@@ -20,11 +21,7 @@ import {
   type SidebarTab,
 } from "@/store/uiSlice";
 import { selectActiveEnv } from "@/store/collectionsSlice";
-import {
-  selectBuiltCalls,
-  selectRunning,
-  selectPaused,
-} from "@/store/runnerSlice";
+import { selectRunning, selectPaused } from "@/store/runnerSlice";
 
 /**
  * Rail control: 36px square hit area, flat, accent tint when active. The
@@ -40,16 +37,16 @@ const RAIL_BTN =
   "before:bg-app-accent before:transition-all before:duration-200 data-active:before:h-5";
 
 const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = [
-  { id: "collections", label: "Tests", Icon: Files },
-  { id: "env", label: "Envs", Icon: Globe },
-  { id: "vars", label: "Vars", Icon: Braces },
-  { id: "file", label: "File", Icon: FolderOpen },
+  { id: "collections", label: "Requests", Icon: FolderOpen },
+  { id: "env", label: "Envs", Icon: FileLock },
+  { id: "vars", label: "Vars", Icon: TableProperties },
+  { id: "file", label: "File", Icon: FolderDown },
 ];
 
 /**
  * Fixed 48px vertical rail pinned to the window's left edge: brand mark, active
  * environment, the sidebar section tabs, and the app-level controls (run status,
- * call count, fullscreen, tweaks). It replaces the former full-width top bar, so
+ * fullscreen, tweaks). It replaces the former full-width top bar, so
  * the three resizable panes start at the top of the viewport. Reach for
  * {@link Sidebar} for the pane body the tabs here select.
  *
@@ -57,15 +54,15 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  * Status: stable — Type: layout chrome
  *
  * State & behavior: one piece of local state — whether the display-mode picker
- * is open. The selected tab and tweaks-panel flag live in `uiSlice`; run status,
- * pause flag and call count come from `runnerSlice`; the environment badge reads
+ * is open. The selected tab and tweaks-panel flag live in `uiSlice`; run status
+ * and pause flag come from `runnerSlice`; the environment badge reads
  * `collectionsSlice`. The laptop control opens {@link DisplayModeDialog}, which
  * changes nothing until the user confirms; the confirmed choice goes to
  * `useDisplayMode`, which enters or leaves fullscreen there and then. The running
  * badge only mounts while a script runs.
  *
  * Variants:
- * - idle — no status dot, call count reflects the last analysis.
+ * - idle — no status dot.
  * - running — pulsing accent dot.
  * - paused — same dot, warn color, animation stopped.
  *
@@ -79,9 +76,8 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  * live region.
  *
  * Test ids: root `activity-rail-nav`, env button `activity-rail-env-button`,
- * tabs `activity-rail-tab-<tab-id>`, status `activity-rail-status`, call count
- * `activity-rail-call-count`, display mode `activity-rail-display-button`,
- * tweaks `activity-rail-tweaks-button`.
+ * tabs `activity-rail-tab-<tab-id>`, status `activity-rail-status`,
+ * display mode `activity-rail-display-button`, tweaks `activity-rail-tweaks-button`.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
@@ -89,11 +85,12 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  * - No active environment → the badge shows an em dash and still switches to
  *   the Envs tab.
  * - Long environment names truncate to the 48px rail; the full name stays in
- *   the button's `title`.
+ *   the tooltip.
  * - Every reload comes up in URL view; fullscreen is never restored on its own,
  *   so the laptop control always starts out showing URL view.
  *
- * Dependencies: `lucide-react`, `react-redux`, internal `useDisplayMode` hook.
+ * Dependencies: `lucide-react`, `react-redux`, internal `useDisplayMode` hook,
+ * `@/components/ui/tooltip` (Radix `Tooltip` wrapper).
  *
  * @example
  * ```tsx
@@ -111,7 +108,6 @@ export default function ActivityRail() {
   const tab = useSelector(selectSidebarTab);
   const tweaksOpen = useSelector(selectTweaksOpen);
   const activeEnv = useSelector(selectActiveEnv);
-  const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
   const paused = useSelector(selectPaused);
   const { mode, isFullscreen, apply } = useDisplayMode();
@@ -125,25 +121,35 @@ export default function ActivityRail() {
       data-testid="activity-rail-nav"
       className="flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r border-app-border bg-app-sidebar py-2"
     >
-      <img
-        src="/favicon.svg"
-        alt="Bulky API"
-        title="Bulky API"
-        width={24}
-        height={24}
-        className="shrink-0 rounded-md"
-      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <img
+            src="/favicon.svg"
+            alt="Bulky API"
+            width={24}
+            height={24}
+            className="shrink-0 rounded-md"
+          />
+        </TooltipTrigger>
+        <TooltipContent side="right">Bulky API</TooltipContent>
+      </Tooltip>
 
-      <button
-        type="button"
-        onClick={() => dispatch(setSidebarTab("env"))}
-        title={`Active environment: ${activeEnv?.name ?? "none"}`}
-        aria-label={`Active environment: ${activeEnv?.name ?? "none"}`}
-        data-testid="activity-rail-env-button"
-        className="mt-1 w-9 truncate rounded-md border-0 bg-app-hover px-1 py-1 text-center font-mono text-[10px] leading-none text-app-dim transition-colors duration-200 hover:bg-app-selected hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-inset"
-      >
-        {activeEnv?.name ?? "—"}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => dispatch(setSidebarTab("env"))}
+            aria-label={`Active environment: ${activeEnv?.name ?? "none"}`}
+            data-testid="activity-rail-env-button"
+            className="mt-1 w-9 truncate rounded-md border-0 bg-app-hover px-1 py-1 text-center font-title text-[10px] leading-none text-app-dim transition-colors duration-200 hover:bg-app-selected hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-inset"
+          >
+            {activeEnv?.name ?? "—"}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          Active environment: {activeEnv?.name ?? "none"}
+        </TooltipContent>
+      </Tooltip>
 
       <div className="my-1.5 h-px w-6 bg-app-border-mid" aria-hidden="true" />
 
@@ -154,82 +160,84 @@ export default function ActivityRail() {
         className="flex flex-col items-center gap-1"
       >
         {TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls="sidebar-pane"
-            aria-label={label}
-            title={label}
-            onClick={() => dispatch(setSidebarTab(id))}
-            data-active={tab === id || undefined}
-            data-testid={`activity-rail-tab-${id}`}
-            className={RAIL_BTN}
-          >
-            <Icon size={16} aria-hidden="true" />
-          </button>
+          <Tooltip key={id}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                aria-controls="sidebar-pane"
+                aria-label={label}
+                onClick={() => dispatch(setSidebarTab(id))}
+                data-active={tab === id || undefined}
+                data-testid={`activity-rail-tab-${id}`}
+                className={RAIL_BTN}
+              >
+                <Icon size={16} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{label}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
 
       <div className="flex-1" />
 
       {running && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-label={paused ? "Paused" : "Running"}
-          title={paused ? "Paused" : "Running"}
-          data-testid="activity-rail-status"
-          className="flex size-9 shrink-0 items-center justify-center"
-        >
-          <span
-            aria-hidden="true"
-            data-paused={paused || undefined}
-            className="size-2 animate-[pulse_0.7s_ease-in-out_infinite] rounded-full bg-app-accent data-paused:animate-none data-paused:bg-app-warn"
-          />
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              role="status"
+              aria-live="polite"
+              aria-label={paused ? "Paused" : "Running"}
+              data-testid="activity-rail-status"
+              className="flex size-9 shrink-0 items-center justify-center"
+            >
+              <span
+                aria-hidden="true"
+                data-paused={paused || undefined}
+                className="size-2 animate-[pulse_0.7s_ease-in-out_infinite] rounded-full bg-app-accent data-paused:animate-none data-paused:bg-app-warn"
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{paused ? "Paused" : "Running"}</TooltipContent>
+        </Tooltip>
       )}
 
-      <div
-        title={`${builtCalls.length} ${builtCalls.length === 1 ? "call" : "calls"}`}
-        data-testid="activity-rail-call-count"
-        className="flex w-9 shrink-0 flex-col items-center leading-none"
-      >
-        <span className="font-mono text-[12px] text-app-text">
-          {builtCalls.length}
-        </span>
-        <span className="text-[8px] font-semibold uppercase tracking-[0.1em] text-app-dim">
-          {builtCalls.length === 1 ? "call" : "calls"}
-        </span>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            aria-label={`Display mode: ${modeLabel}. Choose how the app fills the screen`}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            data-active={pickerOpen || undefined}
+            data-testid="activity-rail-display-button"
+            className={`mt-1 ${RAIL_BTN}`}
+          >
+            <Laptop size={15} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">Display mode: {modeLabel}</TooltipContent>
+      </Tooltip>
 
-      <button
-        type="button"
-        onClick={() => setPickerOpen(true)}
-        title={`Display mode: ${modeLabel}`}
-        aria-label={`Display mode: ${modeLabel}. Choose how the app fills the screen`}
-        aria-haspopup="dialog"
-        aria-expanded={pickerOpen}
-        data-active={pickerOpen || undefined}
-        data-testid="activity-rail-display-button"
-        className={`mt-1 ${RAIL_BTN}`}
-      >
-        <Laptop size={15} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => dispatch(setTweaksOpen(!tweaksOpen))}
-        title="Tweaks: theme, layout and call timeout"
-        aria-label="Tweaks: theme, layout and call timeout"
-        aria-expanded={tweaksOpen}
-        data-active={tweaksOpen || undefined}
-        data-testid="activity-rail-tweaks-button"
-        className={RAIL_BTN}
-      >
-        <SlidersHorizontal size={15} />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => dispatch(setTweaksOpen(!tweaksOpen))}
+            aria-label="Tweaks: theme, layout and call timeout"
+            aria-expanded={tweaksOpen}
+            data-active={tweaksOpen || undefined}
+            data-testid="activity-rail-tweaks-button"
+            className={RAIL_BTN}
+          >
+            <SlidersHorizontal size={15} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">Tweaks: theme, layout and call timeout</TooltipContent>
+      </Tooltip>
 
       {pickerOpen && (
         <DisplayModeDialog

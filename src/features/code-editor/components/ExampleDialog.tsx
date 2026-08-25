@@ -40,12 +40,12 @@ export default function ExampleDialog({ example, onLoad, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={`${example.label} example`}
-        className="flex max-h-[80vh] w-[min(680px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
+        className="flex max-h-[70vh] w-[min(600px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-app-border px-5 py-3.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
           <MethodPill method={example.method} />
-          <span className="flex-1 text-[15px] font-bold tracking-[-0.01em] text-app-bright">
+          <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             {example.label}
           </span>
           <button
@@ -53,43 +53,43 @@ export default function ExampleDialog({ example, onLoad, onClose }: Props) {
             type="button"
             onClick={onClose}
             aria-label="Close example preview"
-            className="flex size-8 items-center justify-center rounded-md border-0 bg-transparent text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+            className="flex size-7 items-center justify-center rounded-md border-0 bg-transparent text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
           >
-            <X size={16} aria-hidden="true" />
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
 
         {/* Body — markdown */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 text-app-text">
+        <div className="flex-1 overflow-y-auto px-4 py-3 text-app-text">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               p: (props) => (
-                <p className="mb-4 text-[13px] leading-relaxed text-app-dim" {...props} />
+                <p className="mb-3 font-description text-[12px] leading-snug text-app-dim" {...props} />
               ),
               pre: (props) => (
-                <pre className="mb-4 overflow-x-auto rounded-md border border-app-border bg-app-editor px-4 py-3.5" {...props} />
+                <pre className="mb-3 overflow-x-auto rounded-md border border-app-border bg-app-editor px-3 py-2.5" {...props} />
               ),
               code: ({ className, children, ...props }) => {
                 const isBlock = /language-/.test(className ?? '');
                 return isBlock ? (
-                  <code className="block font-mono text-[12px] text-app-text" {...props}>
+                  <code className="block font-mono text-[11px] text-app-text" {...props}>
                     {children}
                   </code>
                 ) : (
-                  <code className="rounded-sm border border-app-border bg-app-hover px-1.5 py-px font-mono text-[12px] text-app-accent" {...props}>
+                  <code className="rounded-sm border border-app-border bg-app-hover px-1.5 py-px font-mono text-[11px] text-app-accent" {...props}>
                     {children}
                   </code>
                 );
               },
               table: (props) => (
-                <table className="mb-4 w-full border-collapse font-mono text-[12px]" {...props} />
+                <table className="mb-3 w-full border-collapse font-mono text-[11px]" {...props} />
               ),
               th: (props) => (
-                <th className="border-b-2 border-app-border-accent px-2.5 py-1.5 text-left font-bold text-app-accent" {...props} />
+                <th className="border-b-2 border-app-border-accent px-2 py-1 text-left font-bold text-app-accent" {...props} />
               ),
               td: (props) => (
-                <td className="border-b border-app-border px-2.5 py-1 text-app-dim" {...props} />
+                <td className="border-b border-app-border px-2 py-0.5 text-app-dim" {...props} />
               ),
             }}
           >
@@ -98,18 +98,18 @@ export default function ExampleDialog({ example, onLoad, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-5 py-3">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-4 py-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="h-9 rounded-md border border-app-border bg-transparent px-4 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+            className="h-8 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onLoad}
-            className="flex h-9 items-center gap-1.5 rounded-md border-0 bg-app-accent px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+            className="flex h-8 items-center gap-1.5 rounded-md border-0 bg-app-accent px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
           >
             <Play size={12} fill="currentColor" aria-hidden="true" />
             Load into Editor

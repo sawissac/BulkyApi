@@ -6,6 +6,26 @@ import type { Theme } from "@/lib/themes";
 import type { ApiCall } from "@/lib/types";
 import JNode from "@/components/JsonTreeViewer";
 import { jsonToTypeScript } from "@/lib/jsonToTypeScript";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+/** View-toggle container: bordered, clipped so PRETTY/RAW/TS read as one
+ *  segmented group instead of three loose pills. */
+const VIEW_GROUP = "shrink-0 overflow-hidden rounded-md border border-app-border";
+
+/** View-toggle button: ghost hover/active tracks the runtime theme via the
+ *  `app-*` tokens instead of Button's default (static) muted/foreground. */
+const VIEW_BTN =
+  "rounded-none border-0 text-[8px] font-bold uppercase tracking-widest text-app-dim hover:bg-app-hover hover:text-app-accent data-active:bg-app-selected data-active:text-app-accent";
+
+/** Copy button: outlined at rest, fills with the accent color on hover
+ *  (rather than a themed border tint) so the affordance reads as an action,
+ *  not a passive toggle. Swaps to a success tint once the copy lands. */
+const COPY_BTN_IDLE =
+  "bg-transparent border-app-border text-app-dim hover:border-app-accent hover:bg-app-accent hover:text-app-on-solid";
+const COPY_BTN_COPIED = "border-app-success bg-app-success/10 text-app-success";
 
 type Props = { T: Theme; call: ApiCall };
 
@@ -68,9 +88,9 @@ function SseBodyEvents({
         <Radio size={10} color={SSE_CLR} />
         <span
           style={{
-            fontFamily: 'var(--font-display)',
+            fontFamily: 'var(--font-title)',
             fontSize: 8,
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: "0.1em",
             color: SSE_CLR,
           }}
@@ -256,9 +276,9 @@ function SseEvents({ T, call }: Props) {
         />
         <span
           style={{
-            fontFamily: 'var(--font-display)',
+            fontFamily: 'var(--font-title)',
             fontSize: 8,
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: "0.1em",
             color: SSE_CLR,
           }}
@@ -295,7 +315,7 @@ function SseEvents({ T, call }: Props) {
           )}
           <span
             style={{
-              fontFamily: 'var(--font-display)',
+              fontFamily: 'var(--font-description)',
               fontSize: 11,
               fontStyle: "italic",
             }}
@@ -451,7 +471,7 @@ export default function RespTab({ T, call }: Props) {
           style={{ animation: "spin 0.7s linear infinite" }}
           color={T.cyan}
         />
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: 12 }}>
+        <span style={{ fontFamily: 'var(--font-description)', fontSize: 12 }}>
           Awaiting response…
         </span>
       </div>
@@ -489,43 +509,56 @@ export default function RespTab({ T, call }: Props) {
     );
   }
 
-  const viewBtn = (mode: ViewMode, label: string) => {
-    const active = view === mode;
-    return (
-      <button
-        key={mode}
-        onClick={() => setView(mode)}
-        style={{
-          padding: "2px 8px",
-          borderRadius: 9999,
-          cursor: active ? "default" : "pointer",
-          border: `1px solid ${active ? T.cyan : T.border}`,
-          background: active ? `${T.cyan}15` : "transparent",
-          color: active ? T.cyan : T.textDim,
-          fontFamily: 'var(--font-display)',
-          fontSize: 8,
-          fontWeight: 700,
-          letterSpacing: "0.1em",
-        }}
-      >
-        {label}
-      </button>
-    );
-  };
+  const viewBtn = (mode: ViewMode, label: string) => (
+    <Button
+      key={mode}
+      type="button"
+      variant="ghost"
+      size="xs"
+      onClick={() => setView(mode)}
+      data-active={view === mode || undefined}
+      className={VIEW_BTN}
+    >
+      {label}
+    </Button>
+  );
+
+  const copyText = view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2);
 
   return (
     <div>
       <div
         style={{
           display: "flex",
+          alignItems: "center",
           justifyContent: "flex-end",
-          gap: 3,
+          gap: 6,
           marginBottom: 7,
         }}
       >
-        {viewBtn("pretty", "PRETTY")}
-        {viewBtn("raw", "RAW")}
-        {viewBtn("ts", "TS")}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => handleCopy(copyText)}
+              className={cn(
+                "gap-1 text-[8px] font-bold uppercase tracking-widest",
+                copied ? COPY_BTN_COPIED : COPY_BTN_IDLE,
+              )}
+            >
+              {copied ? <Check size={10} /> : <Copy size={10} />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Copy {view === "ts" ? "TypeScript" : "JSON"}</TooltipContent>
+        </Tooltip>
+        <ButtonGroup className={VIEW_GROUP}>
+          {viewBtn("pretty", "PRETTY")}
+          {viewBtn("raw", "RAW")}
+          {viewBtn("ts", "TS")}
+        </ButtonGroup>
       </div>
       {view === "raw" ? (
         <pre
@@ -541,57 +574,34 @@ export default function RespTab({ T, call }: Props) {
             padding: 10,
           }}
         >
-          {JSON.stringify(call.response, null, 2)}
+          {copyText}
         </pre>
       ) : view === "ts" ? (
-        <div style={{ position: "relative" }}>
-          <button
-            onClick={() => handleCopy(tsOutput)}
-            title="Copy TypeScript"
-            style={{
-              position: "absolute",
-              top: 6,
-              right: 6,
-              background: copied ? `${T.success}20` : T.bgHover,
-              border: `1px solid ${copied ? T.success : T.border}`,
-              borderRadius: 5,
-              padding: "3px 6px",
-              color: copied ? T.success : T.textDim,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontFamily: 'var(--font-display)',
-              fontSize: 8,
-              fontWeight: 700,
-              transition: "all 0.15s",
-            }}
-          >
-            {copied ? <Check size={10} /> : <Copy size={10} />}
-            {copied ? "COPIED" : "COPY"}
-          </button>
-          <pre
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              color: T.cyan,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              background: T.bgHover,
-              border: `1px solid ${T.borderAccent}`,
-              borderRadius: 6,
-              padding: 10,
-            }}
-          >
-            {tsOutput}
-          </pre>
-        </div>
+        <pre
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            color: T.cyan,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            background: T.bgHover,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            padding: 10,
+          }}
+        >
+          {tsOutput}
+        </pre>
       ) : (
         <div
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 11,
             lineHeight: 1.7,
+            background: T.bgHover,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            padding: 10,
           }}
         >
           <JNode data={call.response} T={T} />

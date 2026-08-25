@@ -781,7 +781,7 @@ export default function MocksComponentsPage() {
 
             <Section entry={ENTRIES[15]}>
               <div className="h-[420px] overflow-hidden rounded-md border border-app-border">
-                <ResponsePanel T={T} />
+                <ResponsePanel T={T} stepMode={false} running={false} onToggleStep={noop} />
               </div>
             </Section>
 
@@ -884,9 +884,7 @@ export default function MocksComponentsPage() {
                     onNext={noop}
                     onStop={noop}
                     running={false}
-                    stepMode={false}
                     paused={false}
-                    onToggleStep={noop}
                   />
                 </div>
               )}

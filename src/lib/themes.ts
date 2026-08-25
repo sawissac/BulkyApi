@@ -22,7 +22,7 @@ export type Theme = {
   error: string;
 };
 
-export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green' | 'rose' | 'amber' | 'slate' | 'flat';
+export type ThemeKey = 'midnight' | 'ocean' | 'light' | 'purple' | 'green' | 'rose' | 'amber' | 'slate' | 'flat' | 'coffee';
 
 export const THEMES: Record<ThemeKey, Theme> = {
   midnight: {
@@ -230,6 +230,28 @@ export const THEMES: Record<ThemeKey, Theme> = {
     success:      '#047857',
     warn:         '#b45309',
     error:        '#dc2626',
+  },
+  coffee: {
+    bg:           '#1b120c',
+    bgPanel:      '#241a12',
+    bgSidebar:    '#170f0a',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(198,137,88,0.12)',
+    border:       'rgba(198,137,88,0.1)',
+    borderMid:    'rgba(198,137,88,0.2)',
+    borderAccent: 'rgba(198,137,88,0.4)',
+    cyan:         '#c68958',
+    cyanDim:      'rgba(198,137,88,0.55)',
+    cyanFaint:    'rgba(198,137,88,0.08)',
+    text:         '#d9b99a',
+    textBright:   '#f5e6d3',
+    textDim:      'rgba(217,185,154,0.6)',
+    editorBg:     '#140d08',
+    gutterBg:     '#1b120c',
+    lineNum:      'rgba(198,137,88,0.3)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
   },
 };
 

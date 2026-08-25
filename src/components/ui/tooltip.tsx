@@ -54,6 +54,7 @@ function TooltipContent({
         {...props}
       >
         {children}
+        <TooltipPrimitive.Arrow className="fill-app-panel" width={11} height={5} />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

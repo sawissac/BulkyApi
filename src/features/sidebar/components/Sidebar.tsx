@@ -9,7 +9,7 @@ import VarsPane from "./VarsPane";
 import FilePane from "./FilePane";
 
 const PANE_LABELS: Record<SidebarTab, string> = {
-  collections: "Tests",
+  collections: "Requests",
   env: "Envs",
   vars: "Vars",
   file: "File",

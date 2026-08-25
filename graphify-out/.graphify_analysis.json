@@ -1,0 +1,917 @@
+{
+  "communities": {
+    "0": [
+      "components_callcard_detailtab",
+      "components_callcard_props",
+      "components_codeeditor_codeeditor",
+      "components_codeeditor_monacocodeeditor",
+      "components_codeeditor_props",
+      "components_collpane_collpane",
+      "components_collpane_props",
+      "components_confirmdialog_confirmdialog",
+      "components_confirmdialog_confirmdialogprops",
+      "components_exampledialog_exampledialog",
+      "components_exampledialog_props",
+      "components_filepane_filepane",
+      "components_filepane_props",
+      "components_filepane_tones",
+      "components_importcollectiondialog_importcollectiondialog",
+      "components_importcollectiondialog_importcollectiondialogprops",
+      "components_methodpill_cycle_methods",
+      "components_methodpill_method_info",
+      "components_methodpill_methodpill",
+      "components_methodpill_methodpillprops",
+      "components_monacocodeeditor_editorinstance",
+      "components_monacocodeeditor_monacocodeeditor",
+      "components_monacocodeeditor_props",
+      "components_responsepanel_props",
+      "components_responsepanel_responsepanel",
+      "components_statuspill_describe",
+      "components_statuspill_known_codes",
+      "components_statuspill_statuspill",
+      "components_statuspill_statuspillprops",
+      "components_statuspill_tone",
+      "components_statuspill_tone_label",
+      "components_statuspill_tonefor",
+      "lib_curlparser_curltoscript",
+      "lib_curlparser_parsecurl",
+      "lib_curlparser_parsedcurl",
+      "lib_curlparser_tokenize",
+      "lib_fileutils_downloadblob",
+      "lib_fileutils_pickfile",
+      "lib_fileutils_readfiletext",
+      "lib_sampledata_examplescript",
+      "lib_themes_theme",
+      "src_components_confirmdialog_tsx",
+      "src_components_methodpill_tsx",
+      "src_components_statuspill_tsx",
+      "src_components_ui_tooltip_tsx",
+      "src_features_code_editor_components_codeeditor_tsx",
+      "src_features_code_editor_components_exampledialog_tsx",
+      "src_features_code_editor_components_monacocodeeditor_tsx",
+      "src_features_response_panel_components_callcard_tsx",
+      "src_features_response_panel_components_responsepanel_tsx",
+      "src_features_sidebar_components_collpane_tsx",
+      "src_features_sidebar_components_filepane_tsx",
+      "src_features_sidebar_components_importcollectiondialog_tsx",
+      "src_lib_curlparser_ts",
+      "src_lib_fileutils_ts",
+      "src_lib_ui_ts",
+      "src_store_editorslice_ts",
+      "store_collectionsslice_selectactiveid",
+      "store_collectionsslice_selectcollections",
+      "store_editorslice_editorslice",
+      "store_editorslice_editorstate",
+      "store_editorslice_initialstate",
+      "store_editorslice_selectcode",
+      "ui_tooltip_tooltip",
+      "ui_tooltip_tooltipcontent",
+      "ui_tooltip_tooltipprovider",
+      "ui_tooltip_tooltiptrigger"
+    ],
+    "1": [
+      "activityrail_activityrail",
+      "button_button",
+      "buttongroup_buttongroup",
+      "codeeditor_codeeditor",
+      "codeeditor_commitrename",
+      "codeeditor_handleformat",
+      "codeeditor_opendropdown",
+      "codeeditor_rename_collection_input_testid",
+      "codeeditor_rename_item_input_testid",
+      "codeeditor_selectcollectionrow",
+      "codeeditor_selectitemrow",
+      "codeeditor_startrename",
+      "collectionsslice_renamecollection",
+      "collectionsslice_renameitem",
+      "collectionsslice_selectactivecollection",
+      "collectionsslice_selectactiveitem",
+      "collectionsslice_selectcollections",
+      "collectionsslice_selectenvvars",
+      "collectionsslice_setactiveid",
+      "collpane_collpane",
+      "confirmdialog_confirmdialog",
+      "curlimportdialog_curlimportdialog",
+      "data_test_id_list_registry",
+      "displaymodedialog_displaymodedialog",
+      "editorslice_selectcode",
+      "editorslice_setcode",
+      "envpane_envpane",
+      "exampledialog_exampledialog",
+      "filepane_filepane",
+      "fileutils_downloadblob",
+      "fileutils_pickfile",
+      "fileutils_readfiletext",
+      "importcollectiondialog_importcollectiondialog",
+      "improvement_abort_running_script",
+      "improvement_console_height",
+      "improvement_debounce_timeout_input",
+      "improvement_extract_onrun_hook",
+      "improvement_keyboard_shortcut_run",
+      "improvement_memoize_item_lookup",
+      "improvement_move_timeout_config",
+      "input_input",
+      "methodpill_methodpill",
+      "mockdata_http_methods",
+      "mocks_components_page_mockscomponentspage",
+      "mocks_components_page_tweakspanelpreview",
+      "mockscomponentspage_mockscomponentspage",
+      "mockstore_createmockstore",
+      "monacocodeeditor_editorinstance",
+      "monacocodeeditor_monacocodeeditor",
+      "newcollectiondialog_newcollectiondialog",
+      "newenvironmentdialog_newenvironmentdialog",
+      "prettier_format",
+      "resizable_resizablepanelgroup",
+      "responsepanel_responsepanel",
+      "runnerslice_runnerreducer",
+      "runnerslice_setlogs",
+      "sampledata_example_scripts",
+      "sampledata_examplescript",
+      "sidebar_sidebar",
+      "themes_theme",
+      "tweakspanel_tweakspanel",
+      "usedisplaymode_usedisplaymode",
+      "usescriptrunner_usescriptrunner",
+      "varspane_varspane"
+    ],
+    "2": [
+      "app_bulkyapp_bulkyapp",
+      "app_bulkyapp_layout_sizes",
+      "components_activityrail_activityrail",
+      "components_activityrail_tabs",
+      "components_displaymodedialog_displaymodedialog",
+      "components_displaymodedialog_displaymodedialogprops",
+      "components_displaymodedialog_options",
+      "components_page_mockscomponentspage",
+      "components_sidebar_pane_labels",
+      "components_sidebar_sidebar",
+      "components_sidebar_sidebarprops",
+      "components_tweakspanel_layout_options",
+      "components_tweakspanel_theme_corner_class",
+      "components_tweakspanel_theme_options",
+      "components_tweakspanel_tweakspanel",
+      "components_tweakspanel_tweakspanelprops",
+      "hooks_usedisplaymode_isdocumentfullscreen",
+      "hooks_usedisplaymode_isserverfullscreen",
+      "hooks_usedisplaymode_subscribe",
+      "hooks_usedisplaymode_usedisplaymode",
+      "hooks_usescriptrunner_usescriptrunner",
+      "lib_themes_method_clr_light",
+      "lib_themes_methodvars",
+      "lib_themes_themekey",
+      "lib_themes_themes",
+      "lib_themes_themevars",
+      "src_app_bulkyapp_tsx",
+      "src_features_sidebar_components_activityrail_tsx",
+      "src_features_sidebar_components_displaymodedialog_tsx",
+      "src_features_sidebar_components_sidebar_tsx",
+      "src_features_tweaks_components_tweakspanel_tsx",
+      "src_hooks_usedisplaymode_ts",
+      "src_lib_themes_ts",
+      "src_store_uislice_ts",
+      "store_collectionsslice_selectactiveitem",
+      "store_runnerslice_selectpaused",
+      "store_runnerslice_selectrunning",
+      "store_uislice_displaymode",
+      "store_uislice_initialstate",
+      "store_uislice_layoutkey",
+      "store_uislice_responseview",
+      "store_uislice_selectdisplaymode",
+      "store_uislice_selectlayout",
+      "store_uislice_selectresponseview",
+      "store_uislice_selectsidebartab",
+      "store_uislice_selecttheme",
+      "store_uislice_selecttweaksopen",
+      "store_uislice_selectviewbyitemid",
+      "store_uislice_sidebartab",
+      "store_uislice_uislice",
+      "store_uislice_uistate"
+    ],
+    "3": [
+      "components_apidocs_apidocs",
+      "components_apidocs_props",
+      "components_apiwaterfall_apiwaterfall",
+      "components_apiwaterfall_props",
+      "components_authtab_authtab",
+      "components_authtab_dot",
+      "components_authtab_props",
+      "components_callcard_callcard",
+      "components_payloadtab_payloadtab",
+      "components_payloadtab_props",
+      "components_statustab_props",
+      "components_statustab_statustab",
+      "lib_scriptanalyzer_analyzescript",
+      "lib_scriptanalyzer_extractnotebeforeindex",
+      "lib_scriptanalyzer_isinsidecomment",
+      "lib_scriptrunner_buildauthheaders",
+      "lib_scriptrunner_cachedentry",
+      "lib_scriptrunner_callopts",
+      "lib_scriptrunner_onupdate",
+      "lib_scriptrunner_runscript",
+      "lib_themes_method_clr",
+      "lib_themes_status_txt",
+      "lib_themes_statuscolor",
+      "lib_types_apicall",
+      "lib_types_authinfo",
+      "lib_types_callstatus",
+      "lib_types_logentry",
+      "lib_types_sseevent",
+      "src_features_response_panel_components_apidocs_tsx",
+      "src_features_response_panel_components_apiwaterfall_tsx",
+      "src_features_response_panel_components_authtab_tsx",
+      "src_features_response_panel_components_payloadtab_tsx",
+      "src_features_response_panel_components_statustab_tsx",
+      "src_hooks_usescriptrunner_ts",
+      "src_lib_scriptanalyzer_ts",
+      "src_lib_scriptrunner_ts",
+      "src_lib_types_ts",
+      "src_store_runnerslice_ts",
+      "store_runnerslice_applystored",
+      "store_runnerslice_initialstate",
+      "store_runnerslice_mergecalls",
+      "store_runnerslice_runnerslice",
+      "store_runnerslice_runnerstate",
+      "store_runnerslice_selectbuiltcalls",
+      "store_runnerslice_selectextractedvars",
+      "store_runnerslice_selectlogs",
+      "store_runnerslice_selectrunstartedat",
+      "store_runnerslice_selectstepmode",
+      "store_uislice_selectcalltimeout"
+    ],
+    "4": [
+      "apidocs_apidocs",
+      "apiwaterfall_apiwaterfall",
+      "authtab_authtab",
+      "authtab_dot",
+      "callcard_callcard",
+      "headtab_headtab",
+      "improvement_extract_auth_header_builder",
+      "index_rootstate",
+      "index_store",
+      "jsontreeviewer_jnode",
+      "kvrow_kvrow",
+      "mockdata_mock_call",
+      "mockdata_mock_call_cached",
+      "mockdata_mock_call_error",
+      "mockdata_mock_call_sse",
+      "mockdata_mock_calls",
+      "mockdata_mock_json",
+      "mockdata_mock_req_headers",
+      "mockdata_mock_res_headers",
+      "mockdata_status_codes",
+      "optimization_folder_feature_folder_structure",
+      "optimization_store_redux_toolkit_architecture",
+      "payloadtab_payloadtab",
+      "persist_capcall",
+      "persist_capcalls",
+      "persist_schedulesave",
+      "resptab_resptab",
+      "runnerslice_runnerstate",
+      "runnerslice_selectbuiltcalls",
+      "runnerslice_selectrunstartedat",
+      "runnerslice_setbuiltcalls",
+      "runnerslice_togglecallcache",
+      "scriptrunner_api",
+      "scriptrunner_buildauthheaders",
+      "scriptrunner_con",
+      "scriptrunner_makecall",
+      "scriptrunner_makessecall",
+      "scriptrunner_runscript",
+      "statuspill_statuspill",
+      "statustab_statustab",
+      "tooltip_tooltip",
+      "types_apicall",
+      "types_authinfo",
+      "types_logentry",
+      "types_sseevent"
+    ],
+    "5": [
+      "app_page_bulkyapp",
+      "app_page_home",
+      "bulkyapp_bulkyapp",
+      "claude_react_component_jsdoc_convention",
+      "curlparser_curltoscript",
+      "curlparser_parsecurl",
+      "curlparser_parsedcurl",
+      "curlparser_tokenize",
+      "errorboundary_errorboundary",
+      "improvement_add_error_boundary",
+      "improvement_add_proxy_timeout",
+      "improvement_cap_persisted_response_size",
+      "improvement_debounce_saveitemcode",
+      "improvement_debounce_syncanalyzedcalls",
+      "improvement_fix_error_any",
+      "improvement_fix_eslint_disable",
+      "improvement_replace_opts_as_never",
+      "improvement_ssrf_in_proxy",
+      "improvement_stop_spreading_calls",
+      "jsontotypescript_buildinterface",
+      "jsontotypescript_cameltopascal",
+      "jsontotypescript_capitalize",
+      "jsontotypescript_infertype",
+      "jsontotypescript_interfacemap",
+      "jsontotypescript_jsontotypescript",
+      "jsontotypescript_mergearrayiteminterfaces",
+      "jsontotypescript_sanitizekey",
+      "layout_rootlayout",
+      "manifest_manifest",
+      "persist_loadpersistedstate",
+      "persist_persist",
+      "providers_hydratestore",
+      "providers_providers",
+      "providers_serviceworkerregister",
+      "readme_persist_cap_note",
+      "readme_project_layout",
+      "readme_proxy_note",
+      "route_post",
+      "runnerslice_hydraterunner",
+      "scriptanalyzer_analyzescript",
+      "scriptanalyzer_extractnotebeforeindex",
+      "scriptanalyzer_isinsidecomment",
+      "scriptrunner_scriptrunner",
+      "src_app_page_tsx",
+      "useserviceworker_useserviceworker"
+    ],
+    "6": [
+      "app_layout_metadata",
+      "app_layout_rootlayout",
+      "app_layout_viewport",
+      "app_providers_hydratestore",
+      "app_providers_providers",
+      "app_providers_serviceworkerregister",
+      "components_envpane_envpane",
+      "components_envpane_props",
+      "hooks_useserviceworker_useserviceworker",
+      "lib_persist_capcall",
+      "lib_persist_capcalls",
+      "lib_persist_loadpersistedstate",
+      "lib_persist_schedulesave",
+      "lib_sampledata_collection",
+      "lib_sampledata_collectionitem",
+      "lib_sampledata_environment",
+      "lib_sampledata_example_scripts",
+      "lib_sampledata_initial_collections",
+      "lib_sampledata_initial_environments",
+      "src_app_layout_tsx",
+      "src_app_providers_tsx",
+      "src_features_sidebar_components_envpane_tsx",
+      "src_hooks_useserviceworker_ts",
+      "src_lib_persist_ts",
+      "src_lib_sampledata_ts",
+      "src_store_collectionsslice_ts",
+      "src_store_index_ts",
+      "store_collectionsslice_collectionsslice",
+      "store_collectionsslice_collectionsstate",
+      "store_collectionsslice_empty_vars",
+      "store_collectionsslice_findcollectionforenv",
+      "store_collectionsslice_initialstate",
+      "store_collectionsslice_pushrecent",
+      "store_collectionsslice_selectactivecollection",
+      "store_collectionsslice_selectactiveenv",
+      "store_collectionsslice_selectenvidx",
+      "store_collectionsslice_selectenvironments",
+      "store_collectionsslice_selectenvvars",
+      "store_collectionsslice_selectrecentitems",
+      "store_index_appdispatch",
+      "store_index_rootstate",
+      "store_index_store"
+    ],
+    "7": [
+      "components_errorboundary_errorboundary",
+      "components_errorboundary_errorboundary_getderivedstatefromerror",
+      "components_errorboundary_errorboundary_render",
+      "components_errorboundary_props",
+      "components_errorboundary_state",
+      "components_headtab_headtab",
+      "components_headtab_props",
+      "components_kvrow_kvrow",
+      "components_kvrow_props",
+      "components_mockdata_http_methods",
+      "components_mockdata_mock_call",
+      "components_mockdata_mock_call_cached",
+      "components_mockdata_mock_call_error",
+      "components_mockdata_mock_call_sse",
+      "components_mockdata_mock_calls",
+      "components_mockdata_mock_json",
+      "components_mockdata_mock_req_headers",
+      "components_mockdata_mock_res_headers",
+      "components_mockdata_status_codes",
+      "components_mockstore_createmockstore",
+      "components_page_boom",
+      "components_page_case",
+      "components_page_codeeditor",
+      "components_page_entries",
+      "components_page_entry",
+      "components_page_groups",
+      "components_page_monacocodeeditor",
+      "components_page_mount",
+      "components_page_mount_label",
+      "components_page_section",
+      "components_page_tweakspanelpreview",
+      "src_app_mocks_components_mockdata_ts",
+      "src_app_mocks_components_mockstore_ts",
+      "src_app_mocks_components_page_tsx",
+      "src_components_errorboundary_tsx",
+      "src_components_kvrow_tsx",
+      "src_features_response_panel_components_headtab_tsx"
+    ],
+    "8": [
+      "components_curlimportdialog_curlimportdialog",
+      "components_curlimportdialog_curlimportdialogprops",
+      "components_newcollectiondialog_newcollectiondialog",
+      "components_newcollectiondialog_newcollectiondialogprops",
+      "components_newenvironmentdialog_newenvironmentdialog",
+      "components_newenvironmentdialog_newenvironmentdialogprops",
+      "components_varspane_editcell",
+      "components_varspane_issensitive",
+      "components_varspane_props",
+      "components_varspane_sensitive",
+      "components_varspane_varspane",
+      "lib_utils_cn",
+      "src_components_ui_button_group_tsx",
+      "src_components_ui_button_tsx",
+      "src_components_ui_input_tsx",
+      "src_components_ui_resizable_tsx",
+      "src_components_ui_separator_tsx",
+      "src_features_sidebar_components_curlimportdialog_tsx",
+      "src_features_sidebar_components_newcollectiondialog_tsx",
+      "src_features_sidebar_components_newenvironmentdialog_tsx",
+      "src_features_sidebar_components_varspane_tsx",
+      "src_lib_utils_ts",
+      "ui_button_button",
+      "ui_button_buttonvariants",
+      "ui_button_group_buttongroup",
+      "ui_button_group_buttongroupseparator",
+      "ui_button_group_buttongrouptext",
+      "ui_button_group_buttongroupvariants",
+      "ui_input_input",
+      "ui_input_inputprops",
+      "ui_resizable_resizablehandle",
+      "ui_resizable_resizablepanel",
+      "ui_resizable_resizablepanelgroup",
+      "ui_separator_separator"
+    ],
+    "9": [
+      "components_jsontreeviewer_jnode",
+      "components_jsontreeviewer_jnodeprops",
+      "components_resptab_isssebody",
+      "components_resptab_parsedsseevent",
+      "components_resptab_parsessebody",
+      "components_resptab_props",
+      "components_resptab_resptab",
+      "components_resptab_ssebodyevents",
+      "components_resptab_sseevents",
+      "components_resptab_viewmode",
+      "lib_jsontotypescript_buildinterface",
+      "lib_jsontotypescript_cameltopascal",
+      "lib_jsontotypescript_capitalize",
+      "lib_jsontotypescript_infertype",
+      "lib_jsontotypescript_interfacemap",
+      "lib_jsontotypescript_jsontotypescript",
+      "lib_jsontotypescript_mergearrayiteminterfaces",
+      "lib_jsontotypescript_sanitizekey",
+      "src_components_jsontreeviewer_tsx",
+      "src_features_response_panel_components_resptab_tsx",
+      "src_lib_jsontotypescript_ts"
+    ],
+    "10": [
+      "agents_nextjs16_notice",
+      "claude_graphify_rules",
+      "productspec_writing_script",
+      "readme_api_surface",
+      "readme_bulky_api",
+      "readme_localforage",
+      "readme_lucide_react",
+      "readme_monaco_editor",
+      "readme_nextjs16",
+      "readme_pwa_support",
+      "readme_radix_ui",
+      "readme_react19",
+      "readme_react_resizable_panels",
+      "readme_redux_toolkit",
+      "readme_shadcn",
+      "readme_tailwind_v4"
+    ],
+    "11": [
+      "public_sw_copy",
+      "public_sw_js",
+      "public_sw_shell",
+      "public_sw_url"
+    ],
+    "12": [
+      "runnerslice_applystored",
+      "runnerslice_mergecalls",
+      "runnerslice_switchtoitem",
+      "runnerslice_syncanalyzedcalls"
+    ],
+    "13": [
+      "favicon_icon",
+      "logo_logo",
+      "logomark_logo"
+    ],
+    "14": [
+      "bulkyapi_postcss_config_config",
+      "postcss_config_mjs"
+    ],
+    "15": [
+      "bulkyapi_eslint_config_eslintconfig",
+      "eslint_config_mjs"
+    ],
+    "16": [
+      "bulkyapi_next_config_nextconfig",
+      "next_config_ts"
+    ],
+    "17": [
+      "app_manifest_manifest",
+      "src_app_manifest_ts"
+    ],
+    "18": [
+      "proxy_route_post",
+      "src_app_api_proxy_route_ts"
+    ],
+    "19": [
+      "nextconfig_nextconfig",
+      "swjs_service_worker"
+    ],
+    "20": [
+      "resptab_ssebodyevents",
+      "resptab_sseevents"
+    ],
+    "21": [
+      "improvement_prune_callsbyitemid",
+      "runnerslice_runnerslice"
+    ],
+    "22": [
+      "productspec_keyboard_shortcuts",
+      "readme_keyboard_shortcuts"
+    ],
+    "23": [
+      "next_env_d_ts"
+    ],
+    "24": [
+      "postcssconfig_config"
+    ],
+    "25": [
+      "nextenv_reference"
+    ],
+    "26": [
+      "eslintconfig_eslintconfig"
+    ],
+    "27": [
+      "mocks_components_page_section"
+    ],
+    "28": [
+      "mocks_components_page_case"
+    ],
+    "29": [
+      "mocks_components_page_boom"
+    ],
+    "30": [
+      "resizable_resizablepanel"
+    ],
+    "31": [
+      "resizable_resizablehandle"
+    ],
+    "32": [
+      "tooltip_tooltipcontent"
+    ],
+    "33": [
+      "tooltip_tooltiptrigger"
+    ],
+    "34": [
+      "separator_separator"
+    ],
+    "35": [
+      "utils_cn"
+    ],
+    "36": [
+      "scriptrunner_cachedentry"
+    ],
+    "37": [
+      "scriptrunner_callopts"
+    ],
+    "38": [
+      "types_callstatus"
+    ],
+    "39": [
+      "ui_label"
+    ],
+    "40": [
+      "ui_meta"
+    ],
+    "41": [
+      "ui_iconbtn"
+    ],
+    "42": [
+      "ui_iconbtndanger"
+    ],
+    "43": [
+      "ui_reveal"
+    ],
+    "44": [
+      "ui_dim"
+    ],
+    "45": [
+      "ui_ghostbtn"
+    ],
+    "46": [
+      "ui_solidbtn"
+    ],
+    "47": [
+      "ui_input"
+    ],
+    "48": [
+      "ui_row"
+    ],
+    "49": [
+      "ui_rowselect"
+    ],
+    "50": [
+      "ui_actioncard"
+    ],
+    "51": [
+      "ui_actioncardicon"
+    ],
+    "52": [
+      "ui_actioncardtitle"
+    ],
+    "53": [
+      "ui_actioncardsub"
+    ],
+    "54": [
+      "uislice_setsidebartab"
+    ],
+    "55": [
+      "runnerslice_removeitemcleanup"
+    ],
+    "56": [
+      "claude_chrome_mcp_restriction"
+    ],
+    "57": [
+      "pnpm_workspace_config"
+    ],
+    "58": [
+      "productspec_sop"
+    ],
+    "59": [
+      "productspec_interface_layout"
+    ],
+    "60": [
+      "productspec_running_script"
+    ],
+    "61": [
+      "productspec_inspecting_results"
+    ],
+    "62": [
+      "productspec_managing_test_cases"
+    ],
+    "63": [
+      "productspec_environments_variables"
+    ],
+    "64": [
+      "productspec_file_actions"
+    ],
+    "65": [
+      "productspec_theming_layout"
+    ],
+    "66": [
+      "productspec_error_handling"
+    ],
+    "67": [
+      "productspec_best_practices"
+    ],
+    "68": [
+      "improvement_prune_viewbyitemid"
+    ],
+    "69": [
+      "improvement_migrate_inline_styles"
+    ],
+    "70": [
+      "improvement_type_resizablepanel_sizes"
+    ],
+    "71": [
+      "optimization_folder_progress_checklist"
+    ]
+  },
+  "cohesion": {
+    "0": 0.06,
+    "1": 0.06,
+    "2": 0.07,
+    "3": 0.06,
+    "4": 0.06,
+    "5": 0.05,
+    "6": 0.07,
+    "7": 0.07,
+    "8": 0.1,
+    "9": 0.16,
+    "10": 0.12,
+    "11": 0.5,
+    "12": 0.5,
+    "13": 0.67,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0
+  },
+  "gods": [
+    {
+      "id": "codeeditor_codeeditor",
+      "label": "CodeEditor",
+      "degree": 29
+    },
+    {
+      "id": "lib_themes_theme",
+      "label": "Theme",
+      "degree": 22
+    },
+    {
+      "id": "mocks_components_page_mockscomponentspage",
+      "label": "MocksComponentsPage",
+      "degree": 18
+    },
+    {
+      "id": "lib_utils_cn",
+      "label": "cn()",
+      "degree": 15
+    },
+    {
+      "id": "ui_tooltip_tooltipcontent",
+      "label": "TooltipContent()",
+      "degree": 13
+    },
+    {
+      "id": "callcard_callcard",
+      "label": "CallCard",
+      "degree": 13
+    },
+    {
+      "id": "readme_bulky_api",
+      "label": "Bulky API Project",
+      "degree": 13
+    },
+    {
+      "id": "data_test_id_list_registry",
+      "label": "data-testid registry",
+      "degree": 13
+    },
+    {
+      "id": "ui_tooltip_tooltip",
+      "label": "Tooltip()",
+      "degree": 12
+    },
+    {
+      "id": "ui_tooltip_tooltiptrigger",
+      "label": "TooltipTrigger()",
+      "degree": 12
+    }
+  ],
+  "surprises": [
+    {
+      "source": "React Component JSDoc Convention",
+      "target": "MocksComponentsPage",
+      "source_files": [
+        "CLAUDE.md",
+        "src/app/mocks/components/page.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "rationale_for",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories; bridges separate communities; peripheral node `React Component JSDoc Convention` unexpectedly reaches hub `MocksComponentsPage`"
+    },
+    {
+      "source": "React Component JSDoc Convention",
+      "target": "BulkyApp",
+      "source_files": [
+        "CLAUDE.md",
+        "src/app/BulkyApp.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "rationale_for",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories; peripheral node `React Component JSDoc Convention` unexpectedly reaches hub `BulkyApp`"
+    },
+    {
+      "source": "Debounce saveItemCode",
+      "target": "BulkyApp",
+      "source_files": [
+        "docs/Improvement_v_1_0_0.md",
+        "src/app/BulkyApp.tsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "rationale_for",
+      "why": "crosses file types (code \u2194 doc); connects across different repos/directories; peripheral node `Debounce saveItemCode` unexpectedly reaches hub `BulkyApp`"
+    },
+    {
+      "source": "Debounce syncAnalyzedCalls",
+      "target": "BulkyApp",
+      "source_files": [
+        "docs/Improvement_v_1_0_0.md",
+        "src/app/BulkyApp.tsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "rationale_for",
+      "why": "crosses file types (code \u2194 doc); connects across different repos/directories; peripheral node `Debounce syncAnalyzedCalls` unexpectedly reaches hub `BulkyApp`"
+    },
+    {
+      "source": "Fix eslint-disable suppressions",
+      "target": "BulkyApp",
+      "source_files": [
+        "docs/Improvement_v_1_0_0.md",
+        "src/app/BulkyApp.tsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "rationale_for",
+      "why": "crosses file types (code \u2194 doc); connects across different repos/directories; peripheral node `Fix eslint-disable suppressions` unexpectedly reaches hub `BulkyApp`"
+    }
+  ],
+  "questions": [
+    {
+      "type": "ambiguous_edge",
+      "question": "What is the exact relationship between `Feature-Based Folder Structure Convention` and `Redux Toolkit Centralized State Architecture`?",
+      "why": "Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low."
+    },
+    {
+      "type": "ambiguous_edge",
+      "question": "What is the exact relationship between `Bulky API Logo Mark` and `BulkyApi Favicon Icon`?",
+      "why": "Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `CodeEditor` connect `Community 1` to `Community 4`?",
+      "why": "High betweenness centrality (0.025) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `MocksComponentsPage` connect `Community 1` to `Community 4`, `Community 5`?",
+      "why": "High betweenness centrality (0.024) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Project Layout (src/ tree)` connect `Community 5` to `Community 1`?",
+      "why": "High betweenness centrality (0.016) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 4 inferred relationships involving `CodeEditor` (e.g. with `ExampleScript` and `CollPane`) actually correct?",
+      "why": "`CodeEditor` has 4 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `config`, `eslintConfig`, `nextConfig` to the rest of the system?",
+      "why": "220 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
+}

@@ -16,7 +16,7 @@ const FOCUS =
 
 /** Section heading above a group of controls. */
 export const label =
-  'text-[11px] font-semibold uppercase tracking-[0.14em] text-app-dim';
+  'font-title text-[11px] font-semibold uppercase tracking-[0.14em] text-app-dim';
 
 /** Monospace metadata (counts, keys, ids). */
 export const meta = 'font-mono text-[11px] text-app-dim';
@@ -78,6 +78,29 @@ export const row =
 
 /** The clickable name inside a row that also carries its own action buttons. */
 export const rowSelect =
-  `min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left text-[12px] font-semibold ` +
+  `min-w-0 flex-1 truncate rounded-sm border-0 bg-transparent p-0 text-left font-title text-[12px] font-semibold ` +
   `text-app-text transition-colors duration-200 hover:text-app-bright ` +
   `data-selected:text-app-bright ${FOCUS} focus-visible:ring-offset-0`;
+
+/**
+ * Icon-plus-label action tile inside a bordered list wrapper (single outer
+ * border, `overflow-hidden` to clip the first/last tile to its radius,
+ * `divide-y` between tiles — see `FILE_LIST` in `FilePane` for the concrete
+ * recipe). Expects its color set via inline `style={{ color: tone }}` so the
+ * icon block and hover tint can derive from `currentColor`. Carries no
+ * border/radius of its own — the wrapper owns the outer edge and its
+ * `divide-y` owns the interior dividers.
+ */
+export const actionCard =
+  `group flex items-center gap-2.5 bg-app-hover p-2 text-left transition-colors duration-200 hover:bg-current/5 ` +
+  `${FOCUS.replace('ring-app-accent', 'ring-current')} focus-visible:ring-offset-app-sidebar`;
+
+/** Icon block inside an `actionCard`, tinted via `tint-current`. */
+export const actionCardIcon =
+  'flex size-9 shrink-0 items-center justify-center rounded-md border tint-current transition-transform duration-200 group-hover:scale-110';
+
+/** Title text inside an `actionCard`. */
+export const actionCardTitle = 'block font-title text-[12px] font-semibold text-app-bright';
+
+/** Subtitle text inside an `actionCard`. */
+export const actionCardSub = 'mt-0.5 block truncate font-description text-[11px] text-app-dim';

@@ -45,8 +45,10 @@ const LAYOUT_SIZES = {
 } as const;
 
 const HANDLE =
-  "w-px bg-app-border transition-colors duration-200 hover:bg-app-border-accent " +
-  "data-[resize-handle-active]:bg-app-accent [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full [&>div]:bg-current";
+  "w-3 bg-transparent text-app-border transition-colors duration-200 hover:text-app-border-accent " +
+  "data-[resize-handle-active]:text-app-accent [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full [&>div]:bg-current";
+
+const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border";
 
 /**
  * Application shell: a fixed vertical rail on the left, then three resizable
@@ -188,31 +190,40 @@ export default function BulkyApp() {
     >
       <ActivityRail />
 
-      <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+      <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-2">
         <ResizablePanelGroup
           key={layout}
           orientation="horizontal"
           className="h-full"
         >
           <ResizablePanel defaultSize={L.side} minSize="15%" maxSize="40%">
-            <Sidebar T={T} />
+            <div className={PANE}>
+              <Sidebar T={T} />
+            </div>
           </ResizablePanel>
           <ResizableHandle withHandle className={HANDLE} />
           <ResizablePanel defaultSize={L.editor} minSize="25%">
-            <CodeEditor
-              T={T}
-              onRun={onRun}
-              onNext={onNext}
-              onStop={onStop}
-              running={running}
-              stepMode={stepMode}
-              paused={paused}
-              onToggleStep={() => dispatch(setStepMode(!stepMode))}
-            />
+            <div className={PANE}>
+              <CodeEditor
+                T={T}
+                onRun={onRun}
+                onNext={onNext}
+                onStop={onStop}
+                running={running}
+                paused={paused}
+              />
+            </div>
           </ResizablePanel>
           <ResizableHandle withHandle className={HANDLE} />
           <ResizablePanel defaultSize={L.resp} minSize="15%" maxSize="70%">
-            <ResponsePanel T={T} />
+            <div className={PANE}>
+              <ResponsePanel
+                T={T}
+                stepMode={stepMode}
+                running={running}
+                onToggleStep={() => dispatch(setStepMode(!stepMode))}
+              />
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </main>

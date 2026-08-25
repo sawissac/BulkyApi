@@ -50,7 +50,44 @@ const updated = await api.put(\`\${env.baseUrl}/posts/\${created.data.id}\`, {
 console.log('Done! Ran 4 chained API calls.');
 `;
 
-export const INITIAL_COLLECTIONS: Collection[] = [];
+export const INITIAL_COLLECTIONS: Collection[] = [
+  {
+    id: 'mock-collection-1',
+    name: 'JSONPlaceholder',
+    open: true,
+    items: [
+      {
+        id: 'mock-item-1',
+        name: 'Get Users',
+        method: 'GET',
+        code: `const r = await api.get(env.baseUrl + '/users');\nconsole.log('status:', r.status, '| count:', r.data.length);\n`,
+      },
+    ],
+    environments: [
+      {
+        id: 'mock-env-dev',
+        name: 'Development',
+        vars: {
+          baseUrl: 'https://jsonplaceholder.typicode.com',
+          token: 'dev-a1b2c3d4e5f6',
+          apiKey: 'dev-key-123456',
+          timeout: '5000',
+        },
+      },
+      {
+        id: 'mock-env-prod',
+        name: 'Production',
+        vars: {
+          baseUrl: 'https://api.example.com',
+          token: 'prod-9f8e7d6c5b4a',
+          apiKey: 'prod-key-987654',
+          timeout: '10000',
+        },
+      },
+    ],
+    envIdx: 0,
+  },
+];
 
 export const DOCS_CODE = `// ═══════════════════════════════════════════════════════
 //  BULKY API — SCRIPT REFERENCE

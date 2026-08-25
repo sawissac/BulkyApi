@@ -8,6 +8,9 @@ import type { ApiCall } from "@/lib/types";
 import { statusColor } from "@/lib/themes";
 import MethodPill from "@/components/MethodPill";
 import StatusPill from "@/components/StatusPill";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import RespTab from "./RespTab";
 import HeadTab from "./HeadTab";
 import AuthTab from "./AuthTab";
@@ -19,6 +22,15 @@ type DetailTab = "response" | "headers" | "auth" | "payload" | "status";
 
 type Props = { T: Theme; call: ApiCall; defaultOpen?: boolean };
 
+/** Detail-tab container: bordered, clipped so the five tabs read as one
+ *  segmented group instead of loose buttons in a row. */
+const TAB_GROUP = "shrink-0 overflow-hidden rounded-md border border-app-border";
+
+/** Detail-tab button: ghost hover/active tracks the runtime theme via the
+ *  `app-*` tokens instead of Button's default (static) muted/foreground. */
+const TAB_BTN =
+  "rounded-none border-0 text-[9px] font-bold uppercase tracking-[0.08em] text-app-dim hover:bg-app-hover hover:text-app-accent data-active:bg-app-selected data-active:text-app-accent";
+
 export default function CallCard({ T, call, defaultOpen }: Props) {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(defaultOpen ?? false);
@@ -27,13 +39,6 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
   const isCached = call.cache;
 
   const sc = statusColor(call.statusCode, T);
-  const path = (() => {
-    try {
-      return new URL(call.url).pathname || "/";
-    } catch {
-      return call.url.replace(/^https?:\/\/[^/]+/, "") || call.url;
-    }
-  })();
 
   const borderColor = open
     ? T.cyan
@@ -44,35 +49,25 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         : "transparent";
 
   const tabBtn = (id: DetailTab, label: string) => (
-    <button
+    <Button
+      key={id}
+      type="button"
+      variant="ghost"
+      size="xs"
       onClick={(e) => {
         e.stopPropagation();
         setTab(id);
       }}
-      style={{
-        padding: "4px 9px",
-        background: tab === id ? T.bgSelected : "transparent",
-        border: "none",
-        color: tab === id ? T.cyan : T.textDim,
-        fontFamily: 'var(--font-display)',
-        fontSize: 9,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        cursor: "pointer",
-        borderRadius: 5,
-        flexShrink: 0,
-        transition: "all 0.12s",
-      }}
+      data-active={tab === id || undefined}
+      className={TAB_BTN}
     >
       {label}
-    </button>
+    </Button>
   );
 
   return (
     <div
       style={{
-        borderBottom: `1px solid ${T.border}`,
         animation: "fadeUp 0.2s ease both",
         transition: "all 0.15s",
       }}
@@ -89,20 +84,24 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
             minWidth: 0,
           }}
         >
-          <span
-            title={call.note}
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 11,
-              fontWeight: 500,
-              color: T.cyan,
-              display: "block",
-              whiteSpace: "wrap",
-              overflow: "hidden",
-            }}
-          >
-            {call.note}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                style={{
+                  fontFamily: 'var(--font-description)',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: T.cyan,
+                  display: "block",
+                  whiteSpace: "wrap",
+                  overflow: "hidden",
+                }}
+              >
+                {call.note}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{call.note}</TooltipContent>
+          </Tooltip>
         </div>
       )}
 
@@ -154,19 +153,25 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
 
         <MethodPill method={call.method} sm />
 
-        <span
-          style={{
-            flex: 1,
-            fontFamily: 'var(--font-mono)',
-            fontSize: 9,
-            color: open ? T.textBright : T.text,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {path}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                color: open ? T.textBright : T.text,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {call.url}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{call.url}</TooltipContent>
+        </Tooltip>
 
         {/* Progress bar */}
         <div
@@ -210,31 +215,35 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
 
         {/* Per-call cache toggle — only visible when a cached response exists */}
         {hasCachedResponse && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              dispatch(toggleCallCache(call.idx));
-            }}
-            title={
-              isCached
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dispatch(toggleCallCache(call.idx));
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "2px 4px",
+                  borderRadius: 4,
+                  flexShrink: 0,
+                  background: isCached ? `${T.cyan}20` : "transparent",
+                  border: `1px solid ${isCached ? T.cyan : T.border}`,
+                  color: isCached ? T.cyan : T.textDim,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                <DatabaseZap size={10} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isCached
                 ? "Using cached response – click to disable"
-                : "Cache available – click to enable"
-            }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "2px 4px",
-              borderRadius: 4,
-              flexShrink: 0,
-              background: isCached ? `${T.cyan}20` : "transparent",
-              border: `1px solid ${isCached ? T.cyan : T.border}`,
-              color: isCached ? T.cyan : T.textDim,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            <DatabaseZap size={10} />
-          </button>
+                : "Cache available – click to enable"}
+            </TooltipContent>
+          </Tooltip>
         )}
 
         {call.status === "idle" && (
@@ -291,17 +300,18 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           <div
             style={{
               display: "flex",
-              gap: 2,
               padding: "5px 10px",
               borderBottom: `1px solid ${T.border}`,
               overflowX: "auto",
             }}
           >
-            {tabBtn("response", "Response")}
-            {tabBtn("headers", "Headers")}
-            {tabBtn("auth", "Auth")}
-            {tabBtn("payload", "Payload")}
-            {tabBtn("status", "Status")}
+            <ButtonGroup className={TAB_GROUP}>
+              {tabBtn("response", "Response")}
+              {tabBtn("headers", "Headers")}
+              {tabBtn("auth", "Auth")}
+              {tabBtn("payload", "Payload")}
+              {tabBtn("status", "Status")}
+            </ButtonGroup>
           </div>
           <div style={{ padding: 10, maxHeight: 280, overflowY: "auto" }}>
             {tab === "response" && <RespTab T={T} call={call} />}
@@ -325,7 +335,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         >
           <span
             style={{
-              fontFamily: 'var(--font-display)',
+              fontFamily: 'var(--font-description)',
               fontSize: 11,
               color: T.textDim,
               fontStyle: "italic",

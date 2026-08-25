@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AppWindow, Check, Maximize2, X } from "lucide-react";
+import { AppWindow, Check, LaptopMinimal, X } from "lucide-react";
 import type { DisplayMode } from "@/store/uiSlice";
 
 const OPTIONS: Array<{
@@ -12,14 +12,16 @@ const OPTIONS: Array<{
 }> = [
   {
     id: "fullscreen",
-    label: "Fullscreen\nview",
-    detail: "App fills the whole display. No address bar, no tabs, no OS chrome.",
-    Icon: Maximize2,
+    label: "Fullscreen view",
+    detail:
+      "App fills the whole display. No address bar, no tabs, no OS chrome.",
+    Icon: LaptopMinimal,
   },
   {
     id: "browser",
     label: "URL view",
-    detail: "Ordinary browser window, with the address bar and tab strip visible.",
+    detail:
+      "Ordinary browser window, with the address bar and tab strip visible.",
     Icon: AppWindow,
   },
 ];
@@ -43,8 +45,17 @@ const OPTIONS: Array<{
  * than behind it.
  *
  * Variants: each option renders selected or unselected — the pending one gets
- * the accent border, tinted fill and a check mark. Done is the footer's solid
- * accent action, Cancel the bordered one.
+ * a tinted fill and a check mark. The two options read as one segmented
+ * button group rather than loose items: no option has its own border, and it
+ * is the group container's outer `border`+`rounded-lg` plus `divide-y`
+ * (colored `app-border`) that draws the frame and the hairline between them.
+ * Options round only `first:rounded-t-md last:rounded-b-md`, matching the
+ * two corners the group container itself rounds — an interior option (once
+ * there are more than two) never sits on an outer corner, so it stays square
+ * and its `data-selected` inset ring reads as a flush slice of the list
+ * rather than a floating rounded box (see {@link TweaksPanel}'s layout rows,
+ * which hit this the moment a third row was added).
+ * Done is the footer's solid accent action, Cancel the bordered one.
  *
  * Composition: renders no children. Fixed to the viewport at `z-200`, above the
  * tweaks panel.
@@ -82,6 +93,7 @@ const OPTIONS: Array<{
  * ```
  *
  * @see {@link ActivityRail}
+ * @see {@link TweaksPanel}
  */
 export default function DisplayModeDialog({
   mode,
@@ -115,10 +127,10 @@ export default function DisplayModeDialog({
         aria-modal="true"
         aria-label="Choose display mode"
         data-testid="display-mode-dialog-root"
-        className="flex w-[min(460px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
+        className="flex w-[min(400px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-app-border px-5 py-3.5">
-          <span className="flex-1 text-[15px] font-bold tracking-[-0.01em] text-app-bright">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
+          <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             Display mode
           </span>
           <button
@@ -126,50 +138,52 @@ export default function DisplayModeDialog({
             onClick={onClose}
             aria-label="Close display mode picker"
             data-testid="display-mode-dialog-close-button"
-            className="flex size-8 items-center justify-center rounded-md border-0 bg-transparent text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+            className="flex size-7 items-center justify-center rounded-md border-0 bg-transparent text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
           >
-            <X size={16} aria-hidden="true" />
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="flex flex-col gap-2 px-5 py-4">
-          {OPTIONS.map(({ id, label, detail, Icon }) => (
-            <button
-              key={id}
-              ref={mode === id ? selectedRef : undefined}
-              type="button"
-              onClick={() => setDraft(id)}
-              aria-pressed={draft === id}
-              data-selected={draft === id || undefined}
-              data-testid={`display-mode-dialog-option-${id}`}
-              className="group flex items-start gap-3 rounded-md border border-app-border bg-transparent px-3.5 py-3 text-left transition-colors duration-200 hover:border-app-border-accent hover:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel data-selected:border-app-border-accent data-selected:bg-app-accent-faint"
-            >
-              <Icon
-                size={16}
-                aria-hidden="true"
-                className="mt-0.5 shrink-0 text-app-dim group-data-selected:text-app-accent"
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block whitespace-pre-line text-[12px] font-semibold uppercase leading-tight tracking-[0.07em] text-app-bright">
-                  {label}
-                </span>
-                <span className="mt-1 block text-[12px] leading-relaxed text-app-dim">
-                  {detail}
-                </span>
-              </span>
-              {draft === id && (
-                <Check
+        <div className="px-4 py-3">
+          <div className="flex flex-col divide-y divide-app-border overflow-hidden rounded-lg border border-app-border">
+            {OPTIONS.map(({ id, label, detail, Icon }) => (
+              <button
+                key={id}
+                ref={mode === id ? selectedRef : undefined}
+                type="button"
+                onClick={() => setDraft(id)}
+                aria-pressed={draft === id}
+                data-selected={draft === id || undefined}
+                data-testid={`display-mode-dialog-option-${id}`}
+                className="group relative flex items-start gap-2.5 bg-app-hover px-3 py-2 text-left first:rounded-t-md last:rounded-b-md transition-colors duration-200 hover:bg-app-selected focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-0 data-selected:bg-app-accent-faint data-selected:shadow-[inset_0_0_0_1.5px_var(--app-accent)]"
+              >
+                <Icon
                   size={15}
                   aria-hidden="true"
-                  className="mt-0.5 shrink-0 text-app-accent"
+                  className="mt-0.5 shrink-0 text-app-dim group-data-selected:text-app-accent"
                 />
-              )}
-            </button>
-          ))}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-semibold uppercase leading-tight tracking-[0.07em] text-app-bright">
+                    {label}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-app-dim">
+                    {detail}
+                  </span>
+                </span>
+                {draft === id && (
+                  <Check
+                    size={14}
+                    aria-hidden="true"
+                    className="mt-0.5 shrink-0 text-app-accent"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-app-border px-5 py-3">
-          <span className="text-[11px] text-app-dim">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-app-border px-4 py-2.5">
+          <span className="text-[10px] text-app-dim">
             Applies now. Reloading returns to URL view.
           </span>
           <div className="flex shrink-0 items-center gap-2">
@@ -177,7 +191,7 @@ export default function DisplayModeDialog({
               type="button"
               onClick={onClose}
               data-testid="display-mode-dialog-cancel-button"
-              className="h-9 rounded-md border border-app-border bg-transparent px-4 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+              className="h-8 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
             >
               Cancel
             </button>
@@ -185,7 +199,7 @@ export default function DisplayModeDialog({
               type="button"
               onClick={() => onConfirm(draft)}
               data-testid="display-mode-dialog-done-button"
-              className="h-9 rounded-md border-0 bg-app-accent px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+              className="h-8 rounded-md border-0 bg-app-accent px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
             >
               Done
             </button>

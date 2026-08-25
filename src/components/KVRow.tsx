@@ -16,11 +16,8 @@ export default function KVRow({ T, k, v, masked }: Props) {
         display: 'grid',
         gridTemplateColumns: '1fr 1.5fr',
         gap: 8,
-        padding: '4px 8px',
-        borderRadius: 5,
-        border: `1px solid ${T.border}`,
+        padding: '6px 10px',
         background: T.bgHover,
-        marginBottom: 3,
       }}
     >
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: T.cyan }}>{k}</span>

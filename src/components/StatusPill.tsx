@@ -132,17 +132,17 @@ export default function StatusPill({ code }: StatusPillProps) {
       <TooltipTrigger asChild>
         <span
           tabIndex={0}
-          className={`cursor-help rounded-md border tint-current px-2 py-0.5 font-mono text-[11px] font-bold leading-none transition-[transform,filter] duration-200 hover:scale-105 hover:brightness-125 focus-visible:scale-105 focus-visible:brightness-125 focus-visible:outline-none ${TONE[tone]}`}
+          className={`cursor-help rounded-md border tint-current px-2 py-0.5 font-title text-[11px] font-semibold leading-none transition-[transform,filter] duration-200 hover:scale-105 hover:brightness-125 focus-visible:scale-105 focus-visible:brightness-125 focus-visible:outline-none ${TONE[tone]}`}
         >
           <span className="sr-only">Status: </span>
           {code || "···"}
         </span>
       </TooltipTrigger>
       <TooltipContent>
-        <span className="block text-[11px] font-bold text-app-bright">
+        <span className="block font-title text-[11px] font-semibold text-app-bright">
           {code ? `${code} · ${TONE_LABEL[tone]}` : TONE_LABEL[tone]}
         </span>
-        <span className="mt-0.5 block text-app-dim">{describe(code, tone)}</span>
+        <span className="mt-0.5 block font-description text-app-dim">{describe(code, tone)}</span>
       </TooltipContent>
     </Tooltip>
   );

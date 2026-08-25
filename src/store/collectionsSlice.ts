@@ -11,7 +11,7 @@ type CollectionsState = {
 
 const initialState: CollectionsState = {
   collections: INITIAL_COLLECTIONS,
-  activeId: null,
+  activeId: INITIAL_COLLECTIONS[0]?.items[0]?.id ?? null,
   recentItemIds: [],
 };
 

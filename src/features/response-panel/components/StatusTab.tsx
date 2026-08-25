@@ -17,9 +17,15 @@ export default function StatusTab({ T, call }: Props) {
     try { return new URL(call.url).hostname; } catch { return call.url.split('/')[2] || call.url; }
   })();
 
-  const statLabel = (val: string, lbl: string, color: string) => (
-    <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgHover }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 7, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, marginBottom: 4 }}>
+  const statCell = (val: string, lbl: string, color: string, i: number) => (
+    <div
+      style={{
+        padding: 8,
+        borderLeft: i % 2 === 1 ? `1px solid ${T.border}` : undefined,
+        borderTop: i >= 2 ? `1px solid ${T.border}` : undefined,
+      }}
+    >
+      <div style={{ fontFamily: 'var(--font-title)', fontSize: 7, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textDim, marginBottom: 4 }}>
         {lbl}
       </div>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -29,25 +35,56 @@ export default function StatusTab({ T, call }: Props) {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, borderRadius: 10, border: `1px solid ${c}25`, background: `${c}0a` }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 40, fontWeight: 700, color: c, lineHeight: 1 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        borderRadius: 6,
+        border: `1px solid ${T.border}`,
+        background: T.bgHover,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: 8,
+          overflow: 'hidden',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: c, flexShrink: 0 }}>
           {call.statusCode || '—'}
-        </div>
-        <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: c }}>
-            {call.statusCode ? (STATUS_TXT[call.statusCode] || call.status) : call.status}
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: T.textDim, marginTop: 3 }}>
-            {call.method} {path}
-          </div>
-        </div>
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: c, flexShrink: 0 }}>
+          {call.statusCode ? (STATUS_TXT[call.statusCode] || call.status) : call.status}
+        </span>
+        <span style={{ color: T.border, flexShrink: 0 }}>·</span>
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 10,
+            color: T.textDim,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {call.method} {path}
+        </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {statLabel(`${dur}ms`, 'Duration', durColor)}
-        {statLabel(call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : '—', 'Timestamp', T.textDim)}
-        {statLabel(call.method, 'Method', METHOD_CLR[call.method] || T.textDim)}
-        {statLabel(host, 'Host', T.textDim)}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          borderTop: `1px solid ${T.border}`,
+        }}
+      >
+        {statCell(`${dur}ms`, 'Duration', durColor, 0)}
+        {statCell(call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : '—', 'Timestamp', T.textDim, 1)}
+        {statCell(call.method, 'Method', METHOD_CLR[call.method] || T.textDim, 2)}
+        {statCell(host, 'Host', T.textDim, 3)}
       </div>
     </div>
   );
