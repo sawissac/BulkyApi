@@ -13,8 +13,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    icon: [
+      { url: "/bulky_api.ico", sizes: "any" },
+      { url: "/bulky_api.png", type: "image/png", sizes: "1000x1000" },
+    ],
+    apple: [{ url: "/bulky_api.png", type: "image/png" }],
   },
 };
 

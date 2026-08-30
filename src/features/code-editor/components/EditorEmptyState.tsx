@@ -69,7 +69,7 @@ const SHORTCUTS = [
  * dispatches — validation lives in the reducer's tolerance, not here, same
  * as the sidebar path.
  *
- * Dependencies: `lucide-react`, `react-redux`, `/favicon.svg` (app icon, same
+ * Dependencies: `lucide-react`, `react-redux`, `/bulky_api.png` (app icon, same
  * mark {@link ActivityRail} renders), `@/store/collectionsSlice`,
  * `@/features/sidebar/components/NewCollectionDialog`,
  * `@/features/sidebar/components/ImportCollectionDialog`.
@@ -96,7 +96,7 @@ export default function EditorEmptyState() {
         <div className="flex flex-col gap-1.5">
           <span className="flex items-center gap-2 font-title text-[20px] font-semibold tracking-[-0.02em] text-app-bright">
             <img
-              src="/favicon.svg"
+              src="/bulky_api.png"
               alt=""
               width={22}
               height={22}

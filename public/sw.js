@@ -1,5 +1,5 @@
-const CACHE_NAME = "bulky-api-v1";
-const SHELL = ["/", "/favicon.svg", "/logo.svg", "/logo-mark.svg", "/manifest.webmanifest"];
+const CACHE_NAME = "bulky-api-v2";
+const SHELL = ["/", "/bulky_api.ico", "/bulky_api.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

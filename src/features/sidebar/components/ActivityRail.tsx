@@ -153,7 +153,7 @@ export default function ActivityRail() {
       <Tooltip>
         <TooltipTrigger asChild>
           <img
-            src="/favicon.svg"
+            src="/bulky_api.png"
             alt="Bulky API"
             width={24}
             height={24}

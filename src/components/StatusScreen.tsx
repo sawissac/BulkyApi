@@ -77,7 +77,7 @@ type Props = {
  * theme) applies and the document root is left alone. A `detail` longer than
  * the block scrolls inside it rather than growing the card.
  *
- * Dependencies: `@/lib/themes`, `/favicon.svg` (the app mark the activity rail
+ * Dependencies: `@/lib/themes`, `/bulky_api.png` (the app mark the activity rail
  * renders).
  *
  * @example
@@ -122,7 +122,7 @@ export default function StatusScreen({
         {/* Header strip — reads like the response card the app shows for a call */}
         <div className="flex items-center gap-2 border-b border-app-border bg-app-sidebar px-4 py-2.5">
           <img
-            src="/favicon.svg"
+            src="/bulky_api.png"
             alt=""
             width={16}
             height={16}
