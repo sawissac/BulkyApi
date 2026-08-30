@@ -15,7 +15,11 @@ import { statusColor } from "@/lib/themes";
 import { callToCurl } from "@/lib/toCurl";
 import MethodPill from "@/components/MethodPill";
 import StatusPill from "@/components/StatusPill";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import RespTab from "./RespTab";
@@ -25,7 +29,13 @@ import PayloadTab from "./PayloadTab";
 import StatusTab from "./StatusTab";
 import { toggleCallCache } from "@/store/runnerSlice";
 
-type DetailTab = "response" | "headers" | "auth" | "payload" | "status" | "tests";
+type DetailTab =
+  | "response"
+  | "headers"
+  | "auth"
+  | "payload"
+  | "status"
+  | "tests";
 
 type Props = {
   /** Active theme; every color on the card is read from it, not from tokens. */
@@ -39,7 +49,8 @@ type Props = {
 
 /** Detail-tab container: bordered, clipped so the five tabs read as one
  *  segmented group instead of loose buttons in a row. */
-const TAB_GROUP = "shrink-0 overflow-hidden rounded-md border border-app-border";
+const TAB_GROUP =
+  "shrink-0 overflow-hidden rounded-md border border-app-border";
 
 /** Detail-tab button: ghost hover/active tracks the runtime theme via the
  *  `app-*` tokens instead of Button's default (static) muted/foreground. */
@@ -59,13 +70,13 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
             gap: 6,
             padding: "5px 8px",
             borderRadius: 5,
-            border: `1px solid ${(a.ok ? T.success : T.error)}25`,
+            border: `1px solid ${a.ok ? T.success : T.error}25`,
             background: `${a.ok ? T.success : T.error}0c`,
           }}
         >
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
+              fontFamily: "var(--font-mono)",
               fontSize: 11,
               fontWeight: 700,
               color: a.ok ? T.success : T.error,
@@ -76,7 +87,7 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
+              fontFamily: "var(--font-mono)",
               fontSize: 10,
               lineHeight: 1.5,
               color: T.text,
@@ -163,7 +174,8 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
   // down by the next one.
   const detailBodyRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
-  const eventCount = (call.sseEvents?.length ?? 0) + (call.wsEvents?.length ?? 0);
+  const eventCount =
+    (call.sseEvents?.length ?? 0) + (call.wsEvents?.length ?? 0);
   useEffect(() => {
     if (!open || tab !== "response" || (!call.isSse && !call.isWs)) return;
     const el = detailBodyRef.current;
@@ -238,7 +250,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
             <TooltipTrigger asChild>
               <span
                 style={{
-                  fontFamily: 'var(--font-description)',
+                  fontFamily: "var(--font-description)",
                   fontSize: 11,
                   fontWeight: 500,
                   color: T.cyan,
@@ -291,7 +303,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         >
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
+              fontFamily: "var(--font-mono)",
               fontSize: 8,
               fontWeight: 700,
               color: open ? T.cyan : T.textDim,
@@ -309,7 +321,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
               style={{
                 flex: 1,
                 minWidth: 0,
-                fontFamily: 'var(--font-mono)',
+                fontFamily: "var(--font-mono)",
                 fontSize: 9,
                 color: open ? T.textBright : T.text,
                 whiteSpace: "nowrap",
@@ -353,7 +365,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         {call.duration > 0 && (
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
+              fontFamily: "var(--font-mono)",
               fontSize: 8,
               color: T.textDim,
               flexShrink: 0,
@@ -375,10 +387,11 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
                   padding: "1px 5px",
                   borderRadius: 4,
                   flexShrink: 0,
-                  fontFamily: 'var(--font-mono)',
+                  fontFamily: "var(--font-mono)",
                   fontSize: 8,
                   fontWeight: 700,
-                  background: failedCount > 0 ? `${T.error}15` : `${T.success}15`,
+                  background:
+                    failedCount > 0 ? `${T.error}15` : `${T.success}15`,
                   border: `1px solid ${failedCount > 0 ? T.error : T.success}40`,
                   color: failedCount > 0 ? T.error : T.success,
                 }}
@@ -487,7 +500,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           ) : (
             <span
               style={{
-                fontFamily: 'var(--font-mono)',
+                fontFamily: "var(--font-mono)",
                 fontSize: 9,
                 color: T.error,
                 flexShrink: 0,
@@ -539,7 +552,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
             }}
             style={{
               padding: 10,
-              maxHeight: 280,
+              maxHeight: 500,
               overflowY: "auto",
               overflowX: "hidden",
               minWidth: 0,
@@ -567,7 +580,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         >
           <span
             style={{
-              fontFamily: 'var(--font-description)',
+              fontFamily: "var(--font-description)",
               fontSize: 11,
               color: T.textDim,
               fontStyle: "italic",

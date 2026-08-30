@@ -19,6 +19,10 @@ import {
   FileLock,
   TableProperties,
   FolderDown,
+  FolderUp,
+  Download,
+  Upload,
+  SquareTerminal,
   Footprints,
   Play,
 } from "lucide-react";
@@ -45,11 +49,13 @@ import {
   type SidebarTab,
 } from "@/store/uiSlice";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
+import { useFileActions } from "@/hooks/useFileActions";
 import { EXAMPLE_SCRIPTS } from "@/lib/sampleData";
 import type { ExampleScript } from "@/lib/sampleData";
 import MethodPill from "@/components/MethodPill";
 import ExampleDialog from "./ExampleDialog";
 import CommandPalette, { type Command } from "./CommandPalette";
+import CurlImportDialog from "@/features/sidebar/components/CurlImportDialog";
 import EditorEmptyState from "./EditorEmptyState";
 import { Input } from "@/components/ui/input";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -88,7 +94,10 @@ const ACTION_BTN =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel " +
   "disabled:pointer-events-none disabled:opacity-50 disabled:hover:scale-100";
 
-const TOOL_LABEL = "text-[11px] font-semibold uppercase tracking-[0.07em]";
+/** Footer toggle label. Hidden once the editor pane's status bar (a
+ *  `@container`) drops below 480px, leaving the buttons icon-only. */
+const TOOL_LABEL =
+  "text-[11px] font-semibold uppercase tracking-[0.07em] @max-[480px]:hidden";
 
 /** Wraps the footer's utility toggles for spacing only — no outer border or
  *  radius, so the group reads as embedded in the status bar rather than a
@@ -154,7 +163,10 @@ type Props = {
  * fresh `commands: Command[]` built every render — Actions mirrors the
  * toolbar's own mutually-exclusive Run/Stop/Next gating below so only the
  * relevant one is ever listed, plus step-mode/format/Tweaks/fullscreen/
- * sidebar-tab entries; Examples maps `EXAMPLE_SCRIPTS` onto the same
+ * sidebar-tab entries and the five file actions from {@link useFileActions}
+ * (save/import script, export/import collection, import from cURL) — the last
+ * flips `curlImportOpen` to mount {@link CurlImportDialog}, the same dialog
+ * `FilePane` opens; Examples maps `EXAMPLE_SCRIPTS` onto the same
  * `setSelectedExample` the footer's Examples menu uses; Requests flattens
  * every collection's items and reuses `selectItemRow`; Environments lists
  * the active collection's environments and is omitted outright (not shown
@@ -175,8 +187,9 @@ type Props = {
  *
  * Composition: renders {@link MonacoCodeEditor} (dynamically imported,
  * `ssr: false`) for the editor body, {@link ExampleDialog} for the selected
- * example's preview, and {@link CommandPalette} while `commandPaletteOpen`.
- * Each breadcrumb segment renders as an
+ * example's preview, {@link CommandPalette} while `commandPaletteOpen`, and
+ * {@link CurlImportDialog} while `curlImportOpen` (opened from the palette's
+ * cURL file action). Each breadcrumb segment renders as an
  * input-styled shell (`bg-app-hover`, matching the {@link Input} recipe)
  * holding two buttons split by a hairline divider: a text label that starts
  * an inline rename, and a `ChevronDown` button that opens the segment's
@@ -191,7 +204,9 @@ type Props = {
  * leads with the
  * active item's {@link MethodPill} (omitted for Scratch Pad), then Format,
  * Examples and Search — grouped for spacing only, borderless so the group
- * reads as embedded in the bar rather than a floating segmented block.
+ * reads as embedded in the bar rather than a floating segmented block. The
+ * status bar is a `@container`; once it narrows past 480px each button drops
+ * its text label (`TOOL_LABEL`) and renders icon-only.
  * Examples opens a `Popover` anchored to its trigger, listing each
  * {@link ExampleScript} behind a small {@link MethodPill} inside a vertical
  * `ButtonGroup`; picking one closes the popover and opens
@@ -211,7 +226,9 @@ type Props = {
  * both breadcrumb pickers and Examples — are Radix `Popover`s, which supply
  * their own `aria-haspopup`/`aria-controls` wiring and Escape/outside-click
  * dismissal with focus returned to the trigger. Picker rows are plain
- * buttons reachable by their visible name.
+ * buttons reachable by their visible name. The footer's Format, Examples and
+ * Search buttons each carry an `aria-label`, so they keep an accessible name
+ * once the `@container` collapse hides their text.
  *
  * Test ids: breadcrumb rename fields
  * `code-editor-rename-collection-input` / `code-editor-rename-item-input`
@@ -238,9 +255,10 @@ type Props = {
  * standalone` + `plugins/babel` + `plugins/estree`, `@/components/
  * MethodPill`, `@/components/ui/input`, `@/components/ui/button-group`,
  * `@/components/ui/tooltip`, `@/components/ui/popover`, `./ExampleDialog`,
- * `./CommandPalette`, `./EditorEmptyState`, `./MonacoCodeEditor`,
- * `@/store/editorSlice`, `@/store/collectionsSlice`, `@/store/runnerSlice`,
- * `@/store/uiSlice`, `@/hooks/useDisplayMode`, `@/lib/sampleData`.
+ * `./CommandPalette`, `@/features/sidebar/components/CurlImportDialog`,
+ * `./EditorEmptyState`, `./MonacoCodeEditor`, `@/store/editorSlice`,
+ * `@/store/collectionsSlice`, `@/store/runnerSlice`, `@/store/uiSlice`,
+ * `@/hooks/useDisplayMode`, `@/hooks/useFileActions`, `@/lib/sampleData`.
  *
  * @example
  * ```tsx
@@ -278,9 +296,11 @@ export default function CodeEditor({
   const tweaksOpen = useSelector(selectTweaksOpen);
   const commandPaletteOpen = useSelector(selectCommandPaletteOpen);
   const { mode: displayMode, apply: applyDisplayMode } = useDisplayMode();
+  const fileActions = useFileActions();
   const monacoEditorRef = useRef<EditorInstance | null>(null);
   const [openMenu, setOpenMenu] = useState<"coll" | "item" | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [curlImportOpen, setCurlImportOpen] = useState(false);
   const [selectedExample, setSelectedExample] = useState<ExampleScript | null>(
     null,
   );
@@ -443,6 +463,51 @@ export default function CodeEditor({
         icon: Icon,
         onSelect: () => dispatch(setSidebarTab(id)),
       })),
+    );
+
+    // File actions — the same operations FilePane exposes, so a script or
+    // collection can be saved/loaded without leaving the editor.
+    actions.push(
+      {
+        id: "action-file-save-script",
+        category: "Actions",
+        label: "Save script to file",
+        keywords: ["export", "download", "ts"],
+        icon: Download,
+        onSelect: fileActions.saveScript,
+      },
+      {
+        id: "action-file-import-script",
+        category: "Actions",
+        label: "Import script from file",
+        keywords: ["open", "load", "upload"],
+        icon: Upload,
+        onSelect: () => void fileActions.importScript(),
+      },
+      {
+        id: "action-file-export-collection",
+        category: "Actions",
+        label: "Export collections to JSON",
+        keywords: ["save", "download", "backup"],
+        icon: FolderDown,
+        onSelect: fileActions.exportCollection,
+      },
+      {
+        id: "action-file-import-collection",
+        category: "Actions",
+        label: "Import collections from JSON",
+        keywords: ["load", "upload", "restore"],
+        icon: FolderUp,
+        onSelect: () => void fileActions.importCollection(),
+      },
+      {
+        id: "action-file-import-curl",
+        category: "Actions",
+        label: "Import request from cURL",
+        keywords: ["curl", "paste"],
+        icon: SquareTerminal,
+        onSelect: () => setCurlImportOpen(true),
+      },
     );
 
     const examples: Command[] = EXAMPLE_SCRIPTS.map((ex) => ({
@@ -780,6 +845,18 @@ export default function CodeEditor({
         />
       )}
 
+      {/* cURL import — reachable from the command palette's "Import request
+          from cURL" entry; the same dialog FilePane opens. */}
+      {curlImportOpen && (
+        <CurlImportDialog
+          onImport={(command) => {
+            fileActions.importCurl(command);
+            setCurlImportOpen(false);
+          }}
+          onClose={() => setCurlImportOpen(false)}
+        />
+      )}
+
       {/* Socket composer — only while a call in this run has an open
           `api.ws`/`api.io` connection. Enter sends, Shift+Enter inserts a
           newline. Disconnect closes it directly; the script can also
@@ -833,13 +910,18 @@ export default function CodeEditor({
       )}
 
       {/* Status bar */}
-      <div className="flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-app-border bg-app-panel px-3">
+      <div className="@container flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-app-border bg-app-panel px-3">
         {activeItem && <MethodPill method={activeItem.method} sm />}
 
         <ButtonGroup className={GROUP_BOX}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" onClick={handleFormat} className={TOOL_BTN}>
+              <button
+                type="button"
+                onClick={handleFormat}
+                aria-label="Format document"
+                className={TOOL_BTN}
+              >
                 <WandSparkles size={13} aria-hidden="true" />
                 <span className={TOOL_LABEL}>Format</span>
               </button>
@@ -851,6 +933,7 @@ export default function CodeEditor({
             <PopoverTrigger asChild>
               <button
                 type="button"
+                aria-label="Example scripts"
                 aria-expanded={examplesOpen}
                 data-active={examplesOpen || undefined}
                 className={TOOL_BTN}
@@ -895,6 +978,7 @@ export default function CodeEditor({
               <button
                 type="button"
                 onClick={() => dispatch(setCommandPaletteOpen(true))}
+                aria-label="Command palette"
                 className={TOOL_BTN}
               >
                 <Search size={13} aria-hidden="true" />

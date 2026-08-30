@@ -42,7 +42,9 @@ type Props = {
  * CSS classes: the chart itself is inline styles over the theme object, plus
  * the shared `pulse` keyframes for pending bars; the empty state is the shared
  * `p-4 text-center font-description text-[12px] text-app-dim` recipe used by the
- * call list and docs view.
+ * call list and docs view. The bordered card is filled with `bgPanel` — the
+ * same opaque backing the request-list card uses — so the pane's dot-grid
+ * texture does not bleed through the rows.
  *
  * Edge cases: with no calls, renders the "No API calls detected in this
  * script" placeholder — same markup as the call list and {@link ApiDocs}
@@ -100,6 +102,7 @@ export default function ApiWaterfall({ T }: Props) {
           overflow: 'hidden',
           borderRadius: 6,
           border: `1px solid ${T.border}`,
+          background: T.bgPanel,
         }}
       >
         {/* Time axis header */}

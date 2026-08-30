@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Loader2, Radio, Copy, Check, Cable, ArrowUp, ArrowDown, Info } from "lucide-react";
+import {
+  Loader2,
+  Radio,
+  Copy,
+  Check,
+  Cable,
+  ArrowUp,
+  ArrowDown,
+  Info,
+} from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { ApiCall } from "@/lib/types";
 import JNode from "@/components/JsonTreeViewer";
@@ -14,11 +23,16 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /** View-toggle container: bordered, clipped so PRETTY/RAW/TS read as one
  *  segmented group instead of three loose pills. */
-const VIEW_GROUP = "shrink-0 overflow-hidden rounded-md border border-app-border";
+const VIEW_GROUP =
+  "shrink-0 overflow-hidden rounded-md border border-app-border";
 
 /** View-toggle button: ghost hover/active tracks the runtime theme via the
  *  `app-*` tokens instead of Button's default (static) muted/foreground. */
@@ -93,7 +107,7 @@ function SseBodyEvents({
         <Radio size={10} color={SSE_CLR} />
         <span
           style={{
-            fontFamily: 'var(--font-title)',
+            fontFamily: "var(--font-title)",
             fontSize: 8,
             fontWeight: 600,
             letterSpacing: "0.1em",
@@ -104,7 +118,7 @@ function SseBodyEvents({
         </span>
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 8,
             color: T.textDim,
           }}
@@ -128,7 +142,7 @@ function SseBodyEvents({
                   border: `1px solid ${active ? SSE_CLR : T.border}`,
                   background: active ? `${SSE_CLR}15` : "transparent",
                   color: active ? SSE_CLR : T.textDim,
-                  fontFamily: 'var(--font-display)',
+                  fontFamily: "var(--font-display)",
                   fontSize: 8,
                   fontWeight: 700,
                   letterSpacing: "0.1em",
@@ -144,7 +158,7 @@ function SseBodyEvents({
       {raw ? (
         <pre
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 11,
             color: T.text,
             whiteSpace: "pre-wrap",
@@ -186,7 +200,7 @@ function SseBodyEvents({
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 7,
                       fontWeight: 700,
                       color: T.textDim,
@@ -197,7 +211,7 @@ function SseBodyEvents({
                   {!isMsg && (
                     <span
                       style={{
-                        fontFamily: 'var(--font-display)',
+                        fontFamily: "var(--font-display)",
                         fontSize: 7,
                         fontWeight: 700,
                         letterSpacing: "0.08em",
@@ -214,7 +228,7 @@ function SseBodyEvents({
                   {ev.id && (
                     <span
                       style={{
-                        fontFamily: 'var(--font-mono)',
+                        fontFamily: "var(--font-mono)",
                         fontSize: 7,
                         color: T.textDim,
                       }}
@@ -226,7 +240,7 @@ function SseBodyEvents({
                 {typeof parsed === "string" ? (
                   <pre
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 10,
                       color: T.text,
                       margin: 0,
@@ -239,7 +253,7 @@ function SseBodyEvents({
                 ) : (
                   <div
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 10,
                       lineHeight: 1.6,
                     }}
@@ -295,7 +309,7 @@ function SseEvents({ T, call }: Props) {
         />
         <span
           style={{
-            fontFamily: 'var(--font-title)',
+            fontFamily: "var(--font-title)",
             fontSize: 8,
             fontWeight: 600,
             letterSpacing: "0.1em",
@@ -306,7 +320,7 @@ function SseEvents({ T, call }: Props) {
         </span>
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 8,
             color: T.textDim,
           }}
@@ -330,7 +344,7 @@ function SseEvents({ T, call }: Props) {
                     border: `1px solid ${active ? SSE_CLR : T.border}`,
                     background: active ? `${SSE_CLR}15` : "transparent",
                     color: active ? SSE_CLR : T.textDim,
-                    fontFamily: 'var(--font-display)',
+                    fontFamily: "var(--font-display)",
                     fontSize: 8,
                     fontWeight: 700,
                     letterSpacing: "0.1em",
@@ -347,7 +361,7 @@ function SseEvents({ T, call }: Props) {
       {events.length > 0 && textMode ? (
         <pre
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 11,
             color: T.text,
             whiteSpace: "pre-wrap",
@@ -393,7 +407,7 @@ function SseEvents({ T, call }: Props) {
           )}
           <span
             style={{
-              fontFamily: 'var(--font-description)',
+              fontFamily: "var(--font-description)",
               fontSize: 11,
               fontStyle: "italic",
             }}
@@ -427,7 +441,7 @@ function SseEvents({ T, call }: Props) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 7,
                       fontWeight: 700,
                       color: T.textDim,
@@ -438,7 +452,7 @@ function SseEvents({ T, call }: Props) {
                   {!isMsg && (
                     <span
                       style={{
-                        fontFamily: 'var(--font-display)',
+                        fontFamily: "var(--font-display)",
                         fontSize: 7,
                         fontWeight: 700,
                         letterSpacing: "0.08em",
@@ -455,7 +469,7 @@ function SseEvents({ T, call }: Props) {
                   {ev.id && (
                     <span
                       style={{
-                        fontFamily: 'var(--font-mono)',
+                        fontFamily: "var(--font-mono)",
                         fontSize: 7,
                         color: T.textDim,
                       }}
@@ -466,7 +480,7 @@ function SseEvents({ T, call }: Props) {
                   <span
                     style={{
                       marginLeft: "auto",
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 7,
                       color: T.textDim,
                     }}
@@ -477,7 +491,7 @@ function SseEvents({ T, call }: Props) {
                 {typeof parsed === "string" ? (
                   <pre
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 10,
                       color: T.text,
                       margin: 0,
@@ -490,7 +504,7 @@ function SseEvents({ T, call }: Props) {
                 ) : (
                   <div
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: "var(--font-mono)",
                       fontSize: 10,
                       lineHeight: 1.6,
                     }}
@@ -547,7 +561,7 @@ function WsEvents({ T, call }: Props) {
         />
         <span
           style={{
-            fontFamily: 'var(--font-title)',
+            fontFamily: "var(--font-title)",
             fontSize: 8,
             fontWeight: 600,
             letterSpacing: "0.1em",
@@ -558,14 +572,18 @@ function WsEvents({ T, call }: Props) {
         </span>
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 8,
             color: T.textDim,
           }}
         >
           {events.length} message{events.length !== 1 ? "s" : ""}
           {isConnecting && events.length === 0 ? " — connecting…" : ""}
-          {call.wsOpen ? " — open" : call.status === "success" ? " — closed" : ""}
+          {call.wsOpen
+            ? " — open"
+            : call.status === "success"
+              ? " — closed"
+              : ""}
         </span>
       </div>
 
@@ -588,7 +606,7 @@ function WsEvents({ T, call }: Props) {
           )}
           <span
             style={{
-              fontFamily: 'var(--font-description)',
+              fontFamily: "var(--font-description)",
               fontSize: 11,
               fontStyle: "italic",
             }}
@@ -600,7 +618,11 @@ function WsEvents({ T, call }: Props) {
         <div style={{ display: "flex", flexDirection: "column" }}>
           {events.map((ev, i) => {
             const Icon =
-              ev.direction === "out" ? ArrowUp : ev.direction === "in" ? ArrowDown : Info;
+              ev.direction === "out"
+                ? ArrowUp
+                : ev.direction === "in"
+                  ? ArrowDown
+                  : Info;
             const color =
               ev.direction === "out"
                 ? T.success
@@ -620,7 +642,7 @@ function WsEvents({ T, call }: Props) {
               >
                 <span
                   style={{
-                    fontFamily: 'var(--font-mono)',
+                    fontFamily: "var(--font-mono)",
                     fontSize: 9,
                     color: T.textDim,
                     minWidth: 62,
@@ -630,29 +652,36 @@ function WsEvents({ T, call }: Props) {
                 >
                   {new Date(ev.ts).toLocaleTimeString()}
                 </span>
-                <Icon size={11} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
-                {isIo && ev.direction !== "system" && ev.event && ev.event !== "message" && (
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-display)',
-                      fontSize: 7,
-                      fontWeight: 700,
-                      letterSpacing: "0.06em",
-                      color,
-                      background: `${color}18`,
-                      border: `1px solid ${color}30`,
-                      padding: "1px 5px",
-                      borderRadius: 3,
-                      marginTop: 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {ev.event}
-                  </span>
-                )}
+                <Icon
+                  size={11}
+                  color={color}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                {isIo &&
+                  ev.direction !== "system" &&
+                  ev.event &&
+                  ev.event !== "message" && (
+                    <span
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: 7,
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        color,
+                        background: `${color}18`,
+                        border: `1px solid ${color}30`,
+                        padding: "1px 5px",
+                        borderRadius: 3,
+                        marginTop: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {ev.event}
+                    </span>
+                  )}
                 <span
                   style={{
-                    fontFamily: 'var(--font-mono)',
+                    fontFamily: "var(--font-mono)",
                     fontSize: 11,
                     color: ev.direction === "system" ? T.textDim : T.text,
                     fontStyle: ev.direction === "system" ? "italic" : "normal",
@@ -694,7 +723,7 @@ function ModePill({
         border: `1px solid ${active ? T.cyan : T.border}`,
         background: active ? `${T.cyan}15` : "transparent",
         color: active ? T.cyan : T.textDim,
-        fontFamily: 'var(--font-display)',
+        fontFamily: "var(--font-display)",
         fontSize: 8,
         fontWeight: 700,
         letterSpacing: "0.1em",
@@ -746,7 +775,7 @@ function NonJsonBody({
   };
 
   const preStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-mono)',
+    fontFamily: "var(--font-mono)",
     fontSize: 11,
     color: T.text,
     whiteSpace: "pre-wrap",
@@ -770,7 +799,7 @@ function NonJsonBody({
       >
         <span
           style={{
-            fontFamily: 'var(--font-display)',
+            fontFamily: "var(--font-display)",
             fontSize: 8,
             fontWeight: 700,
             letterSpacing: "0.1em",
@@ -789,7 +818,7 @@ function NonJsonBody({
               border: `1px solid ${copied ? T.success : T.border}`,
               background: copied ? `${T.success}15` : "transparent",
               color: copied ? T.success : T.textDim,
-              fontFamily: 'var(--font-display)',
+              fontFamily: "var(--font-display)",
               fontSize: 8,
               fontWeight: 700,
               letterSpacing: "0.1em",
@@ -905,7 +934,7 @@ export default function RespTab({ T, call }: Props) {
           style={{ animation: "spin 0.7s linear infinite" }}
           color={T.cyan}
         />
-        <span style={{ fontFamily: 'var(--font-description)', fontSize: 12 }}>
+        <span style={{ fontFamily: "var(--font-description)", fontSize: 12 }}>
           Awaiting response…
         </span>
       </div>
@@ -916,7 +945,7 @@ export default function RespTab({ T, call }: Props) {
     return (
       <div
         style={{
-          fontFamily: 'var(--font-mono)',
+          fontFamily: "var(--font-mono)",
           fontSize: 11,
           color: T.error,
           background: `${T.error}10`,
@@ -945,7 +974,9 @@ export default function RespTab({ T, call }: Props) {
 
   const kind = detectResponseKind(call.response, call.responseHeaders || {});
   const bodyText =
-    typeof call.response === "string" ? call.response : String(call.response ?? "");
+    typeof call.response === "string"
+      ? call.response
+      : String(call.response ?? "");
   if (kind !== "json" && (kind === "image" || bodyText.trim() !== "")) {
     return <NonJsonBody T={T} kind={kind} text={bodyText} url={call.url} />;
   }
@@ -964,7 +995,8 @@ export default function RespTab({ T, call }: Props) {
     </Button>
   );
 
-  const copyText = view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2);
+  const copyText =
+    view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2);
 
   return (
     <div style={{ minWidth: 0, maxWidth: "100%" }}>
@@ -993,7 +1025,9 @@ export default function RespTab({ T, call }: Props) {
               {copied ? "Copied" : "Copy"}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Copy {view === "ts" ? "TypeScript" : "JSON"}</TooltipContent>
+          <TooltipContent>
+            Copy {view === "ts" ? "TypeScript" : "JSON"}
+          </TooltipContent>
         </Tooltip>
         <ButtonGroup className={VIEW_GROUP}>
           {viewBtn("pretty", "PRETTY")}
@@ -1004,7 +1038,7 @@ export default function RespTab({ T, call }: Props) {
       {view === "raw" ? (
         <pre
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 11,
             color: T.text,
             whiteSpace: "pre-wrap",
@@ -1020,7 +1054,7 @@ export default function RespTab({ T, call }: Props) {
       ) : view === "ts" ? (
         <pre
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 11,
             color: T.cyan,
             whiteSpace: "pre-wrap",
@@ -1036,7 +1070,7 @@ export default function RespTab({ T, call }: Props) {
       ) : (
         <div
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: "var(--font-mono)",
             fontSize: 11,
             lineHeight: 1.7,
             background: T.bgHover,

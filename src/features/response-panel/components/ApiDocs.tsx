@@ -76,7 +76,7 @@ export default function ApiDocs({ T, calls }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: T.bgPanel }}>
       <div style={{ display: 'flex', padding: '8px 12px', gap: 6, borderBottom: `1px solid ${T.border}`, alignItems: 'center' }}>
         <ButtonGroup className={VIEW_GROUP}>
           <Button
@@ -112,20 +112,20 @@ export default function ApiDocs({ T, calls }: Props) {
         </Button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', color: T.textBright, fontFamily: viewMode === 'raw' ? 'var(--font-mono)' : 'var(--font-description)' }}>
+      <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'hidden', padding: '16px', color: T.textBright, fontFamily: viewMode === 'raw' ? 'var(--font-mono)' : 'var(--font-description)' }}>
         {viewMode === 'raw' ? (
           <pre style={{ margin: 0, fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: T.textDim }}>
             {markdown}
           </pre>
         ) : (
-          <div className="prose prose-invert max-w-none" style={{ fontSize: 12 }}>
+          <div className="prose prose-invert max-w-none" style={{ fontSize: 12, minWidth: 0 }}>
             <ReactMarkdown
               components={{
                 h1: ({node, ...props}) => <h1 style={{ color: T.cyan, fontSize: '1.5em', marginTop: '0.5em', marginBottom: '1em', fontWeight: 600, fontFamily: 'var(--font-title)' }} {...props} />,
                 h2: ({node, ...props}) => <h2 style={{ color: T.textBright, fontSize: '1.2em', marginTop: '1.5em', marginBottom: '0.5em', borderBottom: `1px solid ${T.border}`, paddingBottom: '4px', fontWeight: 600, fontFamily: 'var(--font-title)' }} {...props} />,
                 h3: ({node, ...props}) => <h3 style={{ color: T.textBright, fontSize: '1.1em', marginTop: '1em', marginBottom: '0.5em', fontWeight: 600, fontFamily: 'var(--font-title)' }} {...props} />,
                 p: ({node, ...props}) => <p style={{ marginBottom: '1em', lineHeight: 1.6 }} {...props} />,
-                pre: ({node, ...props}) => <pre style={{ background: T.bgHover, padding: '12px', borderRadius: '8px', overflowX: 'auto', marginBottom: '1em', border: `1px solid ${T.border}` }} {...props} />,
+                pre: ({node, ...props}) => <pre style={{ background: T.bgHover, padding: '12px', borderRadius: '8px', maxWidth: '100%', overflowX: 'auto', marginBottom: '1em', border: `1px solid ${T.border}` }} {...props} />,
                 code: ({node, className, children, ...props}) => {
                   const match = /language-(\w+)/.exec(className || '')
                   return match ? (
@@ -133,7 +133,7 @@ export default function ApiDocs({ T, calls }: Props) {
                       {children}
                     </code>
                   ) : (
-                    <code style={{ background: T.bgHover, padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--font-mono)', fontSize: '0.9em', border: `1px solid ${T.border}` }} {...props}>
+                    <code style={{ display: 'inline-block', maxWidth: '100%', overflowX: 'auto', verticalAlign: 'bottom', background: T.bgHover, padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--font-mono)', fontSize: '0.9em', border: `1px solid ${T.border}`, whiteSpace: 'nowrap' }} {...props}>
                       {children}
                     </code>
                   )

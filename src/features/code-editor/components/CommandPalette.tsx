@@ -5,8 +5,21 @@ import { Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fuzzyFilter } from "@/lib/fuzzyMatch";
 import { Input } from "@/components/ui/input";
+import { ButtonGroup } from "@/components/ui/button-group";
 import MethodPill from "@/components/MethodPill";
 import * as ui from "@/lib/ui";
+
+/** One result row — borderless, flush inside a vertical {@link ButtonGroup} so
+ *  a category reads as a single block rather than a stack of outlined pills.
+ *  The accent-faint tint carries both hover and the keyboard `data-selected`
+ *  state, matching the app's other popover menus (Examples, the breadcrumb
+ *  pickers). */
+const RESULT_ROW =
+  "flex w-full items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left " +
+  "transition-colors duration-200 hover:bg-app-accent-faint hover:text-app-accent " +
+  "focus-visible:bg-app-accent-faint focus-visible:text-app-accent focus-visible:outline-none " +
+  "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent " +
+  "data-selected:bg-app-accent-faint data-selected:text-app-accent";
 
 export type CommandCategory = "Actions" | "Examples" | "Requests" | "Environments";
 
@@ -89,10 +102,14 @@ const KEY_CAP =
  *
  * Variants: none.
  *
- * Composition: renders {@link MethodPill} for a command carrying `method`
- * (Examples/Requests rows), otherwise its own `icon` when given (Actions
- * rows), otherwise no leading glyph (Environments rows). Category names
- * render as plain, non-interactive dividers, styled with `ui.label`
+ * Composition: each category's rows sit in one vertical
+ * {@link ButtonGroup} (`@/components/ui/button-group`), borderless and flush
+ * so the group reads as a single block instead of a stack of outlined pills —
+ * the same menu treatment the footer's Examples popover and the breadcrumb
+ * pickers use. A row renders {@link MethodPill} for a command carrying
+ * `method` (Examples/Requests rows), otherwise its own `icon` when given
+ * (Actions rows), otherwise no leading glyph (Environments rows). Category
+ * names render as plain, non-interactive dividers, styled with `ui.label`
  * (`@/lib/ui`) — never part of keyboard traversal.
  *
  * Accessibility: `role="dialog"` + `aria-modal`, labelled "Command palette".
@@ -107,8 +124,9 @@ const KEY_CAP =
  * testid — each is reachable by role and its own (label) accessible name;
  * the current keyboard selection is `data-selected`, not a testid.
  *
- * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only,
- * reusing `ui.row`/`ui.label` (`@/lib/ui`) for the result rows and headers.
+ * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ * The result row is the module-level `RESULT_ROW` recipe; category headers
+ * reuse `ui.label` (`@/lib/ui`).
  *
  * Edge cases: a `query` matching nothing renders the panel with an empty
  * results area (no "no results" message) — the footer hint bar keeps the
@@ -116,7 +134,8 @@ const KEY_CAP =
  * thrown error.
  *
  * Dependencies: `lucide-react`, `@/lib/fuzzyMatch`, `@/lib/ui`,
- * `@/components/ui/input`, `@/components/MethodPill`.
+ * `@/components/ui/input`, `@/components/ui/button-group`,
+ * `@/components/MethodPill`.
  *
  * @example
  * ```tsx
@@ -239,39 +258,48 @@ export default function CommandPalette({ commands, onClose }: Props) {
           {groupedRows.map(({ category, rows }) => (
             <div key={category} className="mb-1 last:mb-0">
               <div className={`${ui.label} px-2 py-1.5`}>{category}</div>
-              {rows.map(({ cmd, index }) => {
-                const isSelected = index === selectedIndex;
-                const Icon = cmd.icon;
-                return (
-                  <button
-                    key={cmd.id}
-                    type="button"
-                    data-selected={isSelected || undefined}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                    onClick={() => {
-                      cmd.onSelect();
-                      onClose();
-                    }}
-                    className={`${ui.row} mb-0.5`}
-                  >
-                    <span className="flex w-9 shrink-0 justify-center">
-                      {cmd.method ? (
-                        <MethodPill method={cmd.method} sm focusable={false} />
-                      ) : Icon ? (
-                        <Icon size={14} className="text-app-dim" aria-hidden="true" />
-                      ) : null}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-app-text">
-                      {cmd.label}
-                    </span>
-                    {cmd.sublabel && (
-                      <span className="shrink-0 truncate text-[11px] text-app-dim">
-                        {cmd.sublabel}
+              <ButtonGroup
+                orientation="vertical"
+                className="w-full flex-col gap-0"
+              >
+                {rows.map(({ cmd, index }) => {
+                  const isSelected = index === selectedIndex;
+                  const Icon = cmd.icon;
+                  return (
+                    <button
+                      key={cmd.id}
+                      type="button"
+                      data-selected={isSelected || undefined}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      onClick={() => {
+                        cmd.onSelect();
+                        onClose();
+                      }}
+                      className={RESULT_ROW}
+                    >
+                      <span className="flex w-9 shrink-0 justify-center">
+                        {cmd.method ? (
+                          <MethodPill method={cmd.method} sm focusable={false} />
+                        ) : Icon ? (
+                          <Icon
+                            size={14}
+                            className="text-app-dim"
+                            aria-hidden="true"
+                          />
+                        ) : null}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
+                      <span className="min-w-0 flex-1 truncate text-[12px] text-app-text">
+                        {cmd.label}
+                      </span>
+                      {cmd.sublabel && (
+                        <span className="shrink-0 truncate text-[11px] text-app-dim">
+                          {cmd.sublabel}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </ButtonGroup>
             </div>
           ))}
         </div>

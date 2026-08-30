@@ -139,7 +139,7 @@ function logMarkdownComponents(c: LogColors): Components {
     code: (props) => (
       <code
         style={{ color: c.code }}
-        className="rounded bg-app-border/40 px-1 py-0.5"
+        className="inline-block max-w-full overflow-x-auto rounded bg-app-border/40 px-1 py-0.5 align-bottom whitespace-nowrap"
         {...props}
       />
     ),

@@ -89,7 +89,7 @@ const MD: Components = {
       </code>
     ) : (
       <code
-        className="rounded-sm border border-app-border bg-app-hover px-1.5 py-px font-mono text-[11px] text-app-accent"
+        className="inline-block max-w-full overflow-x-auto rounded-sm border border-app-border bg-app-hover px-1.5 py-px align-bottom font-mono text-[11px] whitespace-nowrap text-app-accent"
         {...props}
       >
         {children}
@@ -159,7 +159,11 @@ type Props = {
  * Composition: renders {@link MethodPill} for the example's method in the
  * header. Tables render inside their own `overflow-x-auto` box, so a wide
  * column set scrolls in place rather than widening the dialog; the body itself
- * scrolls vertically at `70vh`.
+ * scrolls vertically at `70vh`. Inline `code` chips are one `inline-block`
+ * with `whitespace-nowrap` so a signature like `Record<string, string>` stays
+ * one pill instead of wrapping at its inner space into two half-pills; capped
+ * at `max-w-full` with `overflow-x-auto`, a long chip scrolls inside itself
+ * rather than widening the dialog.
  *
  * Accessibility: `role="dialog"` + `aria-modal`, labelled by the example's
  * name. Escape closes; a click on the scrim (and only the scrim) closes.
