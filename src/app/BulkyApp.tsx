@@ -12,6 +12,8 @@ import {
   selectViewByItemId,
   setResponseView,
   selectLayout,
+  selectCommandPaletteOpen,
+  setCommandPaletteOpen,
 } from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
 import { selectEnvVars, selectActiveHooks } from "@/store/collectionsSlice";
@@ -81,7 +83,10 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  * fifth empties the editor buffer when the last collection goes away, so a
  * deleted collection's script does not linger in the pad. The sixth swallows
  * ⌘S / Ctrl+S on `window` in the capture phase — nothing in the app saves on
- * that key, and the browser's Save Page dialog only gets in the way.
+ * that key, and the browser's Save Page dialog only gets in the way. The
+ * seventh, same capture-phase treatment, toggles `commandPaletteOpen` on
+ * ⌘K / Ctrl+K so {@link CodeEditor}'s command palette opens from anywhere in
+ * the app, not just its own footer button.
  *
  * Variants: pane sizes follow the `layout` setting — `balanced`,
  * `editor-focus`, `response-focus`. Changing it remounts the panel group by
@@ -131,6 +136,7 @@ export default function BulkyApp() {
   const theme = useSelector(selectTheme);
   const layout = useSelector(selectLayout);
   const tweaksOpen = useSelector(selectTweaksOpen);
+  const commandPaletteOpen = useSelector(selectCommandPaletteOpen);
   const viewByItemId = useSelector(selectViewByItemId);
   const code = useSelector(selectCode);
   const envVars = useSelector(selectEnvVars);
@@ -239,6 +245,25 @@ export default function BulkyApp() {
     return () =>
       window.removeEventListener("keydown", onKey, { capture: true });
   }, []);
+
+  // ⌘K / Ctrl+K: toggles the global command palette from anywhere in the
+  // app, capture phase so it fires even with focus inside Monaco. The
+  // palette itself mounts inside `CodeEditor` (its commands close over
+  // things only that component already holds — `onRun`/`onStop`/`onNext`,
+  // `handleFormat`, the example list); this effect only flips the shared
+  // Redux flag `CodeEditor` reads to show it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch(setCommandPaletteOpen(!commandPaletteOpen));
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKey, { capture: true });
+  }, [commandPaletteOpen, dispatch]);
 
   return (
     <div

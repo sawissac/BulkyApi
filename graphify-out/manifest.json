@@ -4,7 +4,7 @@
     "hash": "239f3ebf717465dc636818a1a619398d"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/next-env.d.ts": {
-    "mtime": 1788053586.8824184,
+    "mtime": 1788079013.0755506,
     "hash": "2a74d3909800ca5467fa83b0ab4a4890"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/eslint.config.mjs": {
@@ -32,12 +32,12 @@
     "hash": "6dcc0caa70694240a0b264281748b4f1"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/BulkyApp.tsx": {
-    "mtime": 1788056695.2214653,
-    "hash": "c90976abfca1e8e79e6d716543204596"
+    "mtime": 1788086739.3662107,
+    "hash": "491116e9b039dfe724583d129fdccb2b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/layout.tsx": {
-    "mtime": 1788014977.3634694,
-    "hash": "77921d4280a756e188f0555b267214ec"
+    "mtime": 1788086748.5523603,
+    "hash": "103633233ab13bad8e35ad23809503a0"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/error.tsx": {
     "mtime": 1788010232.146092,
@@ -68,8 +68,8 @@
     "hash": "3569068ffe507e0b97a709a55f2e96db"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/mocks/components/page.tsx": {
-    "mtime": 1788057310.9123836,
-    "hash": "a6169bc277cd13e4104b5dbea89c2254"
+    "mtime": 1788078953.7444127,
+    "hash": "29c3fc8781f03cb058dfd63982ce748f"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/app/mocks/components/mockData.ts": {
     "mtime": 1787578417.0719295,
@@ -104,56 +104,60 @@
     "hash": "389583f6475fb609ba8dafb8c72ed896"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/CollectionHooksDialog.tsx": {
-    "mtime": 1788056860.476372,
-    "hash": "6be55d261b32c1cd33c7b145c3d4e21f"
+    "mtime": 1788085052.0962462,
+    "hash": "6d49e3681347e61cb0171dd223ac77b9"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/NewEnvironmentDialog.tsx": {
     "mtime": 1787623859.2044504,
     "hash": "0930d8ec67ab4f1211b0ed261c3fafc9"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/CollPane.tsx": {
-    "mtime": 1788056938.0932906,
-    "hash": "b84796f94a9e231372cab8729ec7d383"
+    "mtime": 1788086831.3592951,
+    "hash": "b145b121b99977087cedab6dcc99f68e"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/FilePane.tsx": {
-    "mtime": 1788014977.3675928,
-    "hash": "4f63aa38dfd0261e4fb111843e44b88d"
+    "mtime": 1788086827.5384235,
+    "hash": "bd170a833da7ce0580e4d464196c295d"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/EnvPane.tsx": {
-    "mtime": 1788014977.3674107,
-    "hash": "4383d6ed42ab018b7e004cbdda82a9b6"
+    "mtime": 1788086823.7417881,
+    "hash": "3891a88209bdcb347baa479bdf4855e5"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/Sidebar.tsx": {
-    "mtime": 1787588015.184992,
-    "hash": "46e5d5f89a1e1f3d79853ddced247a01"
+    "mtime": 1788086675.209957,
+    "hash": "5c0ace2aa513fcaca7f66380c1117af2"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/ImportCollectionDialog.tsx": {
     "mtime": 1787623859.212695,
     "hash": "204cd10bbcd3a6db2a6e74da3f40389e"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/sidebar/components/VarsPane.tsx": {
-    "mtime": 1788057349.2259712,
-    "hash": "9b6af5165441d5b649fc1aa8d1eaef2e"
+    "mtime": 1788086825.9076655,
+    "hash": "c186c1b0e057fb9586bdc10e354b2d4a"
+  },
+  "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/code-editor/components/CommandPalette.tsx": {
+    "mtime": 1788087150.396067,
+    "hash": "0373903a1da5c95291ebfcc6ffd3ed61"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/code-editor/components/EditorEmptyState.tsx": {
-    "mtime": 1788007718.909559,
-    "hash": "ed2d3e5c5fa0f48a9b246651f46c39b9"
+    "mtime": 1788087820.8231707,
+    "hash": "e7da1921e1331c9133278221a3cd2345"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/code-editor/components/ExampleDialog.tsx": {
     "mtime": 1788014977.3639812,
     "hash": "23c0f24344d97a56bbc18df885fafd5a"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/code-editor/components/MonacoCodeEditor.tsx": {
-    "mtime": 1788061397.2898452,
-    "hash": "da82363b81992aa2926f29e2e28a32a9"
+    "mtime": 1788078708.7935793,
+    "hash": "8915ab4165607eb0a5688bcd785904cd"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/code-editor/components/CodeEditor.tsx": {
-    "mtime": 1788059871.7190375,
-    "hash": "be77a1544cc9a8e555d8123dcf395e4f"
+    "mtime": 1788087221.7613215,
+    "hash": "36a9fbc898069d1700e6469e3dc00807"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/auth/components/LoginPane.tsx": {
-    "mtime": 1787640003.52923,
-    "hash": "68dbe2139fa55ca2479dda9ef436e2d4"
+    "mtime": 1788088149.5269284,
+    "hash": "782aa6a01bd4193bbb82f9b96170e634"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/tweaks/components/TweaksPanel.tsx": {
     "mtime": 1788018449.2464855,
@@ -164,12 +168,12 @@
     "hash": "7384520fea96d432f92622225ce113c6"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/CallCard.tsx": {
-    "mtime": 1788061992.554488,
-    "hash": "a9831b36bda2f14ef0aefae61a41fd2d"
+    "mtime": 1788074700.3199782,
+    "hash": "52cf9b43b1f9a73bf14ba3d679297140"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/RespTab.tsx": {
-    "mtime": 1788061116.4637337,
-    "hash": "50eed0d8e197301acd8d1061b48f9e24"
+    "mtime": 1788074700.3201523,
+    "hash": "c2c763f1d5e6cfa64c7c9fed49c0e16e"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/HeadTab.tsx": {
     "mtime": 1787623732.6134238,
@@ -180,20 +184,20 @@
     "hash": "291eb75955fadac30ba8e4fa69dfa347"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/ResponsePanel.tsx": {
-    "mtime": 1788072589.5387173,
-    "hash": "94a19b7121b55da8f6119835d4504dcf"
+    "mtime": 1788086833.2589028,
+    "hash": "8bb03e9ed9d2df134e51ebd59a30e5fc"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/ApiWaterfall.tsx": {
-    "mtime": 1788052098.4592113,
-    "hash": "ffe19e0766dd94230c6e1e6333d17f9a"
+    "mtime": 1788086083.5260448,
+    "hash": "04495418f7dfdc140cd93ffe19f94bda"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/AuthTab.tsx": {
     "mtime": 1787623887.2144136,
     "hash": "8c3c1623ded58ba5540c7a7f14c0c9c4"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/features/response-panel/components/ApiDocs.tsx": {
-    "mtime": 1788052088.2306988,
-    "hash": "611ab5038422c2e8e1d3e7ccc5e1ed62"
+    "mtime": 1788086081.3740714,
+    "hash": "4117ab2fc96cf47f54964e3e55c6b759"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/components/ConfirmDialog.tsx": {
     "mtime": 1787623859.1920784,
@@ -204,8 +208,8 @@
     "hash": "8648f1f625aa28a33dc3c927c102642b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/components/MethodPill.tsx": {
-    "mtime": 1787623870.3289058,
-    "hash": "fe35cfdf0670ee2632524f9de01ac428"
+    "mtime": 1788074700.3195846,
+    "hash": "c4170ecea497a25455bcde676d086f31"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/components/KVRow.tsx": {
     "mtime": 1787621910.4300241,
@@ -222,6 +226,10 @@
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/components/ErrorBoundary.tsx": {
     "mtime": 1788014977.363619,
     "hash": "8633c603efca533c7a4f9bab055d679f"
+  },
+  "/Users/sawissac/Documents/GitHub/BulkyApi/src/components/DesktopOnlyGate.tsx": {
+    "mtime": 1788086743.0345745,
+    "hash": "541cdc7ee0df569313438ffae14c057a"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/components/ui/button-group.tsx": {
     "mtime": 1787586903.5886853,
@@ -256,32 +264,32 @@
     "hash": "4c4bae3edef43d2e675c129252396f36"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/hooks/useScriptRunner.ts": {
-    "mtime": 1788056648.652728,
-    "hash": "1fae5d56118a73d225a1dabcb9d68ed3"
+    "mtime": 1788078833.7775269,
+    "hash": "4ac335e9bb1230bec42cce6514ae019b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/hooks/useServiceWorker.ts": {
     "mtime": 1787575154.7444956,
     "hash": "6ca0fc71baaa08c9b2c6ae1f0155ce83"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/scriptAnalyzer.ts": {
-    "mtime": 1788061762.9003124,
-    "hash": "4331fc25dd3988cc0dd970173fa5028e"
+    "mtime": 1788074700.3211088,
+    "hash": "8638a435a7818f1825c4ebe199f0fb7b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/utils.ts": {
     "mtime": 1787575154.7457545,
     "hash": "5a6fd53fdcf2be529e9cc0b718fde352"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/scriptRunner.ts": {
-    "mtime": 1788061003.502156,
-    "hash": "408e10caf24552084e198bfe177d615a"
+    "mtime": 1788074700.321298,
+    "hash": "691ccd8f856c50d8d48a355f2ab9c2da"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/composeScript.ts": {
     "mtime": 1788056580.3904037,
     "hash": "6fa15a0433874225fa2f7903c8b0631a"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/types.ts": {
-    "mtime": 1788051803.1889508,
-    "hash": "29f23d692eb7b55bcd9755c2633b8267"
+    "mtime": 1788074700.3217688,
+    "hash": "511d8b5a64f9bf78b271e03a4f98bdaf"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/assertions.ts": {
     "mtime": 1788014604.2701116,
@@ -307,6 +315,10 @@
     "mtime": 1788061011.8385143,
     "hash": "9f7b0b69a6941ceedc529595785d6245"
   },
+  "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/fuzzyMatch.ts": {
+    "mtime": 1788086681.8565555,
+    "hash": "a95bdf2559525bdccbdcc9579ff0762c"
+  },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/jsonToTypeScript.ts": {
     "mtime": 1787575154.7449112,
     "hash": "0ddd96579625aa3ee72284ed48c9da64"
@@ -316,16 +328,16 @@
     "hash": "2e77dc929e40a5bbabb970d1dd9f8301"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/sampleData.ts": {
-    "mtime": 1788061079.4723709,
-    "hash": "1d8116cb9051dee352759d11a2e6b3f0"
+    "mtime": 1788074700.3209097,
+    "hash": "2c56d10376c808500ce92bc312a8f0ec"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/requestBody.ts": {
     "mtime": 1788052052.4903872,
     "hash": "d65da4bcd2d5c673b91bd4e2e76d2cff"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/themes.ts": {
-    "mtime": 1788018794.2407837,
-    "hash": "85a5de0e7c68e806e61c01e3bb094be2"
+    "mtime": 1788074700.32153,
+    "hash": "dd1fc2dcab2230827c70f3aa491ca67b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/lib/transpile.ts": {
     "mtime": 1788006922.6684597,
@@ -364,24 +376,24 @@
     "hash": "e45ef781ceb54ba7b23819880ef40726"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/store/uiSlice.ts": {
-    "mtime": 1787580630.620654,
-    "hash": "0a2c2b8ba1fbf0a0f255903b74676d21"
+    "mtime": 1788086705.6319392,
+    "hash": "caa8f69f24023d994e96ef5197780d29"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/store/runnerSlice.ts": {
-    "mtime": 1788014977.3689346,
-    "hash": "fcfcdea2a177481a1d682680d51ef2fc"
+    "mtime": 1788074700.3220935,
+    "hash": "9f8645c35c15f27e7d045ad30243842c"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/src/store/index.ts": {
     "mtime": 1787633253.728956,
     "hash": "3530cefed69ee6d13a8986cbb4735f54"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/data-test-id-list.md": {
-    "mtime": 1788057417.6557183,
-    "hash": "3bdda48d4e802a1dcc352511a8711f4d"
+    "mtime": 1788087164.2038333,
+    "hash": "95a56fde6cb9c4ec4cea926dfa8d9f1b"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/README.md": {
-    "mtime": 1788054289.711948,
-    "hash": "19f71e21225b357adaf03bce3b02dc2f"
+    "mtime": 1788088557.5566406,
+    "hash": "19842faec75073d5b280a3fd4c3d2102"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/profile_schema.md": {
     "mtime": 1787066057.90276,
@@ -400,8 +412,8 @@
     "hash": "0f12ac4af72db4e53490a14d436a2bdd"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/docs/ProductSpec.md": {
-    "mtime": 1788057071.3446565,
-    "hash": "68dce69c1fb4ca1f34960a2a1758ed97"
+    "mtime": 1788088588.3863678,
+    "hash": "964400772a728bf8c124bb2bda158d5d"
   },
   "/Users/sawissac/Documents/GitHub/BulkyApi/docs/Improvement_v_1_0_0.md": {
     "mtime": 1787575154.7368722,

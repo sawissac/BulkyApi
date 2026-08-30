@@ -119,6 +119,11 @@ Two mounted `VarSection`s — the environment section uses the `vars-pane-*` pre
 `code-editor-socket-send-button` — CodeEditor / WS-Socket.IO composer send button
 `code-editor-socket-disconnect-button` — CodeEditor / WS-Socket.IO composer disconnect button
 
+## CommandPalette (src/features/code-editor/components/CommandPalette.tsx)
+
+`command-palette-input` — CommandPalette / search field (via shared `Input`)
+`command-palette-input-clear-button` — CommandPalette / search field inline clear button
+
 ## EditorEmptyState (src/features/code-editor/components/EditorEmptyState.tsx)
 
 `editor-empty-state-root` — EditorEmptyState / empty screen root

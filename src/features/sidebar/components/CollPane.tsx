@@ -69,9 +69,12 @@ const GROUP_BTN_DANGER =
  *  `overflow-hidden`, collections divided by `divide-y` instead of each one
  *  owning its own margin — reads as one group, not a stack of blocks. A
  *  collection's own item rows sit inside its `divide-y` child and are
- *  unaffected — the divider only ever falls between two collections. */
+ *  unaffected — the divider only ever falls between two collections.
+ *  `bg-app-panel` backs it solid so the pane's dot-grid texture doesn't bleed
+ *  through the card — folder and item rows still layer `bg-app-hover` /
+ *  `bg-app-selected` on top for hover/active state. */
 const LIST =
-  "mx-2 mb-2 flex flex-col overflow-hidden rounded-md border border-app-border divide-y divide-app-border";
+  "mx-2 mb-2 flex flex-col overflow-hidden rounded-md border border-app-border bg-app-panel divide-y divide-app-border";
 
 /**
  * Collection/request tree — collapsible collections, each holding a list of

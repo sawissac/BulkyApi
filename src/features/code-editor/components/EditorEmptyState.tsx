@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { Download, FolderPlus } from "lucide-react";
+import {
+  ArrowBigUp,
+  Command,
+  CornerDownLeft,
+  Download,
+  FolderPlus,
+  Option,
+} from "lucide-react";
 import { addCollection, importCollections } from "@/store/collectionsSlice";
 import NewCollectionDialog from "@/features/sidebar/components/NewCollectionDialog";
 import ImportCollectionDialog from "@/features/sidebar/components/ImportCollectionDialog";
@@ -17,11 +24,11 @@ const SECTION_LABEL =
   "text-[11px] font-semibold uppercase tracking-[0.1em] text-app-dim";
 
 const KEY_CAP =
-  "rounded border border-app-border-mid bg-app-hover px-1.5 py-0.5 font-mono text-[10px] text-app-dim";
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded border border-app-border-mid bg-app-hover text-app-dim";
 
 const SHORTCUTS = [
-  { keys: "⌘↵", label: "Run script" },
-  { keys: "⇧⌥F", label: "Format document" },
+  { icons: [Command, CornerDownLeft], letter: null, label: "Run script" },
+  { icons: [ArrowBigUp, Option], letter: "F", label: "Format document" },
 ] as const;
 
 /**
@@ -47,8 +54,10 @@ const SHORTCUTS = [
  * {@link CollPane} owns in the sidebar. Requires the Redux store provider.
  *
  * Accessibility: the two start entries are plain buttons reachable by role
- * and name; the shortcut list is decorative text, marked `aria-hidden`.
- * Both dialogs supply their own modal semantics and Escape handling.
+ * and name; the shortcut list renders `lucide-react` key icons (Command,
+ * Return, Shift, Option) inside `kbd` elements, marked `aria-hidden` since
+ * the whole list is decorative. Both dialogs supply their own modal
+ * semantics and Escape handling.
  *
  * Test ids: root `editor-empty-state-root`, new collection
  * `editor-empty-state-new-collection-button`, import
@@ -128,10 +137,21 @@ export default function EditorEmptyState() {
           <span className={SECTION_LABEL}>Shortcuts</span>
           {SHORTCUTS.map((s) => (
             <span
-              key={s.keys}
+              key={s.label}
               className="flex items-center gap-2 text-[12px] text-app-dim"
             >
-              <kbd className={KEY_CAP}>{s.keys}</kbd>
+              <span className="flex items-center gap-1">
+                {s.icons.map((Icon, i) => (
+                  <kbd key={i} className={KEY_CAP}>
+                    <Icon size={11} aria-hidden="true" />
+                  </kbd>
+                ))}
+                {s.letter && (
+                  <kbd className={`${KEY_CAP} font-mono text-[10px]`}>
+                    {s.letter}
+                  </kbd>
+                )}
+              </span>
               {s.label}
             </span>
           ))}

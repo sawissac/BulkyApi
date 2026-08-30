@@ -70,7 +70,7 @@ export default function ApiDocs({ T, calls }: Props) {
   if (calls.length === 0) {
     return (
       <p className="p-4 text-center font-description text-[12px] text-app-dim">
-        No api.* calls found in script
+        No API calls detected in this script
       </p>
     );
   }

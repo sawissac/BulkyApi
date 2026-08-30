@@ -58,9 +58,11 @@ const STEP_BTN = `${GROUP_BTN} rounded-md data-active:bg-app-warn/15 data-active
 
 /** List container: one bordered card, corner rows clipped to its radius by
  *  `overflow-hidden`, rows divided by `divide-y` instead of each row owning its
- *  own border — the same recipe as `CollPane`/`VarsPane` in the left pane. */
+ *  own border — the same recipe as `CollPane`/`VarsPane` in the left pane,
+ *  including the `bg-app-panel` backing that keeps the panel's dot-grid
+ *  texture from bleeding through the card. */
 const LIST =
-  "mx-2 mb-2 flex flex-col overflow-hidden rounded-md border border-app-border divide-y divide-app-border";
+  "mx-2 mb-2 flex flex-col overflow-hidden rounded-md border border-app-border bg-app-panel divide-y divide-app-border";
 
 /** Row block flush edge-to-edge inside `LIST`, matching `VarsPane`'s row. */
 const ROW =
@@ -262,6 +264,9 @@ type LogLineProps = {
  * carries the per-call ids.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ * The root carries the same faint dot-grid wash as {@link Sidebar}
+ * (`radial-gradient` at `--app-border-mid`, 18px pitch), so the two flanking
+ * panels read as one surface against the flat editor pane between them.
  *
  * Edge cases:
  * - No `api.*` calls in the script → the cards view shows a text-only empty
@@ -363,7 +368,7 @@ export default function ResponsePanel({
   })();
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-app-sidebar pt-1">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-app-sidebar bg-[radial-gradient(circle,var(--app-border-mid)_1px,transparent_1px)] bg-size-[18px_18px] pt-1">
       {/* Header — omitted entirely with no active request, since there is
           no script to summarize. */}
       {activeId && (
@@ -457,7 +462,7 @@ export default function ResponsePanel({
           <ApiDocs T={T} calls={builtCalls} />
         ) : builtCalls.length === 0 ? (
           <p className="p-4 text-center font-description text-[12px] text-app-dim">
-            No api.* calls found in script
+            No API calls detected in this script
           </p>
         ) : (
           <div className={LIST}>

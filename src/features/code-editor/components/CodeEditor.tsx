@@ -13,6 +13,14 @@ import {
   Square,
   Send,
   Unplug,
+  Search,
+  SlidersHorizontal,
+  Laptop,
+  FileLock,
+  TableProperties,
+  FolderDown,
+  Footprints,
+  Play,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import { selectCode, setCode } from "@/store/editorSlice";
@@ -21,15 +29,27 @@ import {
   selectActiveCollection,
   selectCollections,
   selectEnvVars,
+  selectEnvironments,
   setActiveId,
+  setEnvIdx,
   renameCollection,
   renameItem,
 } from "@/store/collectionsSlice";
-import { selectBuiltCalls } from "@/store/runnerSlice";
+import { selectBuiltCalls, selectStepMode, setStepMode } from "@/store/runnerSlice";
+import {
+  selectTweaksOpen,
+  setTweaksOpen,
+  setSidebarTab,
+  selectCommandPaletteOpen,
+  setCommandPaletteOpen,
+  type SidebarTab,
+} from "@/store/uiSlice";
+import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { EXAMPLE_SCRIPTS } from "@/lib/sampleData";
 import type { ExampleScript } from "@/lib/sampleData";
 import MethodPill from "@/components/MethodPill";
 import ExampleDialog from "./ExampleDialog";
+import CommandPalette, { type Command } from "./CommandPalette";
 import EditorEmptyState from "./EditorEmptyState";
 import { Input } from "@/components/ui/input";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -121,10 +141,24 @@ type Props = {
  * `examplesOpen` flag driving its own {@link Popover}. `renaming`/
  * `renameDraft` swap the segment's collection or request name for an inline
  * `Input`, committed on blur/Enter, discarded on Escape. `selectedExample`
- * gates {@link ExampleDialog} once a menu entry is picked. Format runs
- * Prettier's `babel-ts` parser on the current code — the buffer is
- * TypeScript — and falls back to Monaco's own format action if Prettier
- * throws (e.g. code that doesn't parse as a module). `wsDraft` backs a
+ * gates {@link ExampleDialog} once a menu entry is picked, from either the
+ * footer's Examples menu or the command palette. Format runs Prettier's
+ * `babel-ts` parser on the current code — the buffer is TypeScript — via
+ * `formatWithPrettier`; the footer's Format button (`handleFormat`) falls
+ * back to Monaco's own format action if Prettier throws (e.g. code that
+ * doesn't parse as a module), while the command palette's Format entry calls
+ * `formatWithPrettier` directly, without that fallback, since a ref read
+ * cannot happen inside the palette's `commands` list (built every render,
+ * not inside an event handler). `commandPaletteOpen` (`uiSlice`, toggled here
+ * or by ⌘K/Ctrl+K in `BulkyApp.tsx`) gates {@link CommandPalette}, given a
+ * fresh `commands: Command[]` built every render — Actions mirrors the
+ * toolbar's own mutually-exclusive Run/Stop/Next gating below so only the
+ * relevant one is ever listed, plus step-mode/format/Tweaks/fullscreen/
+ * sidebar-tab entries; Examples maps `EXAMPLE_SCRIPTS` onto the same
+ * `setSelectedExample` the footer's Examples menu uses; Requests flattens
+ * every collection's items and reuses `selectItemRow`; Environments lists
+ * the active collection's environments and is omitted outright (not shown
+ * empty) with no active collection. `wsDraft` backs a
  * composer bar that appears only while `builtCalls` (read directly from
  * `runnerSlice`) has a call with `isWs && wsOpen` — Enter (without Shift)
  * or the Send button calls `onSendSocketMessage(idx, wsDraft)` for the
@@ -140,8 +174,9 @@ type Props = {
  * instead of a collection/request pair.
  *
  * Composition: renders {@link MonacoCodeEditor} (dynamically imported,
- * `ssr: false`) for the editor body and {@link ExampleDialog} for the
- * selected example's preview. Each breadcrumb segment renders as an
+ * `ssr: false`) for the editor body, {@link ExampleDialog} for the selected
+ * example's preview, and {@link CommandPalette} while `commandPaletteOpen`.
+ * Each breadcrumb segment renders as an
  * input-styled shell (`bg-app-hover`, matching the {@link Input} recipe)
  * holding two buttons split by a hairline divider: a text label that starts
  * an inline rename, and a `ChevronDown` button that opens the segment's
@@ -154,13 +189,15 @@ type Props = {
  * request picker lists only the active collection's requests, each behind a
  * small {@link MethodPill}. The footer status bar (not the top toolbar)
  * leads with the
- * active item's {@link MethodPill} (omitted for Scratch Pad), then Format
- * and Examples — grouped for spacing only, borderless so the group reads as
- * embedded in the bar rather than a floating segmented block. Examples opens
- * a `Popover` anchored to its trigger, listing each {@link ExampleScript}
- * behind a small {@link MethodPill} inside a vertical `ButtonGroup`; picking
- * one closes the popover and opens {@link ExampleDialog} for that script. The
- * footer's language label —
+ * active item's {@link MethodPill} (omitted for Scratch Pad), then Format,
+ * Examples and Search — grouped for spacing only, borderless so the group
+ * reads as embedded in the bar rather than a floating segmented block.
+ * Examples opens a `Popover` anchored to its trigger, listing each
+ * {@link ExampleScript} behind a small {@link MethodPill} inside a vertical
+ * `ButtonGroup`; picking one closes the popover and opens
+ * {@link ExampleDialog} for that script. Search opens {@link CommandPalette}
+ * — the same thing ⌘K/Ctrl+K does from anywhere in the app. The footer's
+ * language label —
  * TypeScript, type-stripped to JavaScript at run time — sits beside the
  * runtime label, joined by `·`. Between the editor body and the status bar,
  * the socket composer mounts only while a socket is open: a `textarea` next
@@ -182,24 +219,28 @@ type Props = {
  * `code-editor-socket-message-textarea` (a dynamic-value field a role/name
  * query can't pin down), `code-editor-socket-send-button` and
  * `code-editor-socket-disconnect-button`. The breadcrumb label and chevron
- * buttons, toolbar buttons, and popover entries carry no testid — all are
- * reachable by role and their own (static or, for the rename labels,
- * dynamic but singular) accessible name.
+ * buttons, toolbar buttons (Format/Examples/Search alike), and popover
+ * entries carry no testid — all are reachable by role and their own (static
+ * or, for the rename labels, dynamic but singular) accessible name.
+ * {@link CommandPalette} carries its own testids (`command-palette-input`).
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
  * Edge cases: picking a collection with no requests from the collection
  * dropdown is a no-op beyond closing the menu — there is nothing to make
  * active. A rename committed as only whitespace is discarded, leaving the
- * original name intact.
+ * original name intact. With zero collections the component returns
+ * {@link EditorEmptyState} before the footer (and so before the command
+ * palette's mount point) ever renders — ⌘K/Ctrl+K still flips
+ * `commandPaletteOpen` in that state, but nothing visibly opens.
  *
  * Dependencies: `lucide-react`, `next/dynamic`, `react-redux`, `prettier/
  * standalone` + `plugins/babel` + `plugins/estree`, `@/components/
  * MethodPill`, `@/components/ui/input`, `@/components/ui/button-group`,
  * `@/components/ui/tooltip`, `@/components/ui/popover`, `./ExampleDialog`,
- * `./EditorEmptyState`, `./MonacoCodeEditor`, `@/store/editorSlice`,
- * `@/store/collectionsSlice`, `@/store/runnerSlice`,
- * `@/lib/sampleData`.
+ * `./CommandPalette`, `./EditorEmptyState`, `./MonacoCodeEditor`,
+ * `@/store/editorSlice`, `@/store/collectionsSlice`, `@/store/runnerSlice`,
+ * `@/store/uiSlice`, `@/hooks/useDisplayMode`, `@/lib/sampleData`.
  *
  * @example
  * ```tsx
@@ -231,7 +272,12 @@ export default function CodeEditor({
   const activeCollection = useSelector(selectActiveCollection);
   const collections = useSelector(selectCollections);
   const envVars = useSelector(selectEnvVars);
+  const environments = useSelector(selectEnvironments);
   const builtCalls = useSelector(selectBuiltCalls);
+  const stepMode = useSelector(selectStepMode);
+  const tweaksOpen = useSelector(selectTweaksOpen);
+  const commandPaletteOpen = useSelector(selectCommandPaletteOpen);
+  const { mode: displayMode, apply: applyDisplayMode } = useDisplayMode();
   const monacoEditorRef = useRef<EditorInstance | null>(null);
   const [openMenu, setOpenMenu] = useState<"coll" | "item" | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
@@ -286,7 +332,13 @@ export default function CodeEditor({
     setRenaming(null);
   };
 
-  const handleFormat = async () => {
+  // Split so the command palette's Format entry (built during render, thus
+  // barred from touching `monacoEditorRef` — a ref read during render is
+  // exactly what `react-hooks/refs` flags) can call the Prettier-only path
+  // without the ref-touching fallback below. `handleFormat`, wired to the
+  // footer's `onClick` (a real event handler position, not render output),
+  // keeps the fallback.
+  const formatWithPrettier = async () => {
     try {
       const formatted = await prettier.format(code, {
         parser: "babel-ts",
@@ -296,11 +348,136 @@ export default function CodeEditor({
         trailingComma: "all",
       });
       dispatch(setCode(formatted));
+      return true;
     } catch (e) {
       console.warn("Prettier format failed:", e);
+      return false;
+    }
+  };
+
+  const handleFormat = async () => {
+    const ok = await formatWithPrettier();
+    if (!ok) {
       monacoEditorRef.current?.getAction("editor.action.formatDocument")?.run();
     }
   };
+
+  // Command palette's full catalog — Actions mirrors the toolbar's own
+  // mutually-exclusive Run/Stop/Next gating below (only the relevant one is
+  // ever included, so the palette never needs a `disabled` row), Examples
+  // and Requests reuse the exact handlers the footer's Examples popover and
+  // the breadcrumb's request picker already call, and Environments is
+  // omitted outright (not shown empty) with no active collection.
+  const commands: Command[] = (() => {
+    const actions: Command[] = [];
+    if (paused) {
+      actions.push({
+        id: "action-next",
+        category: "Actions",
+        label: "Step to next call",
+        icon: SkipForward,
+        onSelect: onNext,
+      });
+    } else if (running) {
+      actions.push({
+        id: "action-stop",
+        category: "Actions",
+        label: "Stop run",
+        icon: Square,
+        onSelect: onStop,
+      });
+    } else {
+      actions.push({
+        id: "action-run",
+        category: "Actions",
+        label: "Run script",
+        keywords: ["execute"],
+        icon: Play,
+        onSelect: onRun,
+      });
+    }
+    actions.push(
+      {
+        id: "action-step-mode",
+        category: "Actions",
+        label: stepMode ? "Disable step mode" : "Enable step mode",
+        icon: Footprints,
+        onSelect: () => dispatch(setStepMode(!stepMode)),
+      },
+      {
+        id: "action-format",
+        category: "Actions",
+        label: "Format code",
+        keywords: ["prettier"],
+        icon: WandSparkles,
+        onSelect: () => void formatWithPrettier(),
+      },
+      {
+        id: "action-tweaks",
+        category: "Actions",
+        label: tweaksOpen ? "Close Tweaks panel" : "Open Tweaks panel",
+        keywords: ["settings", "theme", "layout"],
+        icon: SlidersHorizontal,
+        onSelect: () => dispatch(setTweaksOpen(!tweaksOpen)),
+      },
+      {
+        id: "action-fullscreen",
+        category: "Actions",
+        label: displayMode === "fullscreen" ? "Exit fullscreen" : "Enter fullscreen",
+        keywords: ["zen", "full screen"],
+        icon: Laptop,
+        onSelect: () =>
+          void applyDisplayMode(displayMode === "fullscreen" ? "browser" : "fullscreen"),
+      },
+      ...(
+        [
+          { id: "collections", label: "Go to Requests", Icon: FolderOpen },
+          { id: "env", label: "Go to Envs", Icon: FileLock },
+          { id: "vars", label: "Go to Vars", Icon: TableProperties },
+          { id: "file", label: "Go to File", Icon: FolderDown },
+        ] as Array<{ id: SidebarTab; label: string; Icon: typeof FolderOpen }>
+      ).map(({ id, label, Icon }) => ({
+        id: `action-sidebar-${id}`,
+        category: "Actions" as const,
+        label,
+        icon: Icon,
+        onSelect: () => dispatch(setSidebarTab(id)),
+      })),
+    );
+
+    const examples: Command[] = EXAMPLE_SCRIPTS.map((ex) => ({
+      id: `example-${ex.label}`,
+      category: "Examples",
+      label: ex.label,
+      method: ex.method,
+      onSelect: () => setSelectedExample(ex),
+    }));
+
+    const requestSource = collections.flatMap((col) =>
+      col.items.map((it) => ({ ...it, collectionName: col.name })),
+    );
+    const requests: Command[] = requestSource.map((it) => ({
+      id: `request-${it.id}`,
+      category: "Requests",
+      label: it.name,
+      sublabel: it.collectionName,
+      method: it.method,
+      onSelect: () => selectItemRow(it),
+    }));
+
+    const environmentCommands: Command[] =
+      activeCollection && environments.length > 0
+        ? environments.map((env, i) => ({
+            id: `env-${env.id}`,
+            category: "Environments",
+            label: env.name,
+            onSelect: () =>
+              dispatch(setEnvIdx({ collectionId: activeCollection.id, envIdx: i })),
+          }))
+        : [];
+
+    return [...actions, ...examples, ...requests, ...environmentCommands];
+  })();
 
   if (collections.length === 0) return <EditorEmptyState />;
 
@@ -594,6 +771,15 @@ export default function CodeEditor({
         />
       )}
 
+      {/* Command palette — global, opened by the footer's Search button or
+          ⌘K/Ctrl+K anywhere in the app (BulkyApp.tsx). */}
+      {commandPaletteOpen && (
+        <CommandPalette
+          commands={commands}
+          onClose={() => dispatch(setCommandPaletteOpen(false))}
+        />
+      )}
+
       {/* Socket composer — only while a call in this run has an open
           `api.ws`/`api.io` connection. Enter sends, Shift+Enter inserts a
           newline. Disconnect closes it directly; the script can also
@@ -703,6 +889,20 @@ export default function CodeEditor({
               </ButtonGroup>
             </PopoverContent>
           </Popover>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => dispatch(setCommandPaletteOpen(true))}
+                className={TOOL_BTN}
+              >
+                <Search size={13} aria-hidden="true" />
+                <span className={TOOL_LABEL}>Search</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Command palette (⌘K)</TooltipContent>
+          </Tooltip>
         </ButtonGroup>
 
         <span className="flex-1" />

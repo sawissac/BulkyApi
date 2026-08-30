@@ -41,6 +41,9 @@ const PANE_LABELS: Record<SidebarTab, string> = {
  * Test ids: pane body `sidebar-pane`.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ * The root carries a faint dot-grid wash (`radial-gradient` at
+ * `--app-border-mid`, 18px pitch) to read as a distinct surface from the
+ * editor pane, which stays flat for code legibility.
  *
  * Edge cases: an unknown tab value cannot render a pane; the `aria-label` falls
  * back to the collections label so the tabpanel is never unnamed.
@@ -61,7 +64,7 @@ export default function Sidebar({ T }: SidebarProps) {
   const label = PANE_LABELS[tab] ?? PANE_LABELS.collections;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-app-sidebar">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-app-sidebar bg-[radial-gradient(circle,var(--app-border-mid)_1px,transparent_1px)] bg-size-[18px_18px]">
       <div
         id="sidebar-pane"
         role="tabpanel"

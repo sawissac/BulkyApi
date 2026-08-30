@@ -50,10 +50,17 @@ function readSafeNext(): string | null {
  * clears the Supabase session, resets the slice, and drops the localforage
  * cache so the next visitor to the browser starts clean.
  *
- * Variants: three mutually exclusive views — unconfigured (no Supabase env
- * vars, sync unavailable), signed out (a two-button method switch over either
- * the magic-link form or the password form), signed in (the account, the
- * set-password form, and sign-out).
+ * Variants: unconfigured (no Supabase env vars, sync unavailable), signed out
+ * (a two-button method switch over either the magic-link form or the
+ * password form), signed in (the account line and sign-out), and recovering
+ * (the set-password form). Signed-in and recovering are independent, not
+ * mutually exclusive — a password-recovery link lands here with
+ * `#access_token=` in the URL hash, and the Supabase client consumes it and
+ * establishes a session before the `auth` slice's own state catches up, so
+ * both can briefly be true at once (or just `recovering`, until the slice
+ * updates) — see Edge cases. The set-password form only ever shows while
+ * `recovering`; it is not exposed as a general account-settings action
+ * outside that flow.
  *
  * Composition: renders no children.
  *
@@ -89,7 +96,11 @@ function readSafeNext(): string | null {
  * minimum still rejects server-side and that message is surfaced as-is. The
  * back arrow points at `/`, which bounces straight back here while signed
  * out; it is there for the signed-in case, where this screen doubles as the
- * account page.
+ * account page. `recovering` is read once at mount — it does not clear if
+ * the hash is stripped later, so the recovery view stays open for the rest
+ * of the page's life once triggered. Landing here as `recovering` before the
+ * `auth` slice reflects the new session shows the set-password form alone
+ * (no account line or sign-out yet); both appear once the slice catches up.
  *
  * Dependencies: `react-redux`, `lucide-react`, `@/components/ui/input`
  * ({@link Input}), `@/lib/supabase/client`.
@@ -109,6 +120,9 @@ export default function LoginPane() {
   const status = useSelector(selectAuthStatus);
   const email = useSelector(selectUserEmail);
 
+  const [recovering] = useState(
+    () => typeof window !== "undefined" && window.location.hash.includes("access_token="),
+  );
   const [mode, setMode] = useState<"link" | "password">("link");
   const [draft, setDraft] = useState("");
   const [secret, setSecret] = useState("");
@@ -239,7 +253,7 @@ export default function LoginPane() {
         <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
           <ShieldCheck size={14} aria-hidden="true" className="text-app-accent" />
           <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
-            {status === "signed-in" ? "Account" : "Sign in to sync"}
+            {status === "signed-in" || recovering ? "Account" : "Sign in to sync"}
           </span>
           <Link
             href="/"
@@ -261,66 +275,68 @@ export default function LoginPane() {
           )}
 
           {configured && status === "signed-in" && (
-            <>
-              <p className="font-description text-[12px] leading-relaxed text-app-dim">
-                Signed in as <span className="text-app-bright">{email ?? "your account"}</span>.
-                Collections, environments, and run history sync to every device you sign in on.
-              </p>
-
-              <form onSubmit={setPassword} className="flex flex-col gap-2 border-t border-app-border pt-3">
-                <p className="font-description text-[12px] leading-relaxed text-app-dim">
-                  Set a password to sign in without a link, on a device where opening mail is
-                  awkward.
-                </p>
-                <Input
-                  icon={KeyRound}
-                  type="password"
-                  value={nextSecret}
-                  onChange={(e) => setNextSecret(e.target.value)}
-                  placeholder={`New password (${MIN_PASSWORD_LENGTH}+ characters)`}
-                  aria-label="New password"
-                  autoComplete="new-password"
-                  minLength={MIN_PASSWORD_LENGTH}
-                  required
-                  data-testid="login-pane-new-password-input"
-                  className="h-8"
-                />
-                <Input
-                  icon={KeyRound}
-                  type="password"
-                  value={confirmSecret}
-                  onChange={(e) => setConfirmSecret(e.target.value)}
-                  placeholder="Confirm password"
-                  aria-label="Confirm new password"
-                  autoComplete="new-password"
-                  minLength={MIN_PASSWORD_LENGTH}
-                  required
-                  data-testid="login-pane-confirm-password-input"
-                  className="h-8"
-                />
-                <button
-                  type="submit"
-                  disabled={!nextSecret || !confirmSecret || phase === "working"}
-                  data-testid="login-pane-set-password-button"
-                  className="h-8 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {phase === "working" ? "Saving…" : "Save password"}
-                </button>
-              </form>
-
-              <button
-                type="button"
-                onClick={signOut}
-                data-testid="login-pane-signout-button"
-                className="flex h-8 items-center justify-center gap-2 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
-              >
-                <LogOut size={13} aria-hidden="true" />
-                Sign out
-              </button>
-            </>
+            <p className="font-description text-[12px] leading-relaxed text-app-dim">
+              Signed in as <span className="text-app-bright">{email ?? "your account"}</span>.
+              Collections, environments, and run history sync to every device you sign in on.
+            </p>
           )}
 
-          {configured && status !== "signed-in" && phase !== "sent" && (
+          {configured && recovering && (
+            <form onSubmit={setPassword} className="flex flex-col gap-2 border-t border-app-border pt-3">
+              <p className="font-description text-[12px] leading-relaxed text-app-dim">
+                Set a password to sign in without a link, on a device where opening mail is
+                awkward.
+              </p>
+              <Input
+                icon={KeyRound}
+                type="password"
+                value={nextSecret}
+                onChange={(e) => setNextSecret(e.target.value)}
+                placeholder={`New password (${MIN_PASSWORD_LENGTH}+ characters)`}
+                aria-label="New password"
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                required
+                data-testid="login-pane-new-password-input"
+                className="h-8"
+              />
+              <Input
+                icon={KeyRound}
+                type="password"
+                value={confirmSecret}
+                onChange={(e) => setConfirmSecret(e.target.value)}
+                placeholder="Confirm password"
+                aria-label="Confirm new password"
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                required
+                data-testid="login-pane-confirm-password-input"
+                className="h-8"
+              />
+              <button
+                type="submit"
+                disabled={!nextSecret || !confirmSecret || phase === "working"}
+                data-testid="login-pane-set-password-button"
+                className="h-8 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel disabled:pointer-events-none disabled:opacity-50"
+              >
+                {phase === "working" ? "Saving…" : "Save password"}
+              </button>
+            </form>
+          )}
+
+          {configured && status === "signed-in" && (
+            <button
+              type="button"
+              onClick={signOut}
+              data-testid="login-pane-signout-button"
+              className="flex h-8 items-center justify-center gap-2 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+            >
+              <LogOut size={13} aria-hidden="true" />
+              Sign out
+            </button>
+          )}
+
+          {configured && status !== "signed-in" && !recovering && phase !== "sent" && (
             <>
               <div
                 role="group"

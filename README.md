@@ -16,10 +16,12 @@ Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Work
 - **cURL import**: paste curl, auto-generate script.
 - **SSE support**: streaming responses captured per-event.
 - **WebSocket + Socket.IO**: `api.ws`/`api.io` open a live bidirectional connection; a message composer appears under the editor while one is open.
+- **Command palette**: `⌘K`/`Ctrl+K` from anywhere — fuzzy search over actions (run/stop/step, format, Tweaks, fullscreen, sidebar tabs), examples, requests, and environments.
 - **Abort + timeout**: stop running scripts, configurable per-call timeout.
 - **Themes**: Midnight, Ocean, Chocolate, Amethyst, Nature, Rose, Amber, Slate, Sunset, Coffee.
 - **Layouts**: Balanced, Editor Focus, Response Focus.
 - **Fullscreen + PWA**: installable, offline shell cache, standalone mode.
+- **Account sync (optional)**: sign in with a magic link or email + password to sync collections, environments, and UI state across devices — requires Supabase env vars; fully usable local-only otherwise.
 
 ## Stack
 
@@ -156,6 +158,7 @@ walks Claude through authoring one.
 | Shortcut | Action |
 |---|---|
 | `⌘+Enter` / `Ctrl+Enter` | Run script |
+| `⌘K` / `Ctrl+K` | Open command palette |
 | `Tab` | Indent 2 spaces in editor |
 | Click card | Expand / collapse response detail |
 
@@ -165,6 +168,7 @@ walks Claude through authoring one.
 
 ## Notes
 
+- Desktop only: below the `lg` (1024px) breakpoint the app shows a "Desktop Only" notice instead of the real layout — the three-pane layout needs the room.
 - Project uses Next.js 16 — APIs may differ from older training data. Read `node_modules/next/dist/docs/` before adding routes or new conventions.
 - Proxy at `/api/proxy` is intentionally permissive (local dev tool). Do not expose publicly without auth.
 - Persisted responses capped at 50KB per entry to keep `localforage` payload bounded.

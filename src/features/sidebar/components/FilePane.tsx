@@ -47,9 +47,10 @@ const TONES = {
 
 /** Action list: one bordered card, single column. `overflow-hidden` clips
  *  the first/last tile to its radius; `divide-y` draws the row separators
- *  instead of each tile owning its own border. */
+ *  instead of each tile owning its own border. `bg-app-panel` backs it solid
+ *  so the pane's dot-grid texture doesn't bleed through the card. */
 const FILE_LIST =
-  "flex flex-col overflow-hidden rounded-md border border-app-border divide-y divide-app-border";
+  "flex flex-col overflow-hidden rounded-md border border-app-border bg-app-panel divide-y divide-app-border";
 
 export default function FilePane({}: Props) {
   const dispatch = useDispatch();

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
+import DesktopOnlyGate from "@/components/DesktopOnlyGate";
 
 export const metadata: Metadata = {
   title: "Bulky API",
@@ -39,7 +40,9 @@ export default function RootLayout({
         style={{ height: "100%", margin: 0, padding: 0, overflow: "hidden" }}
         suppressHydrationWarning
       >
-        <Providers>{children}</Providers>
+        <DesktopOnlyGate>
+          <Providers>{children}</Providers>
+        </DesktopOnlyGate>
       </body>
     </html>
   );

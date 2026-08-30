@@ -36,8 +36,10 @@ const GROUP_BTN_DANGER =
 
 /** Environment list: one bordered card, corner rows clipped to its radius by
  *  `overflow-hidden`, rows divided by `divide-y` instead of each row owning
- *  its own border/radius/gap — reads as one group, not a stack of blocks. */
-const LIST = 'flex flex-col overflow-hidden rounded-md border border-app-border divide-y divide-app-border';
+ *  its own border/radius/gap — reads as one group, not a stack of blocks.
+ *  `bg-app-panel` backs it solid so the pane's dot-grid texture doesn't bleed
+ *  through the card. */
+const LIST = 'flex flex-col overflow-hidden rounded-md border border-app-border bg-app-panel divide-y divide-app-border';
 
 /**
  * Row block for one environment, flush edge-to-edge inside `LIST`. Always-on

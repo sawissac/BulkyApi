@@ -20,6 +20,11 @@ runs fully local-only.
 
 ## 2. Interface Layout
 
+The app requires a desktop-width viewport (`lg`, ≥1024px) — the three panes need
+room side by side. Below that width the app renders a **Desktop Only** notice
+instead of the real layout; app state (Redux, persistence hydration) keeps
+running underneath so nothing is lost if the window is widened.
+
 | Region | Purpose |
 |---|---|
 | **Activity Rail** (48px, far left) | Brand mark, active-environment badge, section tabs, run status, account/sync, display mode, Tweaks |
@@ -35,6 +40,23 @@ The three panes are resizable. Rail tabs:
 | **Envs** | Environments for the active collection |
 | **Vars** | Key–value pairs for the active environment |
 | **File** | Save / import scripts and collections, cURL import, recent files |
+
+### 2.1 Command Palette
+
+`⌘K` / `Ctrl+K`, from anywhere in the app, opens a fuzzy-searchable overlay
+over four categories:
+
+| Category | Contents |
+|---|---|
+| **Actions** | Run / Stop / Step-to-next (whichever applies), toggle step mode, format code, open/close Tweaks, enter/exit fullscreen, jump to a sidebar tab |
+| **Examples** | Every entry from the editor footer's Examples menu (§6) |
+| **Requests** | Every item across every collection, each behind its method badge |
+| **Environments** | The active collection's environments — omitted entirely with no active collection |
+
+Picking an entry runs it and closes the palette. With zero collections the
+shortcut still toggles the palette's open state, but nothing renders — the
+editor is showing its empty state instead of the footer the palette mounts
+from.
 
 ---
 
@@ -398,6 +420,7 @@ also accepts the `{ "collections": [...] }` wrapper and a legacy top-level
 | Shortcut | Action |
 |---|---|
 | `⌘ + Enter` / `Ctrl + Enter` | Run script |
+| `⌘K` / `Ctrl + K` | Open command palette (§2.1) |
 | `Shift + Alt + F` | Format document |
 | `Tab` | Indent 2 spaces in editor |
 | Click card | Expand / collapse response detail |
@@ -436,6 +459,15 @@ variables.
   usable.
 - **Not configured** — local-only mode. The account control explains this rather
   than showing a dead form.
+- **Password recovery** — a password-reset email link lands back on `/login`
+  with `#access_token=` in the URL hash; Supabase consumes it and the screen
+  shows a **set-password** form instead of the normal sign-in forms. This
+  `recovering` state is independent of being signed in — it can show alongside
+  the signed-in account line, or alone before the session catches up — and
+  once triggered it stays open for the rest of the page's life, even if the
+  hash is later stripped. There is no "forgot password" trigger inside the
+  app itself; only the landing side of an externally-sent reset link is
+  handled here.
 - **Sync status** shows on the rail (`idle` / `pulling` / `pushing` / `synced` /
   `error`); a red dot marks the last sync as failed.
 - **Sign out** clears the Supabase session and drops the local cache so the next

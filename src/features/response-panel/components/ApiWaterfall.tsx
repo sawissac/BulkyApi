@@ -44,8 +44,9 @@ type Props = {
  * `p-4 text-center font-description text-[12px] text-app-dim` recipe used by the
  * call list and docs view.
  *
- * Edge cases: with no calls, renders the "No api.* calls found in script"
- * placeholder — same markup as the call list and {@link ApiDocs} empty states.
+ * Edge cases: with no calls, renders the "No API calls detected in this
+ * script" placeholder — same markup as the call list and {@link ApiDocs}
+ * empty states.
  * A run whose calls all lack timestamps falls back to the run's own start,
  * which puts every bar at 0.
  *
@@ -64,7 +65,7 @@ export default function ApiWaterfall({ T }: Props) {
   if (calls.length === 0) {
     return (
       <p className="p-4 text-center font-description text-[12px] text-app-dim">
-        No api.* calls found in script
+        No API calls detected in this script
       </p>
     );
   }
