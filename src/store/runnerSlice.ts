@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { ApiCall, LogEntry } from "@/lib/types";
+import type { ApiCall, LogEntry, Assertion } from "@/lib/types";
 import { removeItem } from "./collectionsSlice";
 
 type RunnerState = {
@@ -13,6 +13,7 @@ type RunnerState = {
   currentItemId: string | null;
   runCacheFlags: boolean[];
   extractedVars: Record<string, string>;
+  assertions: Assertion[];
 };
 
 const initialState: RunnerState = {
@@ -26,6 +27,7 @@ const initialState: RunnerState = {
   currentItemId: null,
   runCacheFlags: [],
   extractedVars: {},
+  assertions: [],
 };
 
 function applyStored(nc: ApiCall, existing: ApiCall): ApiCall {
@@ -45,6 +47,7 @@ function applyStored(nc: ApiCall, existing: ApiCall): ApiCall {
     cache: existing.cache,
     isSse: existing.isSse,
     sseEvents: existing.sseEvents,
+    assertions: existing.assertions,
   };
 }
 
@@ -120,11 +123,15 @@ const runnerSlice = createSlice({
     setExtractedVars(state, action: PayloadAction<Record<string, string>>) {
       state.extractedVars = action.payload;
     },
+    setAssertions(state, action: PayloadAction<Assertion[]>) {
+      state.assertions = action.payload;
+    },
     setRunning(state, action: PayloadAction<boolean>) {
       state.running = action.payload;
       if (action.payload) {
         state.runStartedAt = Date.now();
         state.extractedVars = {};
+        state.assertions = [];
       }
       if (!action.payload) state.paused = false;
     },
@@ -193,6 +200,7 @@ export const {
   setStepMode,
   setPaused,
   setExtractedVars,
+  setAssertions,
   updateCallsAndLogs,
   toggleCallCache,
   hydrateRunner,
@@ -209,3 +217,5 @@ export const selectStepMode = (s: { runner: RunnerState }) => s.runner.stepMode;
 export const selectPaused = (s: { runner: RunnerState }) => s.runner.paused;
 export const selectExtractedVars = (s: { runner: RunnerState }) =>
   s.runner.extractedVars;
+export const selectAssertions = (s: { runner: RunnerState }) =>
+  s.runner.assertions;

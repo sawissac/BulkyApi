@@ -15,32 +15,78 @@ function extractNoteBeforeIndex(code: string, idx: number): string | undefined {
   return undefined;
 }
 
+/**
+ * Whether position `idx` sits inside a `//` or block comment. Walks
+ * `code.slice(0, idx)` tracking string/comment state one character at a time —
+ * a plain `lastIndexOf` scan for a block-comment opener (the previous
+ * approach) treats any two-char "slash star" substring as a comment opener,
+ * including one inside a string literal like `api.file('image/*')`'s accept
+ * pattern. With no matching closer afterward, that misreads everything past
+ * it as one giant unclosed comment, so every later `api.*` call in the script
+ * goes undetected and drops out of the built-call list once the next analyze
+ * pass runs.
+ */
 function isInsideComment(code: string, idx: number): boolean {
-  // Check single-line comment: find the start of the line and see if it begins with //
-  const lineStart = code.lastIndexOf('\n', idx - 1) + 1;
-  const linePrefix = code.slice(lineStart, idx).trimStart();
-  if (linePrefix.startsWith('//')) return true;
+  const before = code.slice(0, idx);
+  let inLineComment = false;
+  let inBlockComment = false;
+  let inString = false;
+  let strCh = '';
 
-  // Check block comment: find the last /* before idx and see if it's unclosed
-  const lastOpen = code.lastIndexOf('/*', idx);
-  if (lastOpen !== -1) {
-    const lastClose = code.indexOf('*/', lastOpen);
-    if (lastClose === -1 || lastClose > idx) return true;
+  for (let i = 0; i < before.length; i++) {
+    const ch = before[i];
+    const next = before[i + 1];
+
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (ch === '*' && next === '/') { inBlockComment = false; i++; }
+      continue;
+    }
+    if (inString) {
+      if (ch === strCh && before[i - 1] !== '\\') inString = false;
+      continue;
+    }
+
+    if (ch === "'" || ch === '"' || ch === '`') { inString = true; strCh = ch; }
+    else if (ch === '/' && next === '/') { inLineComment = true; i++; }
+    else if (ch === '/' && next === '*') { inBlockComment = true; i++; }
   }
 
-  return false;
+  return inLineComment || inBlockComment;
 }
 
 export function analyzeScript(code: string, envVars: Record<string, string> = {}): ApiCall[] {
   const calls: ApiCall[] = [];
-  const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options)\s*\(/gi;
+  // The optional <...> lets a typed call — api.get<User>(url) — still match.
+  // `sse`/`stream` must be included here even though the runtime skips this
+  // preview's fields (status/response/etc — see the loop body) for them: the
+  // count and order of entries this function returns is also what
+  // `mergeCalls` (runnerSlice.ts) uses to reconcile a finished run's stored
+  // calls back onto the next preview. Leaving a call type out here doesn't
+  // just skip its preview stub — it makes `mergeCalls` see one fewer call
+  // than actually ran, silently truncating (or, if it was the *only* call,
+  // wholly clearing) that stored call the moment the 300ms post-run
+  // re-analyze in BulkyApp.tsx fires.
+  const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options|head|sse|stream)\s*(?:<[^>()]*>)?\s*\(/gi;
   let m: RegExpExecArray | null;
 
   while ((m = re.exec(code)) !== null) {
     // Skip matches inside comments
     if (isInsideComment(code, m.index)) continue;
 
-    const method = m[1].toUpperCase();
+    // `api.sse` never sends a body, so its call record's `method` is always
+    // "SSE" (see `makeStreamCall` in `scriptRunner.ts`). `api.stream` sends
+    // POST unless `opts.method` overrides it — POST is by far the common
+    // case (an LLM chat/completions call), so it's the best static guess;
+    // an overridden verb just means this stub's method won't match the
+    // finished call's on the next merge, same graceful fallback as any other
+    // call whose shape changes between runs.
+    const rawMethod = m[1].toUpperCase();
+    const method =
+      rawMethod === "SSE" ? "SSE" : rawMethod === "STREAM" ? "POST" : rawMethod;
     const note = extractNoteBeforeIndex(code, m.index);
     const after = code.slice(m.index + m[0].length);
 

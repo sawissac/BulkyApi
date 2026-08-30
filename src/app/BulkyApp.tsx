@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { THEMES, themeVars } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
+import { composeScript } from "@/lib/composeScript";
 import { useScriptRunner } from "@/hooks/useScriptRunner";
 import {
   selectTheme,
@@ -13,7 +14,7 @@ import {
   selectLayout,
 } from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
-import { selectEnvVars } from "@/store/collectionsSlice";
+import { selectEnvVars, selectActiveHooks } from "@/store/collectionsSlice";
 import {
   selectRunning,
   selectStepMode,
@@ -62,19 +63,25 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  * @remarks
  * Status: stable — Type: page shell
  *
- * State & behavior: no local state. Five effects do the work. The first mirrors
+ * State & behavior: no local state. Six effects do the work. The first mirrors
  * the active theme's variables onto `<html>` so portalled UI (dialogs, tweaks
  * panel) and document chrome (scrollbars) read the same tokens as the app root;
  * the inline `style` on the root applies them again so the very first paint is
  * already themed and does not flash. The second re-analyzes the script 300ms
- * after the code or environment settles, skipping analysis while a run is in
- * flight and on the render that follows an item switch — `isSwitchingItemRef`
- * carries that flag, since the code change there comes from the store, not the
- * user. The third loads an item's code and restores its stored call results
- * when `activeId` changes, and clears the runner when nothing is active. The
+ * after the code, environment, or the active collection's pre-run / post-run
+ * hooks settle — the hooks are folded around the buffer by `composeScript`
+ * first, so the card preview matches what a run will do — skipping analysis
+ * while a run is in flight and on the render that follows an item switch;
+ * `isSwitchingItemRef` carries that flag, since the code change there comes
+ * from the store, not the user. The third loads an item's code and restores its stored call results
+ * when `activeId` changes; when nothing is active it clears the runner, and
+ * also empties the editor buffer if an item had just been open — so deleting
+ * the active request or its collection leaves no stale script behind. The
  * fourth writes edits back to the active item 400ms after typing stops. The
  * fifth empties the editor buffer when the last collection goes away, so a
- * deleted collection's script does not linger in the pad.
+ * deleted collection's script does not linger in the pad. The sixth swallows
+ * ⌘S / Ctrl+S on `window` in the capture phase — nothing in the app saves on
+ * that key, and the browser's Save Page dialog only gets in the way.
  *
  * Variants: pane sizes follow the `layout` setting — `balanced`,
  * `editor-focus`, `response-focus`. Changing it remounts the panel group by
@@ -94,14 +101,17 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  *
  * Edge cases:
  * - Unknown `layout` value falls back to `editor-focus` sizing.
- * - No active item but collections remain → the runner is cleared and the
- *   editor keeps its buffer as a scratch pad.
+ * - No active item but collections remain → the runner is cleared. The editor
+ *   buffer is emptied when an item had just been open (a deleted request or
+ *   collection); a hydrated snapshot with no active item keeps its buffer as
+ *   a scratch pad.
  * - No collections at all → the editor buffer is emptied, both when the last
  *   one is deleted and when a snapshot with none is hydrated.
  * - Both debounce timers are cleared on unmount, so a pending analyze or save
  *   cannot dispatch after teardown.
  *
- * Dependencies: `react-redux`, internal `useScriptRunner` hook, `analyzeScript`.
+ * Dependencies: `react-redux`, internal `useScriptRunner` hook, `analyzeScript`,
+ * `composeScript`.
  *
  * @example
  * ```tsx
@@ -124,6 +134,7 @@ export default function BulkyApp() {
   const viewByItemId = useSelector(selectViewByItemId);
   const code = useSelector(selectCode);
   const envVars = useSelector(selectEnvVars);
+  const hooks = useSelector(selectActiveHooks);
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
   const activeItem = useSelector(selectActiveItem);
@@ -154,10 +165,17 @@ export default function BulkyApp() {
     if (running || switching) return;
     clearTimeout(analyzeTimerRef.current ?? undefined);
     analyzeTimerRef.current = setTimeout(() => {
-      dispatch(syncAnalyzedCalls(analyzeScript(code, envVars)));
+      dispatch(
+        syncAnalyzedCalls(
+          analyzeScript(
+            composeScript({ preRun: hooks.preRun, code, postRun: hooks.postRun }),
+            envVars,
+          ),
+        ),
+      );
     }, 300);
     return () => clearTimeout(analyzeTimerRef.current ?? undefined);
-  }, [code, envVars, running, dispatch]);
+  }, [code, envVars, hooks, running, dispatch]);
 
   const prevActiveIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -169,16 +187,25 @@ export default function BulkyApp() {
         dispatch(
           switchToItem({
             itemId: activeId,
-            analyzedCalls: analyzeScript(activeItem.code, envVars),
+            analyzedCalls: analyzeScript(
+              composeScript({
+                preRun: hooks.preRun,
+                code: activeItem.code,
+                postRun: hooks.postRun,
+              }),
+              envVars,
+            ),
           }),
         );
         dispatch(setResponseView(viewByItemId[activeId] ?? "cards"));
       }
     } else if (!activeId) {
+      const hadActiveItem = prevActiveIdRef.current !== null;
       prevActiveIdRef.current = null;
+      if (hadActiveItem) dispatch(setCode(""));
       dispatch(switchToItem({ itemId: null, analyzedCalls: [] }));
     }
-  }, [activeId, activeItem, envVars, dispatch, viewByItemId]);
+  }, [activeId, activeItem, envVars, hooks, dispatch, viewByItemId]);
 
   const hadCollectionsRef = useRef(false);
   useEffect(() => {
@@ -196,6 +223,21 @@ export default function BulkyApp() {
     }, 400);
     return () => clearTimeout(saveTimerRef.current ?? undefined);
   }, [code, activeId, dispatch]);
+
+  // ⌘S / Ctrl+S: the browser's Save Page dialog is noise here — edits are
+  // already persisted on their own — so the shortcut is swallowed app-wide,
+  // in the capture phase so Monaco never sees it either.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKey, { capture: true });
+  }, []);
 
   return (
     <div

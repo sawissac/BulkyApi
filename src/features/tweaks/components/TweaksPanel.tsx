@@ -27,13 +27,13 @@ import * as ui from "@/lib/ui";
 const THEME_OPTIONS: Array<{ id: ThemeKey; label: string }> = [
   { id: "midnight", label: "Midnight" },
   { id: "ocean", label: "Ocean" },
-  { id: "light", label: "Light" },
-  { id: "purple", label: "Purple" },
-  { id: "green", label: "Green" },
+  { id: "light", label: "Chocolate" },
+  { id: "purple", label: "Amethyst" },
+  { id: "green", label: "Nature" },
   { id: "rose", label: "Rose" },
   { id: "amber", label: "Amber" },
   { id: "slate", label: "Slate" },
-  { id: "flat", label: "Flat" },
+  { id: "flat", label: "Sunset" },
   { id: "coffee", label: "Coffee" },
 ];
 

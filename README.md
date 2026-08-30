@@ -6,7 +6,7 @@ Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Work
 
 ## Features
 
-- **Script-driven**: write JS using `api.get/post/put/patch/delete`. Calls auto-detect into right-pane cards.
+- **Script-driven**: write JS using `api.get/post/put/patch/delete/options/head`. Calls auto-detect into right-pane cards.
 - **Live execution**: `⌘+Enter` runs script. Cards transition `idle → pending → 200 / err`.
 - **Step mode**: pause between calls, advance one at a time.
 - **Environments + variables**: switchable env presets, `env.*` references resolve at run time. Sensitive keys masked in UI.
@@ -16,7 +16,7 @@ Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Work
 - **cURL import**: paste curl, auto-generate script.
 - **SSE support**: streaming responses captured per-event.
 - **Abort + timeout**: stop running scripts, configurable per-call timeout.
-- **Themes**: Midnight, Ocean, Light, Purple, Green, Rose, Amber, Slate.
+- **Themes**: Midnight, Ocean, Chocolate, Amethyst, Nature, Rose, Amber, Slate, Sunset, Coffee.
 - **Layouts**: Balanced, Editor Focus, Response Focus.
 - **Fullscreen + PWA**: installable, offline shell cache, standalone mode.
 
@@ -91,6 +91,8 @@ await api.post(url, body, opts?)
 await api.put(url, body, opts?)
 await api.patch(url, body, opts?)
 await api.delete(url, opts?)
+await api.options(url, opts?)
+await api.head(url, opts?)
 
 // auth
 await api.get(url, { auth: { type: 'bearer',  token: env.token } });

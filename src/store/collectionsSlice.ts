@@ -1,4 +1,4 @@
-import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createSelector, nanoid, type PayloadAction } from '@reduxjs/toolkit';
 import { INITIAL_COLLECTIONS, type Collection, type CollectionItem, type Environment } from '@/lib/sampleData';
 
 const RECENT_LIMIT = 6;
@@ -7,12 +7,17 @@ type CollectionsState = {
   collections: Collection[];
   activeId: string | null;
   recentItemIds: string[];
+  // Variables every environment in every collection inherits and can shadow
+  // with a key of its own. Merged under the active environment's own vars by
+  // `selectEnvVars`.
+  baseVars: Record<string, string>;
 };
 
 const initialState: CollectionsState = {
   collections: INITIAL_COLLECTIONS,
   activeId: INITIAL_COLLECTIONS[0]?.items[0]?.id ?? null,
   recentItemIds: [],
+  baseVars: {},
 };
 
 function pushRecent(state: CollectionsState, id: string) {
@@ -108,10 +113,18 @@ const collectionsSlice = createSlice({
         if (item) { item.code = action.payload.code; return; }
       }
     },
+    setCollectionHook(
+      state,
+      action: PayloadAction<{ collectionId: string; hook: 'preRun' | 'postRun'; code: string }>,
+    ) {
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      if (col) col[action.payload.hook] = action.payload.code;
+    },
     hydrateCollections(_state, action: PayloadAction<CollectionsState>) {
       return {
         ...action.payload,
         recentItemIds: action.payload.recentItemIds ?? [],
+        baseVars: action.payload.baseVars ?? {},
       };
     },
     // --- Environment Reducers ---
@@ -177,6 +190,19 @@ const collectionsSlice = createSlice({
       env.vars[newKey] = env.vars[oldKey];
       delete env.vars[oldKey];
     },
+    // --- Base (global) Variable Reducers ---
+    setBaseVar(state, action: PayloadAction<{ key: string; value: string }>) {
+      state.baseVars[action.payload.key] = action.payload.value;
+    },
+    deleteBaseVar(state, action: PayloadAction<{ key: string }>) {
+      delete state.baseVars[action.payload.key];
+    },
+    renameBaseVar(state, action: PayloadAction<{ oldKey: string; newKey: string }>) {
+      const { oldKey, newKey } = action.payload;
+      if (!newKey || newKey === oldKey) return;
+      state.baseVars[newKey] = state.baseVars[oldKey];
+      delete state.baseVars[oldKey];
+    },
   },
 });
 
@@ -202,6 +228,10 @@ export const {
   setVar,
   deleteVar,
   renameVar,
+  setBaseVar,
+  deleteBaseVar,
+  renameBaseVar,
+  setCollectionHook,
 } = collectionsSlice.actions;
 export default collectionsSlice.reducer;
 
@@ -250,8 +280,31 @@ export const selectActiveEnv = (s: { collections: CollectionsState }) => {
 
 const EMPTY_VARS: Record<string, string> = {};
 
-export const selectEnvVars = (s: { collections: CollectionsState }) => {
+export const selectBaseVars = (s: { collections: CollectionsState }) =>
+  s.collections.baseVars ?? EMPTY_VARS;
+
+/** The active environment's own vars, before the base layer is folded in. */
+export const selectOwnEnvVars = (s: { collections: CollectionsState }) => {
   const col = selectActiveCollection(s);
   if (!col || !col.environments.length) return EMPTY_VARS;
   return col.environments[col.envIdx]?.vars ?? EMPTY_VARS;
 };
+
+/**
+ * Everything a script sees as `env.*` / `{{name}}`: the global base vars with
+ * the active environment's own vars layered on top (own keys win). Memoized —
+ * when there are no base vars this returns the own-vars object by reference, so
+ * `useSelector` consumers do not re-render on unrelated state changes.
+ */
+export const selectEnvVars = createSelector(
+  [selectBaseVars, selectOwnEnvVars],
+  (base, own) =>
+    Object.keys(base).length === 0 ? own : { ...base, ...own },
+);
+
+/** The active collection's pre-run / post-run hook scripts (empty strings when
+ *  unset or no collection is active). */
+export const selectActiveHooks = createSelector(
+  [selectActiveCollection],
+  (col) => ({ preRun: col?.preRun ?? '', postRun: col?.postRun ?? '' }),
+);

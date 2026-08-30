@@ -2,7 +2,7 @@
 
 import type { Theme } from '@/lib/themes';
 import type { ApiCall } from '@/lib/types';
-import { statusColor, STATUS_TXT, METHOD_CLR } from '@/lib/themes';
+import { statusColor, STATUS_TXT, methodColor } from '@/lib/themes';
 
 type Props = { T: Theme; call: ApiCall };
 
@@ -83,7 +83,7 @@ export default function StatusTab({ T, call }: Props) {
       >
         {statCell(`${dur}ms`, 'Duration', durColor, 0)}
         {statCell(call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : '—', 'Timestamp', T.textDim, 1)}
-        {statCell(call.method, 'Method', METHOD_CLR[call.method] || T.textDim, 2)}
+        {statCell(call.method, 'Method', methodColor(call.method, T), 2)}
         {statCell(host, 'Host', T.textDim, 3)}
       </div>
     </div>

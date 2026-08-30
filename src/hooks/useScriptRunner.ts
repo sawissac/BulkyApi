@@ -4,8 +4,13 @@ import { useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
 import { runScript } from "@/lib/scriptRunner";
+import { composeScript } from "@/lib/composeScript";
 import { selectCode } from "@/store/editorSlice";
-import { selectEnvVars, selectActiveEnv } from "@/store/collectionsSlice";
+import {
+  selectEnvVars,
+  selectActiveEnv,
+  selectActiveHooks,
+} from "@/store/collectionsSlice";
 import {
   selectBuiltCalls,
   selectRunning,
@@ -14,6 +19,7 @@ import {
   setRunning,
   setPaused,
   setExtractedVars,
+  setAssertions,
   updateCallsAndLogs,
 } from "@/store/runnerSlice";
 import { selectActiveId } from "@/store/collectionsSlice";
@@ -24,6 +30,7 @@ export function useScriptRunner() {
   const code = useSelector(selectCode);
   const envVars = useSelector(selectEnvVars);
   const activeEnv = useSelector(selectActiveEnv);
+  const hooks = useSelector(selectActiveHooks);
   const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
@@ -65,10 +72,18 @@ export function useScriptRunner() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    // Fold the active collection's pre-run / post-run hooks around the item
+    // script — one source string for both the card preview and the run.
+    const script = composeScript({
+      preRun: hooks.preRun,
+      code,
+      postRun: hooks.postRun,
+    });
+
     dispatch(setRunning(true));
     dispatch(
       setBuiltCalls(
-        analyzeScript(code, envVars).map((c, i) => ({
+        analyzeScript(script, envVars).map((c, i) => ({
           ...c,
           status: "pending" as const,
           cache: builtCalls[i]?.cache ?? false,
@@ -91,8 +106,8 @@ export function useScriptRunner() {
         ]),
     );
 
-    const { extractedVars } = await runScript(
-      code,
+    const { extractedVars, assertions } = await runScript(
+      script,
       { ...envVars, current: activeEnv?.name ?? "" },
       (calls, logs) =>
         dispatch(updateCallsAndLogs({ calls, logs, itemId: runItemId })),
@@ -106,12 +121,14 @@ export function useScriptRunner() {
     abortControllerRef.current = null;
     if (Object.keys(extractedVars).length > 0)
       dispatch(setExtractedVars(extractedVars));
+    if (assertions.length > 0) dispatch(setAssertions(assertions));
     dispatch(setRunning(false));
   }, [
     running,
     code,
     envVars,
     activeEnv,
+    hooks,
     builtCalls,
     activeId,
     stepMode,

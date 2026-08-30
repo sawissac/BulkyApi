@@ -77,7 +77,9 @@ const ROW =
  * to hand off to {@link VarsPane}.
  *
  * Variants: renders a "select a collection" empty state when no collection
- * is active, instead of the list.
+ * is active, instead of the list. A collection with zero environments still
+ * renders the list `ul`, but skips the `LIST` border — an empty bordered box
+ * would render as a bare line under the header.
  *
  * Composition: renders {@link NewEnvironmentDialog} when adding and
  * {@link ConfirmDialog} when a delete is pending. The environment list is one
@@ -157,7 +159,7 @@ export default function EnvPane({}: Props) {
         </Tooltip>
       </div>
 
-      <ul className={LIST}>
+      <ul className={environments.length > 0 ? LIST : undefined}>
         {environments.map((env, i) => {
           const isEditing = editingId === env.id;
           const isActive = i === envIdx;

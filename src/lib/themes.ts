@@ -69,28 +69,36 @@ export const THEMES: Record<ThemeKey, Theme> = {
     warn:         '#f59e0b',
     error:        '#ef4444',
   },
+  /**
+   * Chocolate: the light half of the brown pair (dark `coffee` is the other).
+   * No white anywhere — warm cream panels on a deeper oat canvas with a darker
+   * latte sidebar, so the three surfaces still read as distinct layers. Borders
+   * are visible hairlines; the accent is a deep mahogany. Every text token is
+   * solid hex and clears WCAG AA on the cream panel — including the JSON tree,
+   * whose colors switch to a dark set for light themes (see JsonTreeViewer).
+   */
   light: {
     isLight: true,
-    bg:           '#f8fafc',
-    bgPanel:      '#ffffff',
-    bgSidebar:    '#f1f5f9',
-    bgHover:      'rgba(0,0,0,0.03)',
-    bgSelected:   'rgba(34,211,238,0.1)',
-    border:       'rgba(0,0,0,0.06)',
-    borderMid:    'rgba(0,0,0,0.1)',
-    borderAccent: 'rgba(34,211,238,0.4)',
-    cyan:         '#0284c7',
-    cyanDim:      'rgba(2,132,199,0.55)',
-    cyanFaint:    'rgba(2,132,199,0.08)',
-    text:         '#334155',
-    textBright:   '#0f172a',
-    textDim:      'rgba(71,85,105,0.8)',
-    editorBg:     '#f8fafc',
-    gutterBg:     '#f1f5f9',
-    lineNum:      'rgba(2,132,199,0.3)',
-    success:      '#047857',
+    bg:           '#e6d8bf',
+    bgPanel:      '#faf4e8',
+    bgSidebar:    '#dcccae',
+    bgHover:      'rgba(90,54,30,0.06)',
+    bgSelected:   'rgba(124,45,18,0.14)',
+    border:       'rgba(60,36,20,0.18)',
+    borderMid:    'rgba(60,36,20,0.3)',
+    borderAccent: 'rgba(124,45,18,0.55)',
+    cyan:         '#7c2d12',
+    cyanDim:      '#96492a',
+    cyanFaint:    'rgba(124,45,18,0.09)',
+    text:         '#382318',
+    textBright:   '#1c110b',
+    textDim:      '#6a5340',
+    editorBg:     '#fdf8ec',
+    gutterBg:     '#f0e6d3',
+    lineNum:      'rgba(124,45,18,0.4)',
+    success:      '#3f6212',
     warn:         '#b45309',
-    error:        '#dc2626',
+    error:        '#b91c1c',
   },
   purple: {
     bg:           '#170f23',
@@ -203,33 +211,35 @@ export const THEMES: Record<ThemeKey, Theme> = {
     error:        '#ef4444',
   },
   /**
-   * Flat: poster-style light theme. Structure comes from solid color blocks
-   * (gray-100 canvas / white panels / gray-200 chrome), never from shadow.
-   * Accent shades are stepped one notch darker than the raw 500-level palette
-   * so 8-11px UI text still clears WCAG AA on both white and gray-200.
+   * Sunset: warm dusk theme — a coral-orange accent over deep charcoal-brown
+   * panels, with sand-toned text. Occupies the orange slot between Amber's
+   * yellow-gold and Rose's pink, and keeps the shared status hues so success /
+   * warn / error stay legible against the accent.
+   *
+   * Replaced the former poster-style light "flat" theme; the `flat` key is kept
+   * so stored selections, test ids and `env` snapshots carry over.
    */
   flat: {
-    isLight: true,
-    bg:           '#f3f4f6',
-    bgPanel:      '#ffffff',
-    bgSidebar:    '#e5e7eb',
-    bgHover:      'rgba(17,24,39,0.06)',
-    bgSelected:   'rgba(59,130,246,0.12)',
-    border:       'rgba(17,24,39,0.10)',
-    borderMid:    'rgba(17,24,39,0.16)',
-    borderAccent: '#2563eb',
-    cyan:         '#1d4ed8',
-    cyanDim:      '#2563eb',
-    cyanFaint:    'rgba(59,130,246,0.10)',
-    text:         '#374151',
-    textBright:   '#111827',
-    textDim:      '#4b5563',
-    editorBg:     '#ffffff',
-    gutterBg:     '#f3f4f6',
-    lineNum:      '#9ca3af',
-    success:      '#047857',
-    warn:         '#b45309',
-    error:        '#dc2626',
+    bg:           '#1c1410',
+    bgPanel:      '#241a14',
+    bgSidebar:    '#181009',
+    bgHover:      'rgba(255,255,255,0.03)',
+    bgSelected:   'rgba(255,122,89,0.13)',
+    border:       'rgba(255,122,89,0.1)',
+    borderMid:    'rgba(255,122,89,0.2)',
+    borderAccent: 'rgba(255,122,89,0.4)',
+    cyan:         '#ff7a59',
+    cyanDim:      'rgba(255,122,89,0.55)',
+    cyanFaint:    'rgba(255,122,89,0.08)',
+    text:         '#e7c9b3',
+    textBright:   '#fff2e8',
+    textDim:      'rgba(231,201,179,0.6)',
+    editorBg:     '#160f0a',
+    gutterBg:     '#1c1410',
+    lineNum:      'rgba(255,122,89,0.3)',
+    success:      '#10b981',
+    warn:         '#f59e0b',
+    error:        '#ef4444',
   },
   coffee: {
     bg:           '#1b120c',
@@ -305,6 +315,16 @@ export function statusColor(code: number | null, T: Theme): string {
   if (code < 300) return T.success;
   if (code < 400) return T.warn;
   return T.error;
+}
+
+/**
+ * HTTP-method label color for the active theme. The dark palette's 400/500-level
+ * hues drop to ~1.5:1 on a pale surface, so light themes get the 700-level set
+ * ({@link METHOD_CLR_LIGHT}) instead. Falls back to dim text for unknown verbs.
+ */
+export function methodColor(method: string, T: Theme): string {
+  const set = T.isLight ? METHOD_CLR_LIGHT : METHOD_CLR;
+  return set[method.toUpperCase()] ?? T.textDim;
 }
 
 /**

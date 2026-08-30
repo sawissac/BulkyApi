@@ -76,11 +76,13 @@ export default function FilePane({}: Props) {
     const safe = (activeName || "script")
       .replace(/[^\w\-]+/g, "_")
       .toLowerCase();
-    downloadBlob(`${safe}.js`, code, "text/javascript");
+    downloadBlob(`${safe}.ts`, code, "text/typescript");
   };
 
   const onImportScript = async () => {
-    const file = await pickFile(".js,.txt,text/javascript,text/plain");
+    const file = await pickFile(
+      ".ts,.js,.txt,text/typescript,text/javascript,text/plain",
+    );
     if (!file) return;
     const text = await readFileText(file);
     dispatch(setCode(text));
@@ -164,14 +166,14 @@ export default function FilePane({}: Props) {
     {
       icon: Download,
       label: "Save Script",
-      sub: "Export current script as .js",
+      sub: "Export current script as .ts",
       tone: TONES.save,
       onClick: onSaveScript,
     },
     {
       icon: Upload,
       label: "Import Script",
-      sub: "Load a .js automation file",
+      sub: "Load a .ts or .js automation file",
       tone: TONES.load,
       onClick: onImportScript,
     },

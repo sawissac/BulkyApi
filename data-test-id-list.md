@@ -62,6 +62,16 @@ Shared primitive — forwards the caller's `data-testid` to the `<input>` and de
 `coll-pane-rename-collection-input-clear-button` — CollPane / collection rename inline clear button
 `coll-pane-rename-item-input` — CollPane / inline test-item rename field (via shared `Input`; single instance, since only one row can be in edit mode at a time)
 `coll-pane-rename-item-input-clear-button` — CollPane / test-item rename inline clear button
+`coll-pane-hooks-button-<collectionId>` — CollPane / per-collection run-hooks (pre-run/post-run) trigger button, opens CollectionHooksDialog
+
+## CollectionHooksDialog (src/features/sidebar/components/CollectionHooksDialog.tsx)
+
+`collection-hooks-dialog-root` — CollectionHooksDialog / dialog root
+`collection-hooks-dialog-pre-run-input` — CollectionHooksDialog / pre-run script textarea
+`collection-hooks-dialog-post-run-input` — CollectionHooksDialog / post-run script textarea
+`collection-hooks-dialog-close-button` — CollectionHooksDialog / header close button
+`collection-hooks-dialog-cancel-button` — CollectionHooksDialog / footer cancel button
+`collection-hooks-dialog-save-button` — CollectionHooksDialog / footer save button
 
 ## EnvPane (src/features/sidebar/components/EnvPane.tsx)
 
@@ -88,13 +98,15 @@ Shared primitive — fixed ids regardless of caller (not derived per instance). 
 
 ## VarsPane (src/features/sidebar/components/VarsPane.tsx)
 
-`vars-pane-key-input-<key>` — VarsPane / inline variable key rename field (per variable key, via shared `Input`)
+Two mounted `VarSection`s — the environment section uses the `vars-pane-*` prefix below, the global Base section the same ids with a `vars-pane-base-*` prefix (`vars-pane-base-key-input-<key>`, `vars-pane-base-value-input-<key>`, `vars-pane-base-new-key-input`, `vars-pane-base-new-value-input`, plus each one's derived `-clear-button`).
+
+`vars-pane-key-input-<key>` — VarsPane / VarSection (env) inline variable key rename field (per variable key, via shared `Input`)
 `vars-pane-key-input-<key>-clear-button` — VarsPane / variable key rename inline clear button
-`vars-pane-value-input-<key>` — VarsPane / inline variable value edit field (per variable key, via shared `Input`)
+`vars-pane-value-input-<key>` — VarsPane / VarSection (env) inline variable value edit field (per variable key, via shared `Input`)
 `vars-pane-value-input-<key>-clear-button` — VarsPane / variable value edit inline clear button
-`vars-pane-new-key-input` — VarsPane / new variable key field (via shared `Input`)
+`vars-pane-new-key-input` — VarsPane / VarSection (env) new variable key field (via shared `Input`)
 `vars-pane-new-key-input-clear-button` — VarsPane / new variable key inline clear button
-`vars-pane-new-value-input` — VarsPane / new variable value field (via shared `Input`)
+`vars-pane-new-value-input` — VarsPane / VarSection (env) new variable value field (via shared `Input`)
 `vars-pane-new-value-input-clear-button` — VarsPane / new variable value inline clear button
 
 ## CodeEditor (src/features/code-editor/components/CodeEditor.tsx)
@@ -103,6 +115,25 @@ Shared primitive — fixed ids regardless of caller (not derived per instance). 
 `code-editor-rename-collection-input-clear-button` — CodeEditor / breadcrumb collection rename inline clear button
 `code-editor-rename-item-input` — CodeEditor / breadcrumb inline request rename field (via shared `Input`)
 `code-editor-rename-item-input-clear-button` — CodeEditor / breadcrumb request rename inline clear button
+
+## EditorEmptyState (src/features/code-editor/components/EditorEmptyState.tsx)
+
+`editor-empty-state-root` — EditorEmptyState / empty screen root
+`editor-empty-state-new-collection-button` — EditorEmptyState / start-list new collection action
+`editor-empty-state-import-collection-button` — EditorEmptyState / start-list import collection action
+
+## CallCard (src/features/response-panel/components/CallCard.tsx)
+
+`call-card-<idx>` — CallCard / row root (per built call, 0-based index)
+`call-card-copy-curl-button` — CallCard / header "copy as cURL" action (shown once the call leaves idle)
+`call-card-tab-<id>` — CallCard / detail tab button (per tab: response, headers, auth, payload, status, tests)
+
+## ResponsePanel (src/features/response-panel/components/ResponsePanel.tsx)
+
+`response-panel-tests-list` — ResponsePanel / assertions strip list (mounts only when a run recorded expectations)
+`response-panel-console-resize-handle` — ResponsePanel / console panel drag-to-resize handle (hidden while collapsed)
+`response-panel-console-collapse-button` — ResponsePanel / console header collapse/expand toggle
+`response-panel-console-list` — ResponsePanel / scrollable console log body (mounts only when logs exist and not collapsed)
 
 ## LoginPane (src/features/auth/components/LoginPane.tsx)
 
@@ -123,3 +154,36 @@ Shared primitive — fixed ids regardless of caller (not derived per instance). 
 `login-pane-set-password-button` — LoginPane / save password
 `login-pane-signout-button` — LoginPane / sign out
 `login-pane-status` — LoginPane / status and error live region
+
+## StatusScreen (src/components/StatusScreen.tsx)
+
+Ids derive from the caller's `testId` base — the component hardcodes none.
+
+`<testId>-root` — StatusScreen / screen root
+`<testId>-code` — StatusScreen / status code figure
+`<testId>-title` — StatusScreen / headline
+`<testId>-message` — StatusScreen / description
+`<testId>-detail` — StatusScreen / technical detail block (only when `detail` is passed)
+
+## NotFound (src/app/not-found.tsx)
+
+`not-found-root` / `not-found-code` / `not-found-title` / `not-found-message` — via shared `StatusScreen`
+`not-found-back-button` — NotFound / history back
+`not-found-home-link` — NotFound / link to the workspace
+
+## ErrorPage (src/app/error.tsx)
+
+`error-page-root` / `error-page-code` / `error-page-title` / `error-page-message` / `error-page-detail` — via shared `StatusScreen`
+`error-page-home-link` — ErrorPage / link to the workspace
+`error-page-retry-button` — ErrorPage / retry the failed segment
+
+## GlobalError (src/app/global-error.tsx)
+
+`global-error-root` / `global-error-code` / `global-error-title` / `global-error-message` / `global-error-detail` — via shared `StatusScreen`
+`global-error-reload-button` — GlobalError / full page reload
+`global-error-retry-button` — GlobalError / retry the failed boot
+
+## ErrorBoundary (src/components/ErrorBoundary.tsx)
+
+`error-boundary-root` / `error-boundary-code` / `error-boundary-title` / `error-boundary-message` / `error-boundary-detail` — via shared `StatusScreen`
+`error-boundary-retry-button` — ErrorBoundary / clear the error and re-render children

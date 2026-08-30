@@ -14,6 +14,27 @@ export type SseEvent = {
   ts: number;
 };
 
+export type Assertion = {
+  ok: boolean;
+  message: string;
+  detail?: string;
+};
+
+/** One field of a multipart body, as stored on the call record — never the
+ *  live `FormData`/`File`, which can't sit in Redux state or survive
+ *  persistence. `file` is present only for a `File`/`Blob` field. */
+export type RequestBodyPart = {
+  key: string;
+  value: string;
+  file?: { name: string; size: number; type: string };
+};
+
+/** Serializable stand-in for a `FormData` or raw `Blob`/`File` request body —
+ *  what `ApiCall.requestBody` holds instead of the live object. */
+export type RequestBodySummary =
+  | { kind: "multipart"; parts: RequestBodyPart[] }
+  | { kind: "binary"; name: string; size: number; type: string };
+
 export type ApiCall = {
   idx: number;
   method: string;
@@ -33,6 +54,7 @@ export type ApiCall = {
   note?: string;
   isSse?: boolean;
   sseEvents?: SseEvent[];
+  assertions?: Assertion[];
 };
 
 export type LogEntry = {

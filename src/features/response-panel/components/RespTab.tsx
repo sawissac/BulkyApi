@@ -6,6 +6,11 @@ import type { Theme } from "@/lib/themes";
 import type { ApiCall } from "@/lib/types";
 import JNode from "@/components/JsonTreeViewer";
 import { jsonToTypeScript } from "@/lib/jsonToTypeScript";
+import {
+  detectResponseKind,
+  formatMarkup,
+  type ResponseKind,
+} from "@/lib/responseFormat";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -251,9 +256,23 @@ function SseBodyEvents({
   );
 }
 
+/**
+ * Live view for a call opened with `api.sse`/`api.stream` — one card per
+ * parsed SSE frame, appearing as `call.sseEvents` grows during the run.
+ *
+ * @remarks
+ * Variants: an EVENTS / TEXT toggle appears once at least one event has
+ * arrived. TEXT concatenates the raw `data:` payloads in arrival order (cheap
+ * enough — a join over the call's own events — to compute inline rather than
+ * memoize), which reads as running prose for a plain-text token stream from
+ * an LLM call; a JSON-per-line format still needs per-event parsing, so
+ * EVENTS stays the default.
+ */
 function SseEvents({ T, call }: Props) {
+  const [textMode, setTextMode] = useState(false);
   const events = call.sseEvents ?? [];
   const isStreaming = call.status === "success" || call.status === "pending";
+  const streamedText = events.map((e) => e.data).join("");
 
   return (
     <div>
@@ -293,10 +312,69 @@ function SseEvents({ T, call }: Props) {
           }}
         >
           {events.length} event{events.length !== 1 ? "s" : ""}
+          {isStreaming && events.length === 0 ? " — connecting…" : ""}
         </span>
+        {events.length > 0 && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 3 }}>
+            {(["EVENTS", "TEXT"] as const).map((label) => {
+              const active = label === "TEXT" ? textMode : !textMode;
+              const wantsText = label === "TEXT";
+              return (
+                <button
+                  key={label}
+                  onClick={() => setTextMode(wantsText)}
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: 9999,
+                    cursor: active ? "default" : "pointer",
+                    border: `1px solid ${active ? SSE_CLR : T.border}`,
+                    background: active ? `${SSE_CLR}15` : "transparent",
+                    color: active ? SSE_CLR : T.textDim,
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 8,
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {events.length === 0 ? (
+      {events.length > 0 && textMode ? (
+        <pre
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            color: T.text,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            background: T.bgHover,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            padding: 10,
+            margin: 0,
+          }}
+        >
+          {streamedText}
+          {isStreaming && (
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 12,
+                marginLeft: 2,
+                verticalAlign: "text-bottom",
+                background: SSE_CLR,
+                animation: "pulse 1s ease-in-out infinite",
+              }}
+            />
+          )}
+        </pre>
+      ) : events.length === 0 ? (
         <div
           style={{
             display: "flex",
@@ -429,6 +507,196 @@ function SseEvents({ T, call }: Props) {
   );
 }
 
+/** Small pill toggle shared by the non-JSON body views. */
+function ModePill({
+  T,
+  label,
+  active,
+  onClick,
+}: {
+  T: Theme;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "2px 8px",
+        borderRadius: 9999,
+        cursor: active ? "default" : "pointer",
+        border: `1px solid ${active ? T.cyan : T.border}`,
+        background: active ? `${T.cyan}15` : "transparent",
+        color: active ? T.cyan : T.textDim,
+        fontFamily: 'var(--font-display)',
+        fontSize: 8,
+        fontWeight: 700,
+        letterSpacing: "0.1em",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+const KIND_LABEL: Record<ResponseKind, string> = {
+  json: "JSON",
+  xml: "XML",
+  html: "HTML",
+  image: "IMAGE",
+  text: "TEXT",
+};
+
+/**
+ * Renders a body the JSON tree can't — markup, plain text, or an image. Markup
+ * gets an indent pass and, for HTML, a sandboxed preview; an image is shown
+ * from the call URL. RAW is always available and Copy takes the untouched body.
+ */
+function NonJsonBody({
+  T,
+  kind,
+  text,
+  url,
+}: {
+  T: Theme;
+  kind: ResponseKind;
+  text: string;
+  url: string;
+}) {
+  const isMarkup = kind === "xml" || kind === "html";
+  const [mode, setMode] = useState<"pretty" | "raw" | "preview">(
+    isMarkup ? "pretty" : "raw",
+  );
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
+
+  const preStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+    color: T.text,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    background: T.bgHover,
+    border: `1px solid ${T.border}`,
+    borderRadius: 6,
+    padding: 10,
+    margin: 0,
+  };
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 7,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 8,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            color: T.textDim,
+          }}
+        >
+          {KIND_LABEL[kind]}
+        </span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 3 }}>
+          <button
+            onClick={handleCopy}
+            style={{
+              padding: "2px 8px",
+              borderRadius: 9999,
+              cursor: "pointer",
+              border: `1px solid ${copied ? T.success : T.border}`,
+              background: copied ? `${T.success}15` : "transparent",
+              color: copied ? T.success : T.textDim,
+              fontFamily: 'var(--font-display)',
+              fontSize: 8,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {copied ? <Check size={9} /> : <Copy size={9} />}
+            {copied ? "COPIED" : "COPY"}
+          </button>
+          {isMarkup && (
+            <ModePill
+              T={T}
+              label="PRETTY"
+              active={mode === "pretty"}
+              onClick={() => setMode("pretty")}
+            />
+          )}
+          {kind === "html" && (
+            <ModePill
+              T={T}
+              label="PREVIEW"
+              active={mode === "preview"}
+              onClick={() => setMode("preview")}
+            />
+          )}
+          {kind !== "image" && (
+            <ModePill
+              T={T}
+              label="RAW"
+              active={mode === "raw"}
+              onClick={() => setMode("raw")}
+            />
+          )}
+        </div>
+      </div>
+
+      {kind === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element -- arbitrary upstream URL, no optimization wanted
+        <img
+          src={url}
+          alt="Response body"
+          style={{
+            maxWidth: "100%",
+            borderRadius: 6,
+            border: `1px solid ${T.border}`,
+            background: T.bgHover,
+          }}
+        />
+      ) : mode === "preview" ? (
+        <iframe
+          title="Response preview"
+          sandbox=""
+          srcDoc={text}
+          style={{
+            width: "100%",
+            height: 240,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            background: "#fff",
+          }}
+        />
+      ) : (
+        <pre style={preStyle}>
+          {mode === "pretty" && isMarkup ? formatMarkup(text) : text}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 type ViewMode = "pretty" | "raw" | "ts";
 
 export default function RespTab({ T, call }: Props) {
@@ -509,6 +777,13 @@ export default function RespTab({ T, call }: Props) {
     );
   }
 
+  const kind = detectResponseKind(call.response, call.responseHeaders || {});
+  const bodyText =
+    typeof call.response === "string" ? call.response : String(call.response ?? "");
+  if (kind !== "json" && (kind === "image" || bodyText.trim() !== "")) {
+    return <NonJsonBody T={T} kind={kind} text={bodyText} url={call.url} />;
+  }
+
   const viewBtn = (mode: ViewMode, label: string) => (
     <Button
       key={mode}
@@ -526,7 +801,7 @@ export default function RespTab({ T, call }: Props) {
   const copyText = view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2);
 
   return (
-    <div>
+    <div style={{ minWidth: 0, maxWidth: "100%" }}>
       <div
         style={{
           display: "flex",
@@ -602,6 +877,8 @@ export default function RespTab({ T, call }: Props) {
             border: `1px solid ${T.border}`,
             borderRadius: 6,
             padding: 10,
+            maxWidth: "100%",
+            overflowX: "auto",
           }}
         >
           <JNode data={call.response} T={T} />

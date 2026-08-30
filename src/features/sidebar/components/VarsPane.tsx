@@ -12,9 +12,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import ConfirmDialog from '@/components/ConfirmDialog';
 import {
   selectActiveEnv,
+  selectBaseVars,
   setVar,
   deleteVar,
   renameVar,
+  setBaseVar,
+  deleteBaseVar,
+  renameBaseVar,
 } from '@/store/collectionsSlice';
 
 type Props = { T: Theme };
@@ -47,65 +51,69 @@ const LIST = 'flex flex-col overflow-hidden rounded-md border border-app-border 
 const ROW = 'group flex flex-col gap-0.5 bg-app-hover px-2.5 py-1.5 transition-colors duration-200 hover:bg-app-selected';
 
 /**
- * Key/value editor for the active environment's variables — inline rename,
- * inline value edit, add, delete, and a reveal toggle for values whose key
- * looks sensitive (token/key/secret/password).
+ * One key/value scope rendered as an editable list: click-to-rename key,
+ * click-to-edit value, an add row, per-row delete behind a confirm, and a
+ * reveal toggle for values whose key looks sensitive. {@link VarsPane} mounts
+ * one of these per variable layer (global base, then the active environment).
  *
  * @remarks
- * Status: stable — Type: pane
+ * Status: stable — Type: internal sub-component
  *
- * State & behavior: `editCell`/`draft` track which single cell (a variable's
- * key or value) is being edited, swapping that cell for an `Input` committed
- * on blur/Enter/Tab, discarded on Escape. `showAdding`/`addingKey`/
- * `addingVal` gate a two-field add row appended below the list. `revealed`
- * is a per-key map of whether a sensitive value is shown in plaintext or
- * masked; non-sensitive values are never masked. `pendingDelete` gates
- * {@link ConfirmDialog} — delete never fires directly from the row.
+ * State & behavior: `editCell`/`draft` track the single cell being edited,
+ * swapping it for an `Input` committed on blur/Enter/Tab and discarded on
+ * Escape; a rename to whitespace or an unchanged key is dropped. `showAdding`
+ * gates a two-field add row; a blank trimmed key skips the dispatch.
+ * `revealed` is a per-key show/mask map for sensitive values only.
+ * `pendingDelete` gates {@link ConfirmDialog} — delete never fires straight
+ * from the row. Each instance owns its own state, so editing in one layer
+ * leaves the other untouched.
  *
- * Variants: renders a "select a collection / create an environment" empty
- * state instead of the list when no environment is active.
+ * Variants: with zero variables the list `ul` still renders but drops the
+ * `LIST` border, since an empty bordered box reads as a stray line. A key
+ * present in `shadowedKeys` renders dimmed with a strikethrough and a badge
+ * naming `shadowLabel` — the higher layer overrides it at run time.
  *
- * Composition: renders {@link ConfirmDialog} when a delete is pending. The
- * variable list is one bordered `LIST` card with `divide-y` row separators
- * rather than gapped, individually-rounded rows — each `ROW` stacks its key
- * and value lines and stays flush edge-to-edge. The reveal toggle (sensitive
- * keys only) and delete are grouped into one `ButtonGroup`, revealed on row
- * hover/focus via `ui.reveal`.
+ * Composition: an `h2` and an add button, then the list — one bordered `LIST`
+ * card with `divide-y` row separators; each `ROW` stacks its key and value
+ * lines. The reveal toggle
+ * (sensitive keys only) and delete sit in one `ButtonGroup` revealed on row
+ * hover/focus via `ui.reveal`. Renders {@link ConfirmDialog} when a delete is
+ * pending.
  *
  * Accessibility: every icon-only control (add, reveal/hide, delete) has an
  * `aria-label` naming the target variable; the reveal toggle also carries
- * `aria-pressed`. Key and value buttons have their own tooltip describing
- * the click-to-edit affordance. The key button shows a decorative
+ * `aria-pressed`. Key and value buttons each carry a tooltip describing the
+ * click-to-edit affordance. The key button shows a decorative
  * `SquareDashedText` icon beside the `{{key}}` label.
  *
- * Test ids: key input `` `vars-pane-key-input-${key}` ``, value input
- * `` `vars-pane-value-input-${key}` ``, new-variable inputs
- * `vars-pane-new-key-input` / `vars-pane-new-value-input` (all via the
- * shared `Input`, which derives its own clear-button id). Add/reveal/delete
- * controls carry only `aria-label` — no dynamic or duplicated accessible
- * name on screen, so no testid is needed there.
+ * Test ids: derived from `idPrefix` — key input
+ * `` `${idPrefix}-key-input-${key}` ``, value input
+ * `` `${idPrefix}-value-input-${key}` ``, new-variable inputs
+ * `` `${idPrefix}-new-key-input` `` / `` `${idPrefix}-new-value-input` `` (all
+ * via the shared `Input`, which derives its own clear-button id). Add, reveal
+ * and delete carry only `aria-label`.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
- * Edge cases: a key typed as only whitespace during rename is discarded,
- * leaving the original key intact; the same draft during add is trimmed and
- * a blank result skips the dispatch entirely.
+ * Edge cases: a key typed as only whitespace during rename is discarded and
+ * the original key kept; during add the draft is trimmed and a blank result
+ * skips the dispatch. Deleting a shadowed base key just removes the base
+ * entry — the environment's own key is unaffected.
  *
- * Dependencies: `lucide-react`, `react-redux`, `@/components/ui/input`,
+ * Dependencies: `lucide-react`, `@/components/ui/input`,
  * `@/components/ui/button`, `@/components/ui/button-group`,
- * `@/components/ui/tooltip`, `@/components/ConfirmDialog`,
- * `@/store/collectionsSlice`.
- *
- * @example
- * ```tsx
- * <VarsPane T={theme} />
- * ```
- *
- * @see {@link EnvPane}
+ * `@/components/ui/tooltip`, `@/components/ConfirmDialog`.
  */
-export default function VarsPane({}: Props) {
-  const dispatch = useDispatch();
-  const env = useSelector(selectActiveEnv);
+function VarSection({
+  title,
+  vars,
+  idPrefix,
+  onSet,
+  onRename,
+  onDelete,
+  shadowedKeys = [],
+  shadowLabel,
+}: VarSectionProps) {
   const [editCell, setEditCell] = useState<EditCell>(null);
   const [draft, setDraft] = useState('');
   const [addingKey, setAddingKey] = useState('');
@@ -114,24 +122,15 @@ export default function VarsPane({}: Props) {
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [pendingDelete, setPendingDelete] = useState<{ key: string } | null>(null);
 
-  if (!env) {
-    return (
-      <p className="p-4 text-center font-description text-[12px] text-app-dim">
-        Select a collection and create an environment to manage variables.
-      </p>
-    );
-  }
+  const shadowed = new Set(shadowedKeys);
 
   const commitEdit = () => {
     if (!editCell) return;
-    const trimmed = draft;
     if (editCell.field === 'value') {
-      dispatch(setVar({ envId: env.id, key: editCell.key, value: trimmed }));
+      onSet(editCell.key, draft);
     } else {
-      const newKey = trimmed.trim();
-      if (newKey && newKey !== editCell.key) {
-        dispatch(renameVar({ envId: env.id, oldKey: editCell.key, newKey }));
-      }
+      const newKey = draft.trim();
+      if (newKey && newKey !== editCell.key) onRename(editCell.key, newKey);
     }
     setEditCell(null);
   };
@@ -143,25 +142,31 @@ export default function VarsPane({}: Props) {
 
   const commitAdd = () => {
     const k = addingKey.trim();
-    if (k) dispatch(setVar({ envId: env.id, key: k, value: addingVal }));
+    if (k) onSet(k, addingVal);
     setAddingKey('');
     setAddingVal('');
     setShowAdding(false);
   };
 
-  const cancelAdd = () => { setShowAdding(false); setAddingKey(''); setAddingVal(''); };
+  const cancelAdd = () => {
+    setShowAdding(false);
+    setAddingKey('');
+    setAddingVal('');
+  };
+
+  const entries = Object.entries(vars);
 
   return (
-    <div className="p-2.5">
+    <section className="flex flex-col">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className={`${ui.label} truncate`}>{env.name} Variables</h2>
+        <h2 className={`${ui.label} truncate`}>{title}</h2>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={() => setShowAdding(true)}
               className={ui.iconBtn}
-              aria-label="Add variable"
+              aria-label={`Add variable to ${title}`}
             >
               <Plus size={14} aria-hidden="true" />
             </button>
@@ -170,12 +175,13 @@ export default function VarsPane({}: Props) {
         </Tooltip>
       </div>
 
-      <ul className={LIST}>
-        {Object.entries(env.vars).map(([k, v]) => {
+      <ul className={entries.length > 0 ? LIST : undefined}>
+        {entries.map(([k, v]) => {
           const isEditingKey = editCell?.key === k && editCell.field === 'key';
           const isEditingVal = editCell?.key === k && editCell.field === 'value';
           const sensitive = isSensitive(k);
           const show = revealed[k];
+          const isShadowed = shadowed.has(k);
           const display = sensitive && !show ? '•'.repeat(Math.min(v.length, 18)) : v;
           return (
             <li key={k} className={ROW}>
@@ -189,7 +195,7 @@ export default function VarsPane({}: Props) {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') commitEdit(); if (e.key === 'Escape') setEditCell(null); }}
                     onBlur={commitEdit}
                     aria-label={`Rename variable ${k}`}
-                    data-testid={`vars-pane-key-input-${k}`}
+                    data-testid={`${idPrefix}-key-input-${k}`}
                     className={CELL_INPUT}
                   />
                 ) : (
@@ -198,14 +204,23 @@ export default function VarsPane({}: Props) {
                       <button
                         type="button"
                         onClick={() => startEdit(k, 'key', k)}
-                        className="flex min-w-0 flex-1 items-center gap-1 rounded-sm border-0 bg-transparent p-0 text-left font-mono text-[11px] text-app-accent transition-colors duration-200 hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                        className={`flex min-w-0 flex-1 items-center gap-1 rounded-sm border-0 bg-transparent p-0 text-left font-mono text-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${isShadowed ? 'text-app-dim line-through' : 'text-app-accent hover:text-app-bright'}`}
                       >
                         <SquareDashedText size={11} aria-hidden="true" className="shrink-0" />
                         <span className="truncate">{`{{${k}}}`}</span>
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>{`{{${k}}} — click to rename`}</TooltipContent>
+                    <TooltipContent>
+                      {isShadowed
+                        ? `Overridden by ${shadowLabel ?? 'the active environment'} — click to rename`
+                        : `{{${k}}} — click to rename`}
+                    </TooltipContent>
                   </Tooltip>
+                )}
+                {isShadowed && (
+                  <span className={`${ui.meta} shrink-0 rounded-sm bg-app-hover px-1 text-[10px] uppercase tracking-[0.06em]`}>
+                    overridden
+                  </span>
                 )}
                 <ButtonGroup className={`${GROUP_BOX} ${ui.reveal}`}>
                   {sensitive && (
@@ -253,7 +268,7 @@ export default function VarsPane({}: Props) {
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') commitEdit(); if (e.key === 'Escape') setEditCell(null); }}
                   onBlur={commitEdit}
                   aria-label={`Value of ${k}`}
-                  data-testid={`vars-pane-value-input-${k}`}
+                  data-testid={`${idPrefix}-value-input-${k}`}
                   className={CELL_INPUT}
                 />
               ) : (
@@ -263,7 +278,7 @@ export default function VarsPane({}: Props) {
                       type="button"
                       onClick={() => startEdit(k, 'value', v)}
                       aria-label={`Edit value of ${k}`}
-                      className="w-full min-w-0 truncate rounded-sm border-0 bg-transparent p-0 text-left font-mono text-[11px] text-app-dim transition-colors duration-200 hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                      className={`w-full min-w-0 truncate rounded-sm border-0 bg-transparent p-0 text-left font-mono text-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${isShadowed ? 'text-app-dim' : 'text-app-dim hover:text-app-text'}`}
                     >
                       {display || <em className="opacity-60">empty</em>}
                     </button>
@@ -286,7 +301,7 @@ export default function VarsPane({}: Props) {
             value={addingKey}
             onChange={(e) => setAddingKey(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') cancelAdd(); }}
-            data-testid="vars-pane-new-key-input"
+            data-testid={`${idPrefix}-new-key-input`}
             className={CELL_INPUT}
           />
           <Input
@@ -296,7 +311,7 @@ export default function VarsPane({}: Props) {
             value={addingVal}
             onChange={(e) => setAddingVal(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') cancelAdd(); }}
-            data-testid="vars-pane-new-value-input"
+            data-testid={`${idPrefix}-new-value-input`}
             className={CELL_INPUT}
           />
           <div className="flex justify-end gap-1.5">
@@ -316,11 +331,136 @@ export default function VarsPane({}: Props) {
           message={`Delete variable "${pendingDelete.key}"? This can't be undone.`}
           confirmLabel="Delete"
           onConfirm={() => {
-            dispatch(deleteVar({ envId: env.id, key: pendingDelete.key }));
+            onDelete(pendingDelete.key);
             setPendingDelete(null);
           }}
           onClose={() => setPendingDelete(null)}
         />
+      )}
+    </section>
+  );
+}
+
+type VarSectionProps = {
+  /** Heading above the list, e.g. an environment's name. Also names the add
+   *  button and is not otherwise parsed. */
+  title: string;
+  /** The variables this section shows and edits, keyed by name. */
+  vars: Record<string, string>;
+  /** Prefix for every `data-testid` this section renders — keep it unique per
+   *  mounted section so the two lists never collide. */
+  idPrefix: string;
+  /** Upsert a variable. Fires on value-edit commit and on add commit (with a
+   *  trimmed, non-empty key).
+   *  @param key - variable name
+   *  @param value - new value, taken verbatim (not trimmed) */
+  onSet: (key: string, value: string) => void;
+  /** Rename a key. Fires on key-edit commit only when the trimmed draft is
+   *  non-empty and different from the old key.
+   *  @param oldKey - current name
+   *  @param newKey - trimmed new name */
+  onRename: (oldKey: string, newKey: string) => void;
+  /** Remove a variable. Fires after the delete is confirmed in
+   *  {@link ConfirmDialog}.
+   *  @param key - variable name to remove */
+  onDelete: (key: string) => void;
+  /** Keys in `vars` that a higher layer redefines — rendered struck through
+   *  with an "overridden" badge.
+   *  @defaultValue `[]` */
+  shadowedKeys?: string[];
+  /** Name of the layer that shadows `shadowedKeys`, shown in the row tooltip. */
+  shadowLabel?: string;
+};
+
+/**
+ * The Vars tab: every variable scope a script resolves, newest layer last.
+ * A global **Base** section (inherited by every environment in every
+ * collection) sits above the active environment's own variables; a key in the
+ * environment overrides the same key in Base. Activation, rename and count of
+ * environments themselves live one tab over in {@link EnvPane} — this pane
+ * only edits values.
+ *
+ * @remarks
+ * Status: stable — Type: pane
+ *
+ * State & behavior: holds no state itself — each {@link VarSection} owns its
+ * own edit/add/reveal/delete state. Base edits dispatch `setBaseVar` /
+ * `renameBaseVar` / `deleteBaseVar`; environment edits dispatch `setVar` /
+ * `renameVar` / `deleteVar` scoped to the active environment's id. The Base
+ * section passes the active environment's keys as `shadowedKeys` so overrides
+ * are visible.
+ *
+ * Variants: the Base section always renders. The environment section renders
+ * only when an environment is active; otherwise a one-line hint takes its
+ * place. Either list drops its border while empty.
+ *
+ * Composition: two stacked {@link VarSection}s separated by a divider. No
+ * dialog of its own — each section renders its own {@link ConfirmDialog} on a
+ * pending delete.
+ *
+ * Accessibility: each section is a `section` with its own `h2`. All controls
+ * are labelled by {@link VarSection}. The override badge is plain text, not an
+ * ARIA live region.
+ *
+ * Test ids: Base section ids are prefixed `vars-pane-base-*`, the environment
+ * section keeps `vars-pane-*` (key/value inputs `` `…-key-input-${key}` `` /
+ * `` `…-value-input-${key}` ``, add-row inputs `` `…-new-key-input` `` /
+ * `` `…-new-value-input` ``). Add/reveal/delete controls carry only
+ * `aria-label`.
+ *
+ * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ *
+ * Edge cases: with no collection or no environment active, only the Base
+ * section and the hint show — Base is still fully editable. A hydrated state
+ * with no `baseVars` key comes up with an empty Base section, not a crash.
+ *
+ * Dependencies: `lucide-react`, `react-redux`, `@/store/collectionsSlice`,
+ * and everything {@link VarSection} pulls in.
+ *
+ * @example
+ * ```tsx
+ * <VarsPane T={theme} />
+ * ```
+ *
+ * @see {@link EnvPane}
+ * @see {@link VarSection}
+ */
+export default function VarsPane({}: Props) {
+  const dispatch = useDispatch();
+  const env = useSelector(selectActiveEnv);
+  const baseVars = useSelector(selectBaseVars);
+
+  return (
+    <div className="flex flex-col gap-3 p-2.5">
+      <VarSection
+        title="Base · all environments"
+        vars={baseVars}
+        idPrefix="vars-pane-base"
+        onSet={(key, value) => dispatch(setBaseVar({ key, value }))}
+        onRename={(oldKey, newKey) => dispatch(renameBaseVar({ oldKey, newKey }))}
+        onDelete={(key) => dispatch(deleteBaseVar({ key }))}
+        shadowedKeys={env ? Object.keys(env.vars) : []}
+        shadowLabel={env?.name}
+      />
+
+      <hr className="border-app-border" />
+
+      {env ? (
+        <VarSection
+          title={`${env.name} Variables`}
+          vars={env.vars}
+          idPrefix="vars-pane"
+          onSet={(key, value) => dispatch(setVar({ envId: env.id, key, value }))}
+          onRename={(oldKey, newKey) =>
+            dispatch(renameVar({ envId: env.id, oldKey, newKey }))
+          }
+          onDelete={(key) => dispatch(deleteVar({ envId: env.id, key }))}
+        />
+      ) : (
+        <p className="font-description text-[12px] text-app-dim">
+          Select a collection and create an environment for environment-specific
+          variables.
+        </p>
       )}
     </div>
   );

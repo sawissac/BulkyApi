@@ -72,11 +72,27 @@ function applySnapshot(saved: Record<string, unknown> | PersistedShape) {
  * Edge cases: with no Supabase env vars the app stays local-only and this
  * component does nothing beyond the localforage load. `SIGNED_OUT` drops the
  * local cache so a shared browser does not leak the previous account's
- * collections into the next session.
+ * collections into the next session. `onAuthStateChange` re-fires `SIGNED_IN`
+ * for the same still-valid session on every tab `visibilitychange` (Supabase's
+ * own recovery check, not a real sign-in) — a native file picker triggers this
+ * in most browsers — so `syncedUserId` skips the remote pull unless the user
+ * actually changed; otherwise it would overwrite local edits the debounced
+ * remote save hasn't sent yet.
  */
 function HydrateStore() {
   useEffect(() => {
     let cancelled = false;
+
+    // Supabase re-emits `SIGNED_IN` for the same, still-valid session on every
+    // tab `visibilitychange` (its `_recoverAndRefresh` notifies `SIGNED_IN`
+    // whenever the stored session isn't expired, not only on a real sign-in) —
+    // and a native `<input type="file">` picker toggles that in most browsers.
+    // Treating each one as a fresh sign-in re-pulls and overwrites local state
+    // with whatever was last pushed, wiping out edits the debounced remote
+    // save (`REMOTE_DEBOUNCE_MS`) hasn't sent yet — e.g. the request list
+    // right after adding an item mid-run. `syncedUserId` lets the handler
+    // below skip the pull unless the user actually changed.
+    let syncedUserId: string | null = null;
 
     const syncFromRemote = async () => {
       store.dispatch(setSyncStatus('pulling'));
@@ -135,6 +151,7 @@ function HydrateStore() {
         store.dispatch(
           setSession({ userId: data.session.user.id, email: data.session.user.email ?? null })
         );
+        syncedUserId = data.session.user.id;
         await syncFromRemote();
       } else {
         store.dispatch(clearSession());
@@ -147,9 +164,15 @@ function HydrateStore() {
     const { data: sub } = supabase?.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         store.dispatch(setSession({ userId: session.user.id, email: session.user.email ?? null }));
+        // Same user already synced this session → this is the visibility-driven
+        // re-notification, not a real sign-in. Skip the pull so it can't clobber
+        // local edits that haven't reached the server yet.
+        if (syncedUserId === session.user.id) return;
+        syncedUserId = session.user.id;
         syncFromRemote();
       }
       if (event === 'SIGNED_OUT') {
+        syncedUserId = null;
         closeRemoteSync();
         store.dispatch(clearSession());
         clearPersistedState();

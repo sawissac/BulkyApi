@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -27,6 +27,7 @@ import { EXAMPLE_SCRIPTS } from "@/lib/sampleData";
 import type { ExampleScript } from "@/lib/sampleData";
 import MethodPill from "@/components/MethodPill";
 import ExampleDialog from "./ExampleDialog";
+import EditorEmptyState from "./EditorEmptyState";
 import { Input } from "@/components/ui/input";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -98,54 +99,64 @@ type Props = {
  * @remarks
  * Status: stable — Type: panel
  *
- * State & behavior: `openMenu` gates one of two breadcrumb dropdowns
- * (collection/request pickers) — only one is open at a time, positioned via
- * `menuPos` computed from the trigger's `getBoundingClientRect()` on open.
- * The footer's Examples menu is a separate, self-contained `examplesOpen`
- * flag driving a Radix {@link Popover} instead of that manual positioning.
- * `renaming`/`renameDraft` swap the breadcrumb's collection or request name
- * for an inline `Input`, committed on blur/Enter, discarded on Escape.
- * `selectedExample` gates {@link ExampleDialog} once a menu entry is picked.
- * Format runs Prettier on the current code and falls back to Monaco's own
- * format action if Prettier throws (e.g. code that doesn't parse as a
- * module).
+ * State & behavior: each breadcrumb segment is split into a label button and
+ * a trailing chevron button. Clicking the label starts an inline rename;
+ * clicking the chevron opens that segment's picker. `openMenu`
+ * (`"coll" | "item" | null`) gates the two pickers, one open at a time, each
+ * a Radix {@link Popover} that owns its own positioning, outside-click and
+ * Escape. The footer's Examples menu is a separate, self-contained
+ * `examplesOpen` flag driving its own {@link Popover}. `renaming`/
+ * `renameDraft` swap the segment's collection or request name for an inline
+ * `Input`, committed on blur/Enter, discarded on Escape. `selectedExample`
+ * gates {@link ExampleDialog} once a menu entry is picked. Format runs
+ * Prettier's `babel-ts` parser on the current code — the buffer is
+ * TypeScript — and falls back to Monaco's own format action if Prettier
+ * throws (e.g. code that doesn't parse as a module).
  *
- * Variants: renders "Scratch Pad" in the breadcrumb instead of a
- * collection/request pair when no item is active.
+ * Variants: with no collection at all, the whole panel is replaced by
+ * {@link EditorEmptyState} — no toolbar, editor or status bar. With at least
+ * one collection but no active item, renders "Scratch Pad" in the breadcrumb
+ * instead of a collection/request pair.
  *
  * Composition: renders {@link MonacoCodeEditor} (dynamically imported,
  * `ssr: false`) for the editor body and {@link ExampleDialog} for the
  * selected example's preview. Each breadcrumb segment renders as an
- * input-styled label (`bg-app-hover`, matching the {@link Input} recipe)
- * with a trailing `ChevronDown`, signaling it opens a dropdown rather than
- * navigating like a link; the two segments are joined by a literal `/`
- * separator instead of an arrow, reading as a path. The collection segment's
- * picker lists every collection and jumps to its first request (collections
- * with none are disabled); the request segment's picker lists only the
- * active collection's requests. The footer status bar (not the top toolbar)
+ * input-styled shell (`bg-app-hover`, matching the {@link Input} recipe)
+ * holding two buttons split by a hairline divider: a text label that starts
+ * an inline rename, and a `ChevronDown` button that opens the segment's
+ * picker. The two segments are joined by a literal `/` separator instead of
+ * an arrow, reading as a path. Both pickers are a `Popover`
+ * (`@/components/ui/popover`) anchored to their chevron and styled to match
+ * the footer's Examples menu — rows in a vertical `ButtonGroup` inside a
+ * `p-0` `PopoverContent`. The collection picker lists every collection and
+ * jumps to its first request (collections with none are disabled); the
+ * request picker lists only the active collection's requests, each behind a
+ * small {@link MethodPill}. The footer status bar (not the top toolbar)
  * leads with the
  * active item's {@link MethodPill} (omitted for Scratch Pad), then Format
  * and Examples — grouped for spacing only, borderless so the group reads as
  * embedded in the bar rather than a floating segmented block. Examples opens
- * a `Popover` (`@/components/ui/popover`) anchored to its trigger, listing
- * each {@link ExampleScript} behind a small {@link MethodPill} inside a
- * vertical `ButtonGroup`; picking one closes the popover and opens
- * {@link ExampleDialog} for that script. The footer's language label sits
- * beside the runtime label, joined by `·`.
+ * a `Popover` anchored to its trigger, listing each {@link ExampleScript}
+ * behind a small {@link MethodPill} inside a vertical `ButtonGroup`; picking
+ * one closes the popover and opens {@link ExampleDialog} for that script. The
+ * footer's language label —
+ * TypeScript, type-stripped to JavaScript at run time — sits beside the
+ * runtime label, joined by `·`.
  *
- * Accessibility: the breadcrumb pickers carry `aria-haspopup="menu"` and
- * `aria-expanded`; each breadcrumb dropdown itself is `role="menu"` with
- * `role="menuitem"` entries, and Escape closes whichever one is open and
- * returns focus to its trigger. The Examples trigger carries
- * `aria-expanded` only — Radix's `Popover` supplies its own
- * `aria-haspopup`/`aria-controls` wiring and Escape/outside-click dismissal.
+ * Accessibility: each segment's rename label is a plain button with a
+ * tooltip; the chevron button carries an explicit `aria-label` ("Switch
+ * collection" / "Switch request") and `aria-expanded`. All three menus —
+ * both breadcrumb pickers and Examples — are Radix `Popover`s, which supply
+ * their own `aria-haspopup`/`aria-controls` wiring and Escape/outside-click
+ * dismissal with focus returned to the trigger. Picker rows are plain
+ * buttons reachable by their visible name.
  *
  * Test ids: breadcrumb rename fields
  * `code-editor-rename-collection-input` / `code-editor-rename-item-input`
- * (single instance each, via the shared `Input`). The breadcrumb triggers,
- * toolbar buttons, and dropdown/popover entries carry no testid — all are
- * reachable by role and their own (static or, for the breadcrumb triggers,
- * dynamic but singular) accessible name.
+ * (single instance each, via the shared `Input`). The breadcrumb label and
+ * chevron buttons, toolbar buttons, and popover entries carry no testid —
+ * all are reachable by role and their own (static or, for the rename
+ * labels, dynamic but singular) accessible name.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
@@ -158,7 +169,8 @@ type Props = {
  * standalone` + `plugins/babel` + `plugins/estree`, `@/components/
  * MethodPill`, `@/components/ui/input`, `@/components/ui/button-group`,
  * `@/components/ui/tooltip`, `@/components/ui/popover`, `./ExampleDialog`,
- * `./MonacoCodeEditor`, `@/store/editorSlice`, `@/store/collectionsSlice`,
+ * `./EditorEmptyState`, `./MonacoCodeEditor`, `@/store/editorSlice`,
+ * `@/store/collectionsSlice`,
  * `@/lib/sampleData`.
  *
  * @example
@@ -188,37 +200,13 @@ export default function CodeEditor({
   const collections = useSelector(selectCollections);
   const envVars = useSelector(selectEnvVars);
   const monacoEditorRef = useRef<EditorInstance | null>(null);
-  const collBtnRef = useRef<HTMLButtonElement>(null);
-  const itemBtnRef = useRef<HTMLButtonElement>(null);
   const [openMenu, setOpenMenu] = useState<"coll" | "item" | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
-    null,
-  );
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [selectedExample, setSelectedExample] = useState<ExampleScript | null>(
     null,
   );
   const [renaming, setRenaming] = useState<"coll" | "item" | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-
-  /** Opens the breadcrumb's collection/request picker anchored under `ref`,
-   *  or closes it if already open. The toolbar's Examples menu is a
-   *  {@link Popover} instead and manages its own open state. */
-  const openDropdown = (
-    kind: "coll" | "item",
-    ref: React.RefObject<HTMLButtonElement | null>,
-  ) => {
-    if (openMenu === kind) {
-      setOpenMenu(null);
-      return;
-    }
-    const el = ref.current;
-    if (el) {
-      const r = el.getBoundingClientRect();
-      setMenuPos({ top: r.bottom + 4, left: r.left });
-    }
-    setOpenMenu(kind);
-  };
 
   const selectCollectionRow = (col: (typeof collections)[number]) => {
     const first = col.items[0];
@@ -254,26 +242,10 @@ export default function CodeEditor({
     setRenaming(null);
   };
 
-  // Escape closes whichever breadcrumb dropdown is open — none had keyboard
-  // dismissal before. The Examples Popover handles its own Escape via Radix.
-  useEffect(() => {
-    if (!openMenu) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        const kind = openMenu;
-        setOpenMenu(null);
-        if (kind === "coll") collBtnRef.current?.focus();
-        if (kind === "item") itemBtnRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openMenu]);
-
   const handleFormat = async () => {
     try {
       const formatted = await prettier.format(code, {
-        parser: "babel",
+        parser: "babel-ts",
         plugins: [babelPlugin, estreePlugin],
         singleQuote: true,
         printWidth: 80,
@@ -286,6 +258,8 @@ export default function CodeEditor({
     }
   };
 
+  if (collections.length === 0) return <EditorEmptyState />;
+
   return (
     <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-app-editor">
       {/* Toolbar */}
@@ -296,50 +270,109 @@ export default function CodeEditor({
           aria-hidden="true"
         />
 
-        {/* Breadcrumb — collection and request are both a dropdown picker on
-            click and an inline rename field on double-click. */}
+        {/* Breadcrumb — each segment splits a rename label (click) from a
+            chevron that opens its picker Popover. */}
         {activeItem && activeCollection ? (
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
             {renaming === "coll" ? (
-              <Input
-                autoFocus
-                icon={Feather}
-                value={renameDraft}
-                onChange={(e) => setRenameDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename();
-                  if (e.key === "Escape") setRenaming(null);
-                }}
-                onBlur={commitRename}
-                aria-label={`Rename ${activeCollection.name}`}
-                data-testid="code-editor-rename-collection-input"
-                className="max-w-[120px] shrink-0 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em]"
-              />
+              <div className="w-[180px] shrink-0">
+                <Input
+                  autoFocus
+                  icon={Feather}
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") setRenaming(null);
+                  }}
+                  onBlur={commitRename}
+                  aria-label={`Rename ${activeCollection.name}`}
+                  data-testid="code-editor-rename-collection-input"
+                  className="py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em]"
+                />
+              </div>
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    ref={collBtnRef}
-                    type="button"
-                    onClick={() => openDropdown("coll", collBtnRef)}
-                    onDoubleClick={() => startRename("coll")}
-                    aria-haspopup="menu"
-                    aria-expanded={openMenu === "coll"}
-                    data-active={openMenu === "coll" || undefined}
-                    className="flex max-w-[100px] shrink-0 items-center gap-1 rounded-md border-2 border-transparent bg-app-hover px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-app-dim transition-colors duration-200 hover:text-app-accent focus-visible:outline-none focus-visible:border-app-accent data-active:border-app-accent data-active:text-app-accent"
+              <Popover
+                open={openMenu === "coll"}
+                onOpenChange={(o) =>
+                  setOpenMenu((prev) =>
+                    o ? "coll" : prev === "coll" ? null : prev,
+                  )
+                }
+              >
+                <div
+                  data-active={openMenu === "coll" || undefined}
+                  className="flex shrink-0 items-center overflow-hidden rounded-md border-2 border-transparent bg-app-hover text-app-dim transition-colors duration-200 focus-within:border-app-accent data-active:border-app-accent data-active:text-app-accent"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => startRename("coll")}
+                        className="max-w-[110px] py-1 pl-2 pr-1 text-left text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors duration-200 hover:text-app-accent focus-visible:text-app-accent focus-visible:outline-none"
+                      >
+                        <span className="block truncate">
+                          {activeCollection.name}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Click to rename collection</TooltipContent>
+                  </Tooltip>
+                  <span
+                    className="my-1 w-px self-stretch bg-app-border-mid"
+                    aria-hidden="true"
+                  />
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Switch collection"
+                      aria-expanded={openMenu === "coll"}
+                      className="flex items-center self-stretch px-1 transition-colors duration-200 hover:text-app-accent focus-visible:text-app-accent focus-visible:outline-none"
+                    >
+                      <ChevronDown
+                        size={12}
+                        className="opacity-70"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </PopoverTrigger>
+                </div>
+                <PopoverContent
+                  align="start"
+                  aria-label="Switch collection"
+                  className="p-0"
+                >
+                  <ButtonGroup
+                    orientation="vertical"
+                    className="w-full flex-col gap-0"
                   >
-                    <span className="truncate">{activeCollection.name}</span>
-                    <ChevronDown
-                      size={10}
-                      className="shrink-0 opacity-60"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Click to switch collection, double-click to rename
-                </TooltipContent>
-              </Tooltip>
+                    {collections.map((col) => {
+                      const empty = col.items.length === 0;
+                      return (
+                        <button
+                          key={col.id}
+                          type="button"
+                          disabled={empty}
+                          onClick={() => selectCollectionRow(col)}
+                          data-active={
+                            col.id === activeCollection?.id || undefined
+                          }
+                          className="flex w-full items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-200 hover:bg-app-accent-faint hover:text-app-accent focus-visible:bg-app-accent-faint focus-visible:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent disabled:pointer-events-none disabled:opacity-40 data-active:bg-app-accent-faint data-active:text-app-accent"
+                        >
+                          <FolderOpen
+                            size={13}
+                            aria-hidden="true"
+                            className="shrink-0 text-app-dim"
+                          />
+                          <span className="min-w-0 flex-1 truncate text-[12px] text-app-text">
+                            {col.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </ButtonGroup>
+                </PopoverContent>
+              </Popover>
             )}
             <span
               className="shrink-0 select-none text-[12px] text-app-dim"
@@ -348,45 +381,96 @@ export default function CodeEditor({
               /
             </span>
             {renaming === "item" ? (
-              <Input
-                autoFocus
-                icon={Feather}
-                value={renameDraft}
-                onChange={(e) => setRenameDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename();
-                  if (e.key === "Escape") setRenaming(null);
-                }}
-                onBlur={commitRename}
-                aria-label={`Rename ${activeItem.name}`}
-                data-testid="code-editor-rename-item-input"
-                className="min-w-0 flex-1 py-0.5 text-[12px]"
-              />
+              <div className="w-[180px] shrink-0">
+                <Input
+                  autoFocus
+                  icon={Feather}
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") setRenaming(null);
+                  }}
+                  onBlur={commitRename}
+                  aria-label={`Rename ${activeItem.name}`}
+                  data-testid="code-editor-rename-item-input"
+                  className="py-0.5 text-[12px]"
+                />
+              </div>
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    ref={itemBtnRef}
-                    type="button"
-                    onClick={() => openDropdown("item", itemBtnRef)}
-                    onDoubleClick={() => startRename("item")}
-                    aria-haspopup="menu"
-                    aria-expanded={openMenu === "item"}
-                    data-active={openMenu === "item" || undefined}
-                    className="flex max-w-[100px] shrink-0 items-center gap-1 rounded-md border-2 border-transparent bg-app-hover px-2 py-1 text-left text-[12px] font-bold tracking-[0.02em] text-app-bright transition-colors duration-200 hover:text-app-accent focus-visible:outline-none focus-visible:border-app-accent data-active:border-app-accent data-active:text-app-accent"
+              <Popover
+                open={openMenu === "item"}
+                onOpenChange={(o) =>
+                  setOpenMenu((prev) =>
+                    o ? "item" : prev === "item" ? null : prev,
+                  )
+                }
+              >
+                <div
+                  data-active={openMenu === "item" || undefined}
+                  className="flex min-w-0 items-center overflow-hidden rounded-md border-2 border-transparent bg-app-hover text-app-bright transition-colors duration-200 focus-within:border-app-accent data-active:border-app-accent data-active:text-app-accent"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => startRename("item")}
+                        className="min-w-0 py-1 pl-2 pr-1 text-left text-[12px] font-bold tracking-[0.02em] transition-colors duration-200 hover:text-app-accent focus-visible:text-app-accent focus-visible:outline-none"
+                      >
+                        <span className="block truncate">
+                          {activeItem.name}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Click to rename request</TooltipContent>
+                  </Tooltip>
+                  <span
+                    className="my-1 w-px self-stretch bg-app-border-mid"
+                    aria-hidden="true"
+                  />
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Switch request"
+                      aria-expanded={openMenu === "item"}
+                      className="flex items-center self-stretch px-1 transition-colors duration-200 hover:text-app-accent focus-visible:text-app-accent focus-visible:outline-none"
+                    >
+                      <ChevronDown
+                        size={12}
+                        className="opacity-70"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </PopoverTrigger>
+                </div>
+                <PopoverContent
+                  align="start"
+                  aria-label="Switch request"
+                  className="p-0"
+                >
+                  <ButtonGroup
+                    orientation="vertical"
+                    className="w-full flex-col gap-0"
                   >
-                    <span className="truncate">{activeItem.name}</span>
-                    <ChevronDown
-                      size={10}
-                      className="shrink-0 opacity-60"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Click to switch request, double-click to rename
-                </TooltipContent>
-              </Tooltip>
+                    {activeCollection?.items.map((it) => (
+                      <button
+                        key={it.id}
+                        type="button"
+                        onClick={() => selectItemRow(it)}
+                        data-active={it.id === activeItem?.id || undefined}
+                        className="flex w-full items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-200 hover:bg-app-accent-faint hover:text-app-accent focus-visible:bg-app-accent-faint focus-visible:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent data-active:bg-app-accent-faint data-active:text-app-accent"
+                      >
+                        <span className="flex w-11 shrink-0 justify-center">
+                          <MethodPill method={it.method} sm focusable={false} />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[12px] text-app-text">
+                          {it.name}
+                        </span>
+                      </button>
+                    ))}
+                  </ButtonGroup>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
         ) : (
@@ -453,69 +537,6 @@ export default function CodeEditor({
         />
       </div>
 
-      {/* Breadcrumb dropdowns — collection/request pickers; only one open at
-          a time. The Examples menu lives in its own Popover in the footer. */}
-      {openMenu && menuPos && (
-        <>
-          <div
-            className="fixed inset-0 z-49"
-            onClick={() => setOpenMenu(null)}
-          />
-          <div
-            role="menu"
-            aria-label={
-              openMenu === "coll" ? "Switch collection" : "Switch request"
-            }
-            style={{ top: menuPos.top, left: menuPos.left }}
-            className="fixed z-50 max-h-[60vh] min-w-[230px] overflow-y-auto rounded-lg border-2 border-app-border-mid bg-app-panel p-1"
-          >
-            {openMenu === "coll" &&
-              collections.map((col) => {
-                const empty = col.items.length === 0;
-                return (
-                  <button
-                    key={col.id}
-                    type="button"
-                    role="menuitem"
-                    disabled={empty}
-                    onClick={() => selectCollectionRow(col)}
-                    data-active={col.id === activeCollection?.id || undefined}
-                    className="flex w-full items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-200 hover:bg-app-hover focus-visible:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent disabled:pointer-events-none disabled:opacity-40 data-active:bg-app-accent-faint data-active:text-app-accent"
-                  >
-                    <FolderOpen
-                      size={13}
-                      aria-hidden="true"
-                      className="shrink-0 text-app-dim"
-                    />
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-app-text">
-                      {col.name}
-                    </span>
-                  </button>
-                );
-              })}
-
-            {openMenu === "item" &&
-              activeCollection?.items.map((it) => (
-                <button
-                  key={it.id}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => selectItemRow(it)}
-                  data-active={it.id === activeItem?.id || undefined}
-                  className="flex w-full items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-200 hover:bg-app-hover focus-visible:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent data-active:bg-app-accent-faint data-active:text-app-accent"
-                >
-                  <span className="flex w-11 shrink-0 justify-center">
-                    <MethodPill method={it.method} sm focusable={false} />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-app-text">
-                    {it.name}
-                  </span>
-                </button>
-              ))}
-          </div>
-        </>
-      )}
-
       {/* Example preview dialog */}
       {selectedExample && (
         <ExampleDialog
@@ -530,7 +551,7 @@ export default function CodeEditor({
       )}
 
       {/* Status bar */}
-      <div className="flex min-w-0 shrink-0 items-center gap-2 border-t border-app-border bg-app-panel px-3 py-1.5">
+      <div className="flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-app-border bg-app-panel px-3">
         {activeItem && <MethodPill method={activeItem.method} sm />}
 
         <ButtonGroup className={GROUP_BOX}>
@@ -586,13 +607,12 @@ export default function CodeEditor({
               </ButtonGroup>
             </PopoverContent>
           </Popover>
-
         </ButtonGroup>
 
         <span className="flex-1" />
         <span className="shrink-0 text-[11px] text-app-dim">
-          JavaScript <span className="text-app-border-mid">·</span>{" "}
-          <span className="text-app-accent-dim">Bulky Runtime v1.0</span>
+          TypeScript <span className="text-app-border-mid">·</span>{" "}
+          <span className="text-app-accent-dim">Bulky Runtime v2.0</span>
         </span>
       </div>
     </div>

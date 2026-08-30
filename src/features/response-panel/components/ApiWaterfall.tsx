@@ -1,32 +1,89 @@
 'use client';
 
 import { useSelector } from 'react-redux';
-import { Code2 } from 'lucide-react';
 import type { Theme } from '@/lib/themes';
-import { statusColor, METHOD_CLR } from '@/lib/themes';
+import { statusColor, methodColor } from '@/lib/themes';
 import { selectBuiltCalls, selectRunStartedAt } from '@/store/runnerSlice';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type Props = { T: Theme };
+type Props = {
+  /** Active theme. Every color in the chart is read from it — this component
+   *  styles inline rather than through Tailwind tokens. */
+  T: Theme;
+};
 
+/**
+ * Timeline view of a run: one bar per `api.*` call, positioned by when it
+ * started and sized by how long it took.
+ *
+ * @remarks
+ * Status: stable — Type: chart
+ *
+ * State & behavior: no local state. Bars are laid out against an origin taken
+ * from the earliest call of the current run, so the first bar always begins at
+ * the left edge; a call replayed from cache carries a stamp older than the run
+ * and clamps to 0 instead of moving that origin. Bar width is a percentage of
+ * the run's total span, floored at 1% so a sub-millisecond call stays visible;
+ * a pending call instead stretches to the right edge and pulses.
+ *
+ * Variants: an idle (analyzed, not yet run) call draws in the border color at
+ * 0.2 opacity; a completed or pending one in the theme accent; a failed one in
+ * the error color. The status-code chip keeps the green/amber/red outcome color.
+ *
+ * Composition: each row is a `Tooltip` trigger showing the full method, URL,
+ * status and duration — the row itself truncates the URL to its last 36
+ * characters. A total row follows the chart once any call has a duration.
+ *
+ * Accessibility: rows are non-interactive; the tooltip carries the detail that
+ * truncation drops.
+ *
+ * Test ids: none.
+ *
+ * CSS classes: the chart itself is inline styles over the theme object, plus
+ * the shared `pulse` keyframes for pending bars; the empty state is the shared
+ * `p-4 text-center font-description text-[12px] text-app-dim` recipe used by the
+ * call list and docs view.
+ *
+ * Edge cases: with no calls, renders the "No api.* calls found in script"
+ * placeholder — same markup as the call list and {@link ApiDocs} empty states.
+ * A run whose calls all lack timestamps falls back to the run's own start,
+ * which puts every bar at 0.
+ *
+ * Dependencies: `react-redux`, `@/store/runnerSlice`, `@/lib/themes`,
+ * `@/components/ui/tooltip`.
+ *
+ * @example
+ * ```tsx
+ * <ApiWaterfall T={theme} />
+ * ```
+ */
 export default function ApiWaterfall({ T }: Props) {
   const calls = useSelector(selectBuiltCalls);
   const runStartedAt = useSelector(selectRunStartedAt);
 
   if (calls.length === 0) {
     return (
-      <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, opacity: 0.3 }}>
-        <Code2 size={32} color={T.textDim} strokeWidth={1} />
-        <span style={{ fontFamily: 'var(--font-description)', fontSize: 11, color: T.textDim }}>No api.* calls found in script</span>
-      </div>
+      <p className="p-4 text-center font-description text-[12px] text-app-dim">
+        No api.* calls found in script
+      </p>
     );
   }
 
   const runStart = runStartedAt ?? 0;
 
+  // The timeline starts at the first call, not at the Run click: analyzing and
+  // transpiling the script happens in between and is not a request, so anchoring
+  // to the click leaves the first bar floating in dead space. Stamps older than
+  // the run are replayed from cache — they keep clamping to 0 rather than
+  // dragging the origin back to a previous run.
+  const stamps = calls
+    .map((c) => (c.timestamp ? new Date(c.timestamp).getTime() : null))
+    .filter((t): t is number => t !== null && t >= runStart);
+  const origin = stamps.length > 0 ? Math.min(...stamps) : runStart;
+
   // Compute timeline extents
   const rows = calls.map((c) => {
-    const startMs = c.timestamp ? Math.max(0, new Date(c.timestamp).getTime() - runStart) : 0;
+    const startMs = c.timestamp ? Math.max(0, new Date(c.timestamp).getTime() - origin) : 0;
     const endMs = startMs + (c.duration || 0);
     return { call: c, startMs, endMs };
   });
@@ -54,8 +111,12 @@ export default function ApiWaterfall({ T }: Props) {
         {rows.map(({ call, startMs, endMs }, i) => {
           const barLeft = (startMs / totalMs) * 100;
           const barWidth = Math.max(((endMs - startMs) / totalMs) * 100, call.status === 'pending' ? 100 - barLeft : 1);
-          const mc = METHOD_CLR[call.method] ?? T.textDim;
+          const mc = methodColor(call.method, T);
           const sc = call.status === 'idle' ? T.border : call.status === 'pending' ? T.cyan : statusColor(call.statusCode, T);
+          // The bar tracks the theme accent, not the HTTP status — only a failed
+          // call breaks to the error color so it still stands out. The status
+          // code chip below keeps `sc` (green/amber/red) as the outcome signal.
+          const barColor = call.status === 'idle' ? T.border : call.status === 'error' ? T.error : T.cyan;
           const isPending = call.status === 'pending';
 
           const urlDisplay = call.url.length > 38 ? '…' + call.url.slice(-36) : call.url;
@@ -107,7 +168,7 @@ export default function ApiWaterfall({ T }: Props) {
                         left: `${barLeft}%`,
                         width: `${barWidth}%`,
                         height: '100%',
-                        background: sc,
+                        background: barColor,
                         borderRadius: 3,
                         opacity: call.status === 'idle' ? 0.2 : 0.75,
                         animation: isPending ? 'pulse 0.8s ease-in-out infinite' : undefined,

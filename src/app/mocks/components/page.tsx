@@ -488,8 +488,9 @@ function TweaksPanelPreview({ T }: { T: Theme }) {
  * `mocks-components-page-monaco-mount-button`.
  *
  * Edge cases:
- * - `EnvPane` / `VarsPane` render their empty states when the seeded store has
- *   no active collection or environment.
+ * - `EnvPane` renders its empty state when the seeded store has no active
+ *   collection; `VarsPane` still shows its editable Base section and only
+ *   swaps a hint line in for the environment section.
  * - Monaco is loaded through `next/dynamic` with `ssr: false`; until its button
  *   is pressed nothing from `monaco-editor` is downloaded.
  *

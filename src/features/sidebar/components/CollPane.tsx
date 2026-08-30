@@ -9,9 +9,9 @@ import {
   Trash2,
   FolderPlus,
   Download,
-  Pencil,
   Feather,
   Blend,
+  Workflow,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { CollectionItem } from "@/lib/sampleData";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/tooltip";
 import NewCollectionDialog from "./NewCollectionDialog";
 import ImportCollectionDialog from "./ImportCollectionDialog";
+import CollectionHooksDialog from "./CollectionHooksDialog";
 import {
   setActiveId,
   selectActiveId,
@@ -41,6 +42,7 @@ import {
   removeItem,
   renameItem,
   setItemMethod,
+  setCollectionHook,
 } from "@/store/collectionsSlice";
 import { setCode } from "@/store/editorSlice";
 
@@ -82,21 +84,26 @@ const LIST =
  * name is being edited, swapping that name for an `Input` committed on
  * Enter/blur, discarded on Escape. `newCollOpen` gates
  * {@link NewCollectionDialog}, `importOpen` gates
- * {@link ImportCollectionDialog}. `pendingDelete` gates {@link ConfirmDialog}
+ * {@link ImportCollectionDialog}, `hooksFor` gates
+ * {@link CollectionHooksDialog} and carries the target collection's id, name
+ * and current hook scripts. `pendingDelete` gates {@link ConfirmDialog}
  * for both a collection (cascades to all its items) and a single item —
  * delete never fires directly from a row. Selecting an item dispatches both
  * `setActiveId` and `setCode` so the editor follows the click.
  *
- * Variants: none — an empty `collections` array simply renders an empty
- * `LIST` card.
+ * Variants: an empty `collections` array skips the `LIST` card's border
+ * entirely — an empty bordered box would render as a bare line under the
+ * header — leaving just the header row.
  *
  * Composition: renders {@link NewCollectionDialog}, {@link
- * ImportCollectionDialog}, and {@link ConfirmDialog} as needed. Collections
- * are one bordered `LIST` card with `divide-y` separators between
- * collections, rather than gapped, individually-margined blocks; each
- * collection's header and its own item rows share one flush block. Header
- * actions (rename, add item, delete) and per-item delete are grouped into
- * `ButtonGroup`s, revealed on hover/focus via `ui.reveal`/`ROW_ACTION`.
+ * ImportCollectionDialog}, {@link CollectionHooksDialog} and
+ * {@link ConfirmDialog} as needed. Collections are one bordered `LIST` card
+ * with `divide-y` separators between collections, rather than gapped,
+ * individually-margined blocks; each collection's header and its own item
+ * rows share one flush block. Header actions (rename, add item, run hooks,
+ * delete) and per-item delete are grouped into `ButtonGroup`s, revealed on
+ * hover/focus via `ui.reveal`/`ROW_ACTION`. The run-hooks control shows an
+ * accent dot when that collection has a non-empty pre-run or post-run script.
  *
  * Accessibility: the expand/collapse toggle carries `aria-expanded`; the
  * active item's select button carries `aria-current`. All icon-only
@@ -104,7 +111,8 @@ const LIST =
  *
  * Test ids: collection rename `coll-pane-rename-collection-input`, item
  * rename `coll-pane-rename-item-input` (single instance each — only one row
- * across the whole tree can be in edit mode at a time).
+ * across the whole tree can be in edit mode at a time); per-collection
+ * run-hooks control `` `coll-pane-hooks-button-${collectionId}` ``.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
@@ -115,8 +123,8 @@ const LIST =
  * `@/components/ConfirmDialog`, `@/components/ui/input`,
  * `@/components/ui/button`, `@/components/ui/button-group`,
  * `@/components/ui/tooltip`, `./NewCollectionDialog`,
- * `./ImportCollectionDialog`, `@/store/collectionsSlice`,
- * `@/store/editorSlice`.
+ * `./ImportCollectionDialog`, `./CollectionHooksDialog`,
+ * `@/store/collectionsSlice`, `@/store/editorSlice`.
  *
  * @example
  * ```tsx
@@ -138,6 +146,12 @@ export default function CollPane({}: Props) {
   const [draft, setDraft] = useState("");
   const [newCollOpen, setNewCollOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [hooksFor, setHooksFor] = useState<{
+    id: string;
+    name: string;
+    preRun: string;
+    postRun: string;
+  } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<
     | { kind: "coll"; id: string; name: string }
     | { kind: "item"; collectionId: string; itemId: string; name: string }
@@ -209,7 +223,7 @@ export default function CollPane({}: Props) {
         </ButtonGroup>
       </div>
 
-      <div className={LIST}>
+      <div className={collections.length > 0 ? LIST : undefined}>
         {collections.map((col) => (
           <div key={col.id}>
             {/* Collection header — a solid block, not a bordered strip */}
@@ -272,7 +286,7 @@ export default function CollPane({}: Props) {
                       aria-label={`Rename ${col.name}`}
                       className={GROUP_BTN}
                     >
-                      <Pencil size={12} aria-hidden="true" />
+                      <Feather size={12} aria-hidden="true" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Rename</TooltipContent>
@@ -291,6 +305,43 @@ export default function CollPane({}: Props) {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Add request</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() =>
+                        setHooksFor({
+                          id: col.id,
+                          name: col.name,
+                          preRun: col.preRun ?? "",
+                          postRun: col.postRun ?? "",
+                        })
+                      }
+                      aria-label={`Edit run hooks for ${col.name}`}
+                      data-testid={`coll-pane-hooks-button-${col.id}`}
+                      className={`${GROUP_BTN} relative ${
+                        col.preRun?.trim() || col.postRun?.trim()
+                          ? "text-app-accent hover:text-app-accent"
+                          : ""
+                      }`}
+                    >
+                      <Workflow size={12} aria-hidden="true" />
+                      {(col.preRun?.trim() || col.postRun?.trim()) && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-app-accent"
+                        />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {col.preRun?.trim() || col.postRun?.trim()
+                      ? "Run hooks (set)"
+                      : "Run hooks"}
+                  </TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -417,6 +468,32 @@ export default function CollPane({}: Props) {
         <ImportCollectionDialog
           onImport={handleImportJson}
           onClose={() => setImportOpen(false)}
+        />
+      )}
+
+      {hooksFor && (
+        <CollectionHooksDialog
+          collectionName={hooksFor.name}
+          preRun={hooksFor.preRun}
+          postRun={hooksFor.postRun}
+          onSave={({ preRun, postRun }) => {
+            dispatch(
+              setCollectionHook({
+                collectionId: hooksFor.id,
+                hook: "preRun",
+                code: preRun,
+              }),
+            );
+            dispatch(
+              setCollectionHook({
+                collectionId: hooksFor.id,
+                hook: "postRun",
+                code: postRun,
+              }),
+            );
+            setHooksFor(null);
+          }}
+          onClose={() => setHooksFor(null)}
         />
       )}
 

@@ -29,8 +29,6 @@ export default function ApiDocs({ T, calls }: Props) {
   const [viewMode, setViewMode] = useState<'view' | 'raw'>('view');
 
   const markdown = useMemo(() => {
-    if (calls.length === 0) return '# API Documentation\n\nNo API calls found.';
-
     let md = '# API Documentation\n\n';
 
     calls.forEach((c) => {
@@ -68,6 +66,14 @@ export default function ApiDocs({ T, calls }: Props) {
 
     return md;
   }, [calls]);
+
+  if (calls.length === 0) {
+    return (
+      <p className="p-4 text-center font-description text-[12px] text-app-dim">
+        No api.* calls found in script
+      </p>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
