@@ -89,6 +89,60 @@ interface BulkyStream {
   ): Promise<BulkyStreamResult>;
 }
 
+interface BulkyWsOpts {
+  /** Sub-protocol(s) for the WS handshake. A browser socket can't set custom
+   *  headers on the upgrade request, so this is the only connection option. */
+  protocols?: string | string[];
+}
+
+interface BulkyIoOpts {
+  path?: string;
+  query?: Record<string, string>;
+  auth?: Record<string, unknown>;
+  transports?: string[];
+  [key: string]: unknown;
+}
+
+/** One sent/received frame, or an \`open\`/\`close\`/\`error\` lifecycle row —
+ *  also what streams live onto the call's Response tab as it happens. */
+interface BulkyWsEvent {
+  direction: 'in' | 'out' | 'system';
+  /** Socket.IO event name; \`"message"\` for a raw WS text frame; \`"open"\` /
+   *  \`"close"\` / \`"error"\` for a lifecycle row. */
+  event?: string;
+  data: string;
+  ts: number;
+}
+
+interface BulkySocketHandle {
+  /** Sends over the open connection — an object is JSON-stringified first. */
+  send(data: string | object): void;
+  /** Closes the connection early — same effect as the run being stopped. */
+  close(code?: number, reason?: string): void;
+}
+
+interface BulkyIoHandle extends BulkySocketHandle {
+  /** Sends a named Socket.IO event. \`send(data)\` is sugar for
+   *  \`emit('message', data)\`. */
+  emit(event: string, ...args: unknown[]): void;
+}
+
+interface BulkySocket {
+  /** Opens a native WebSocket, resolving once connected with \`{ send, close
+   *  }\` to keep using for the rest of the run — reject if it never opens.
+   *  Every sent/received frame and connection event also renders live on the
+   *  call's Response tab. No \`api.server.ws\` — a browser WebSocket doesn't
+   *  hit CORS the way \`fetch\` does, so there's nothing to route around. */
+  ws(url: string, opts?: BulkyWsOpts): Promise<BulkySocketHandle>;
+  /** Same as \`ws\`, over Socket.IO — \`onEvent\` fires for every event
+   *  received, any name. The returned handle adds \`emit\` for named events. */
+  io(
+    url: string,
+    opts?: BulkyIoOpts,
+    onEvent?: (event: { event: string; data: unknown }) => void,
+  ): Promise<BulkyIoHandle>;
+}
+
 /** \`body\` may be a \`FormData\` (from {@link BulkyApi.form}) or a raw \`File\` /
  *  \`Blob\` (from {@link BulkyApi.file}) — either is sent as-is, never
  *  JSON-encoded, and \`Content-Type\` is left for the browser to set. */
@@ -109,7 +163,7 @@ interface BulkyHttp {
 
 interface BulkyServer extends BulkyHttp, BulkyStream {}
 
-interface BulkyApi extends BulkyHttp, BulkyStream {
+interface BulkyApi extends BulkyHttp, BulkyStream, BulkySocket {
   /** Same verbs (plus \`sse\`/\`stream\`), routed through \`/api/proxy\` — use when
    *  CORS blocks the browser from calling the host directly (most hosted LLM
    *  APIs do). Files upload through it too: the proxy streams the body

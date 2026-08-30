@@ -886,6 +886,8 @@ export default function MocksComponentsPage() {
                     onStop={noop}
                     running={false}
                     paused={false}
+                    onSendSocketMessage={noop}
+                    onCloseSocket={noop}
                   />
                 </div>
               )}

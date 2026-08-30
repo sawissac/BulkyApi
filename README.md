@@ -15,6 +15,7 @@ Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Work
 - **Test cases**: flat-file collection in sidebar. One scenario per file.
 - **cURL import**: paste curl, auto-generate script.
 - **SSE support**: streaming responses captured per-event.
+- **WebSocket + Socket.IO**: `api.ws`/`api.io` open a live bidirectional connection; a message composer appears under the editor while one is open.
 - **Abort + timeout**: stop running scripts, configurable per-call timeout.
 - **Themes**: Midnight, Ocean, Chocolate, Amethyst, Nature, Rose, Amber, Slate, Sunset, Coffee.
 - **Layouts**: Balanced, Editor Focus, Response Focus.
@@ -29,6 +30,7 @@ Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Work
 | State | Redux Toolkit, react-redux |
 | Editor | Monaco (`@monaco-editor/react`) |
 | Persistence | localforage |
+| Sockets | native `WebSocket`, `socket.io-client` |
 | Layout | react-resizable-panels v4 |
 | Icons | lucide-react |
 
@@ -67,7 +69,7 @@ src/
 │  ├─ useFullscreen.ts      # Fullscreen API toggle
 │  └─ useServiceWorker.ts   # registers /sw.js in production
 ├─ lib/
-│  ├─ scriptRunner.ts       # makeCall / makeSseCall / auth headers
+│  ├─ scriptRunner.ts       # makeCall / makeSseCall / makeSocketCall / auth headers
 │  ├─ scriptAnalyzer.ts     # extracts api.* calls without executing
 │  ├─ curlParser.ts         # curl → script
 │  ├─ persist.ts            # localforage save/load (50KB cap)
@@ -93,6 +95,11 @@ await api.patch(url, body, opts?)
 await api.delete(url, opts?)
 await api.options(url, opts?)
 await api.head(url, opts?)
+
+// sockets — bidirectional, live in the response panel
+const sock = await api.ws(url, opts?);            // native WebSocket
+const io   = await api.io(url, opts?, onEvent?);   // Socket.IO
+sock.send('hello'); io.emit('event', data);
 
 // auth
 await api.get(url, { auth: { type: 'bearer',  token: env.token } });

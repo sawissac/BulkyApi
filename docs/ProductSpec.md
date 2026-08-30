@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Author:** WAUX Studio
-**Last Updated:** August 29, 2026
+**Last Updated:** August 30, 2026
 
 ---
 
@@ -51,6 +51,8 @@ await api.delete(url, opts?)
 await api.options(url, opts?)
 await api.head(url, opts?)                 // headers only — no response body
 await api.sse(url, opts?, onEvent?)        // Server-Sent Events; returns { close() }
+await api.ws(url, opts?)                   // WebSocket; returns { send(), close() } (§3.10)
+await api.io(url, opts?, onEvent?)         // Socket.IO; returns { send(), emit(), close() } (§3.10)
 ```
 
 Every verb also exists on **`api.server.*`** (`api.server.get(...)`, etc.), which
@@ -199,6 +201,35 @@ console.error('Error');
 
 Output appears in the console panel at the bottom of the right panel.
 
+### 3.10 WebSocket & Socket.IO
+
+```ts
+const sock = await api.ws('wss://echo.websocket.org');
+sock.send('hello');
+sock.close();                                // or let the run finish — see below
+```
+
+`api.ws` resolves once the connection opens and hands back `{ send(), close()
+}` — call `.send()` any time for the rest of the run. `api.io(url, opts?,
+onEvent?)` is the Socket.IO counterpart: same shape, plus `emit(event,
+...args)` for named events (`send()` is sugar for `emit('message', data)`).
+Neither has an `api.server.*` counterpart — a browser socket doesn't hit CORS
+the way `fetch` does, so there is nothing to route through the proxy for.
+
+A connection outlives the script that opened it: if the run finishes without
+closing it, the socket stays open and a **message composer** appears under
+the editor — Enter, or the Send button, calls the same `.send()`; the
+**Disconnect** button next to it calls `.close()` directly. Both stay
+disabled while the run is still going (the script owns the connection until
+then) — **Stop** ends the run and re-enables them (§4.2); starting a new run
+closes any connection left over from the last one. Send is also disabled
+with an empty message.
+
+Every sent/received frame, plus `open`/`close`/`error` connection events,
+streams into the card's Response tab live — same idea as an SSE call (§5),
+shown as a flat timestamped log instead of per-event cards, with direction
+distinguishing sent from received.
+
 ---
 
 ## 4. Running a Script
@@ -227,7 +258,7 @@ Set a timeout (ms) in **Tweaks**. A call that exceeds it errors with
 
 ### 4.4 Pre-run / Post-run Hooks
 
-Open a collection's **run hooks** control (the workflow icon on its row; an
+Open a collection's **run hooks** control (the hooks icon on its row; an
 accent dot means one is set) to attach two collection-level scripts:
 
 - **Pre-run** — runs once before the request script on *every* run of *any*
@@ -270,7 +301,10 @@ The card header also carries a **copy-as-cURL** button (once the call has left
 actually sent, and the body (JSON as `-d`, an upload as `-F` fields) — plus a
 `✓`/`✗` assertion badge when the call has recorded checks.
 
-SSE calls list each streamed event under the card as it arrives.
+SSE calls list each streamed event under the card as it arrives. A
+WebSocket/Socket.IO call (§3.10) does the same, as a flat log of sent and
+received frames; while one is open, a message composer appears under the
+editor to send into it.
 
 Below the call list, a **Tests** strip appears whenever a run recorded
 expectations: the run total (`✓ N  ✗ M`) and one row per check. The **console
@@ -290,8 +324,9 @@ line per assertion); it has an expand / collapse toggle.
 - With no item active the editor is a **scratch pad** — the buffer stays but is
   not saved to any item.
 - The editor footer's **Examples** menu offers ready-made scripts (Simple GET,
-  POST with body, Chain, Bearer auth, SSE, …), previewed in a dialog before they
-  replace the buffer. **Format** runs Prettier over the buffer.
+  POST with body, Chain, Bearer auth, SSE, WebSocket, Socket.IO, …), previewed
+  in a dialog before they replace the buffer. **Format** runs Prettier over
+  the buffer.
 
 ---
 
@@ -421,6 +456,9 @@ variables.
 - When signed out of a configured Supabase project (§11), every `/api/*` route
   — this one included — answers `401 unauthorized`; local-only mode (no
   Supabase project) leaves it open, since there is nothing to sign into.
+- `api.ws` / `api.io` (§3.10) connect directly from the browser and never
+  route through this proxy — a socket isn't a request/response the proxy
+  could relay, and a native WebSocket doesn't hit CORS the way `fetch` does.
 
 ---
 
@@ -435,6 +473,7 @@ variables.
 | Per-call timeout | Card errors `Timeout: call exceeded <n>ms`, script stops |
 | Proxy timeout | `Proxy timeout after 30000ms` |
 | SSE failure | Card shows `HTTP <status>` or `No response body` |
+| WebSocket / Socket.IO failure | Card shows the connection error; a `close` before `open` rejects the script's `await api.ws(...)`/`api.io(...)` |
 | Unresolved variable | `{{name}}` left literal in the URL |
 | Sync failure | Rail sync status `error` + red dot; app keeps working local |
 

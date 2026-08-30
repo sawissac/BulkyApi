@@ -17,6 +17,8 @@ const METHOD_INFO: Record<string, string> = {
   options: "Ask the server which methods and headers are allowed on this resource.",
   head: "Like GET, but returns headers only — no response body.",
   sse: "Server-Sent Events stream. Long-lived connection; the server pushes events as they occur.",
+  ws: "WebSocket connection. Long-lived and bidirectional — send and receive messages until it closes.",
+  io: "Socket.IO connection. Long-lived and bidirectional, with named events on top of the socket.",
   docs: "Documentation entry — not a live HTTP request.",
 };
 

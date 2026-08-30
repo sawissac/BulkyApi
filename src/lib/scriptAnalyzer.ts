@@ -70,7 +70,7 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
   // than actually ran, silently truncating (or, if it was the *only* call,
   // wholly clearing) that stored call the moment the 300ms post-run
   // re-analyze in BulkyApp.tsx fires.
-  const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options|head|sse|stream)\s*(?:<[^>()]*>)?\s*\(/gi;
+  const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options|head|sse|stream|ws|io)\s*(?:<[^>()]*>)?\s*\(/gi;
   let m: RegExpExecArray | null;
 
   while ((m = re.exec(code)) !== null) {
@@ -86,7 +86,11 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
     // call whose shape changes between runs.
     const rawMethod = m[1].toUpperCase();
     const method =
-      rawMethod === "SSE" ? "SSE" : rawMethod === "STREAM" ? "POST" : rawMethod;
+      rawMethod === "SSE" || rawMethod === "WS" || rawMethod === "IO"
+        ? rawMethod
+        : rawMethod === "STREAM"
+          ? "POST"
+          : rawMethod;
     const note = extractNoteBeforeIndex(code, m.index);
     const after = code.slice(m.index + m[0].length);
 

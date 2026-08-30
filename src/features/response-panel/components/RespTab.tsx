@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Loader2, Radio, Copy, Check } from "lucide-react";
+import { Loader2, Radio, Copy, Check, Cable, ArrowUp, ArrowDown, Info } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { ApiCall } from "@/lib/types";
 import JNode from "@/components/JsonTreeViewer";
@@ -507,6 +507,171 @@ function SseEvents({ T, call }: Props) {
   );
 }
 
+const WS_CLR = "#38bdf8";
+
+/**
+ * Live view for a call opened with `api.ws`/`api.io` — a flat, timestamped
+ * frame log (not the bordered per-event cards `SseEvents` uses), matching a
+ * devtools-style WebSocket message log: one row per frame, an up arrow for
+ * what the script sent, a down arrow for what came back, and a plain info
+ * row for connect/disconnect/error lifecycle events.
+ *
+ * @remarks
+ * Grows as `call.wsEvents` grows during the run — `CallCard`'s stick-to-
+ * bottom effect keeps it scrolled to the newest frame the same way it does
+ * for `SseEvents`.
+ */
+function WsEvents({ T, call }: Props) {
+  const events = call.wsEvents ?? [];
+  const isIo = call.wsKind === "io";
+  const isConnecting = call.status === "pending";
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 8,
+        }}
+      >
+        <Cable
+          size={10}
+          color={WS_CLR}
+          style={
+            isConnecting
+              ? { animation: "pulse 1s ease-in-out infinite" }
+              : undefined
+          }
+        />
+        <span
+          style={{
+            fontFamily: 'var(--font-title)',
+            fontSize: 8,
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            color: WS_CLR,
+          }}
+        >
+          {isIo ? "SOCKET.IO" : "WEBSOCKET"}
+        </span>
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 8,
+            color: T.textDim,
+          }}
+        >
+          {events.length} message{events.length !== 1 ? "s" : ""}
+          {isConnecting && events.length === 0 ? " — connecting…" : ""}
+          {call.wsOpen ? " — open" : call.status === "success" ? " — closed" : ""}
+        </span>
+      </div>
+
+      {events.length === 0 ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            color: T.textDim,
+            padding: "8px 0",
+          }}
+        >
+          {isConnecting && (
+            <Loader2
+              size={11}
+              color={WS_CLR}
+              style={{ animation: "spin 0.7s linear infinite" }}
+            />
+          )}
+          <span
+            style={{
+              fontFamily: 'var(--font-description)',
+              fontSize: 11,
+              fontStyle: "italic",
+            }}
+          >
+            {isConnecting ? "Connecting…" : "No messages yet."}
+          </span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {events.map((ev, i) => {
+            const Icon =
+              ev.direction === "out" ? ArrowUp : ev.direction === "in" ? ArrowDown : Info;
+            const color =
+              ev.direction === "out"
+                ? T.success
+                : ev.direction === "in"
+                  ? T.warn
+                  : T.textDim;
+            return (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  padding: "3px 2px",
+                  borderBottom: `1px solid ${T.border}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9,
+                    color: T.textDim,
+                    minWidth: 62,
+                    textAlign: "right",
+                    flexShrink: 0,
+                  }}
+                >
+                  {new Date(ev.ts).toLocaleTimeString()}
+                </span>
+                <Icon size={11} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
+                {isIo && ev.direction !== "system" && ev.event && ev.event !== "message" && (
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 7,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      color,
+                      background: `${color}18`,
+                      border: `1px solid ${color}30`,
+                      padding: "1px 5px",
+                      borderRadius: 3,
+                      marginTop: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {ev.event}
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: ev.direction === "system" ? T.textDim : T.text,
+                    fontStyle: ev.direction === "system" ? "italic" : "normal",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    flex: 1,
+                  }}
+                >
+                  {ev.data}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Small pill toggle shared by the non-JSON body views. */
 function ModePill({
   T,
@@ -723,6 +888,7 @@ export default function RespTab({ T, call }: Props) {
   };
 
   if (call.isSse) return <SseEvents T={T} call={call} />;
+  if (call.isWs) return <WsEvents T={T} call={call} />;
 
   if (call.status === "pending") {
     return (

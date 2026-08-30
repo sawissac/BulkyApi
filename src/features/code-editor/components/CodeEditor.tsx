@@ -11,6 +11,8 @@ import {
   BookOpen,
   WandSparkles,
   Square,
+  Send,
+  Unplug,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import { selectCode, setCode } from "@/store/editorSlice";
@@ -23,6 +25,7 @@ import {
   renameCollection,
   renameItem,
 } from "@/store/collectionsSlice";
+import { selectBuiltCalls } from "@/store/runnerSlice";
 import { EXAMPLE_SCRIPTS } from "@/lib/sampleData";
 import type { ExampleScript } from "@/lib/sampleData";
 import MethodPill from "@/components/MethodPill";
@@ -62,7 +65,8 @@ const TOOL_BTN =
 const ACTION_BTN =
   "flex h-8 shrink-0 items-center gap-1.5 rounded-md border-0 px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid " +
   "transition-transform duration-200 hover:scale-105 " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel " +
+  "disabled:pointer-events-none disabled:opacity-50 disabled:hover:scale-100";
 
 const TOOL_LABEL = "text-[11px] font-semibold uppercase tracking-[0.07em]";
 
@@ -89,6 +93,15 @@ type Props = {
   /** Whether a stepped run is currently paused. Shows the pulsing Next
    *  action block in place of Run/Stop. */
   paused: boolean;
+  /** Sends `text` over the open `api.ws`/`api.io` connection at call index
+   *  `idx` — wired to the socket registry `useScriptRunner` keeps for the
+   *  current run. Fires from the socket composer bar, which only renders
+   *  while a call in `builtCalls` has `isWs && wsOpen`. */
+  onSendSocketMessage: (idx: number, text: string) => void;
+  /** Closes the open connection at call index `idx` from the UI, same
+   *  registry as {@link onSendSocketMessage}. Fires from the composer's
+   *  Disconnect button. */
+  onCloseSocket: (idx: number) => void;
 };
 
 /**
@@ -111,7 +124,15 @@ type Props = {
  * gates {@link ExampleDialog} once a menu entry is picked. Format runs
  * Prettier's `babel-ts` parser on the current code — the buffer is
  * TypeScript — and falls back to Monaco's own format action if Prettier
- * throws (e.g. code that doesn't parse as a module).
+ * throws (e.g. code that doesn't parse as a module). `wsDraft` backs a
+ * composer bar that appears only while `builtCalls` (read directly from
+ * `runnerSlice`) has a call with `isWs && wsOpen` — Enter (without Shift)
+ * or the Send button calls `onSendSocketMessage(idx, wsDraft)` for the
+ * most-recently-opened such call and clears the draft; Disconnect calls
+ * `onCloseSocket(idx)` for that same call instead. Both buttons disable
+ * while `running` — the script itself is driving the connection mid-run, so
+ * manual sends/disconnects wait until the run finishes or is stopped; Send
+ * is further disabled whenever `wsDraft` is blank.
  *
  * Variants: with no collection at all, the whole panel is replaced by
  * {@link EditorEmptyState} — no toolbar, editor or status bar. With at least
@@ -141,7 +162,11 @@ type Props = {
  * one closes the popover and opens {@link ExampleDialog} for that script. The
  * footer's language label —
  * TypeScript, type-stripped to JavaScript at run time — sits beside the
- * runtime label, joined by `·`.
+ * runtime label, joined by `·`. Between the editor body and the status bar,
+ * the socket composer mounts only while a socket is open: a `textarea` next
+ * to a stacked pair of labeled buttons (`Disconnect` above `Send`, both the
+ * `ACTION_BTN` recipe Run/Stop/Next use — `Disconnect` compact and tinted
+ * `bg-app-error` like Stop, `Send` full-size and tinted the theme accent).
  *
  * Accessibility: each segment's rename label is a plain button with a
  * tooltip; the chevron button carries an explicit `aria-label` ("Switch
@@ -153,10 +178,13 @@ type Props = {
  *
  * Test ids: breadcrumb rename fields
  * `code-editor-rename-collection-input` / `code-editor-rename-item-input`
- * (single instance each, via the shared `Input`). The breadcrumb label and
- * chevron buttons, toolbar buttons, and popover entries carry no testid —
- * all are reachable by role and their own (static or, for the rename
- * labels, dynamic but singular) accessible name.
+ * (single instance each, via the shared `Input`), plus the socket composer's
+ * `code-editor-socket-message-textarea` (a dynamic-value field a role/name
+ * query can't pin down), `code-editor-socket-send-button` and
+ * `code-editor-socket-disconnect-button`. The breadcrumb label and chevron
+ * buttons, toolbar buttons, and popover entries carry no testid — all are
+ * reachable by role and their own (static or, for the rename labels,
+ * dynamic but singular) accessible name.
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
@@ -170,7 +198,7 @@ type Props = {
  * MethodPill`, `@/components/ui/input`, `@/components/ui/button-group`,
  * `@/components/ui/tooltip`, `@/components/ui/popover`, `./ExampleDialog`,
  * `./EditorEmptyState`, `./MonacoCodeEditor`, `@/store/editorSlice`,
- * `@/store/collectionsSlice`,
+ * `@/store/collectionsSlice`, `@/store/runnerSlice`,
  * `@/lib/sampleData`.
  *
  * @example
@@ -182,6 +210,8 @@ type Props = {
  *   onStop={stopRun}
  *   running={running}
  *   paused={paused}
+ *   onSendSocketMessage={sendSocketMessage}
+ *   onCloseSocket={closeSocketConnection}
  * />
  * ```
  */
@@ -192,6 +222,8 @@ export default function CodeEditor({
   onStop,
   running,
   paused,
+  onSendSocketMessage,
+  onCloseSocket,
 }: Props) {
   const dispatch = useDispatch();
   const code = useSelector(selectCode);
@@ -199,6 +231,7 @@ export default function CodeEditor({
   const activeCollection = useSelector(selectActiveCollection);
   const collections = useSelector(selectCollections);
   const envVars = useSelector(selectEnvVars);
+  const builtCalls = useSelector(selectBuiltCalls);
   const monacoEditorRef = useRef<EditorInstance | null>(null);
   const [openMenu, setOpenMenu] = useState<"coll" | "item" | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
@@ -207,6 +240,17 @@ export default function CodeEditor({
   );
   const [renaming, setRenaming] = useState<"coll" | "item" | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [wsDraft, setWsDraft] = useState("");
+
+  // Last-opened-wins if a script somehow opens more than one socket — a v1
+  // limitation, not something the composer is built to juggle.
+  const openSocket = [...builtCalls].reverse().find((c) => c.isWs && c.wsOpen);
+
+  const sendWsDraft = () => {
+    if (!openSocket || running || !wsDraft.trim()) return;
+    onSendSocketMessage(openSocket.idx, wsDraft);
+    setWsDraft("");
+  };
 
   const selectCollectionRow = (col: (typeof collections)[number]) => {
     const first = col.items[0];
@@ -548,6 +592,58 @@ export default function CodeEditor({
             setSelectedExample(null);
           }}
         />
+      )}
+
+      {/* Socket composer — only while a call in this run has an open
+          `api.ws`/`api.io` connection. Enter sends, Shift+Enter inserts a
+          newline. Disconnect closes it directly; the script can also
+          `sock.close()`, Stop closes it mid-run, and starting a new run
+          closes any leftover connection (useScriptRunner). */}
+      {openSocket && (
+        <div className="flex shrink-0 items-end gap-2 border-t border-app-border bg-app-panel px-3 py-2">
+          <textarea
+            data-testid="code-editor-socket-message-textarea"
+            rows={2}
+            value={wsDraft}
+            onChange={(e) => setWsDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendWsDraft();
+              }
+            }}
+            placeholder="Send a message over the open connection…"
+            className="h-16 min-w-0 flex-1 resize-none rounded-md border border-app-border bg-app-editor px-2.5 py-1.5 font-mono text-[12px] text-app-text outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+          />
+          <div className="flex shrink-0 flex-col gap-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  data-testid="code-editor-socket-disconnect-button"
+                  onClick={() => onCloseSocket(openSocket.idx)}
+                  disabled={running}
+                  className={`${ACTION_BTN} h-6 bg-app-error px-2.5 focus-visible:ring-app-error`}
+                >
+                  <Unplug size={12} aria-hidden="true" />
+                  Disconnect
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Disconnect</TooltipContent>
+            </Tooltip>
+            <button
+              type="button"
+              data-testid="code-editor-socket-send-button"
+              onClick={sendWsDraft}
+              disabled={running || !wsDraft.trim()}
+              className={ACTION_BTN}
+              style={{ background: T.cyan }}
+            >
+              <Send size={13} aria-hidden="true" />
+              Send
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Status bar */}

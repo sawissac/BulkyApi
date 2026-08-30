@@ -115,6 +115,9 @@ Two mounted `VarSection`s — the environment section uses the `vars-pane-*` pre
 `code-editor-rename-collection-input-clear-button` — CodeEditor / breadcrumb collection rename inline clear button
 `code-editor-rename-item-input` — CodeEditor / breadcrumb inline request rename field (via shared `Input`)
 `code-editor-rename-item-input-clear-button` — CodeEditor / breadcrumb request rename inline clear button
+`code-editor-socket-message-textarea` — CodeEditor / WS-Socket.IO composer message field (shown while a call has an open socket)
+`code-editor-socket-send-button` — CodeEditor / WS-Socket.IO composer send button
+`code-editor-socket-disconnect-button` — CodeEditor / WS-Socket.IO composer disconnect button
 
 ## EditorEmptyState (src/features/code-editor/components/EditorEmptyState.tsx)
 

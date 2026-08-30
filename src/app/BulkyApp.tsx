@@ -142,7 +142,8 @@ export default function BulkyApp() {
   const stepMode = useSelector(selectStepMode);
   const paused = useSelector(selectPaused);
 
-  const { onRun, onNext, onStop } = useScriptRunner();
+  const { onRun, onNext, onStop, sendSocketMessage, closeSocketConnection } =
+    useScriptRunner();
 
   const T = THEMES[theme] || THEMES.ocean;
   const L = LAYOUT_SIZES[layout] ?? LAYOUT_SIZES["editor-focus"];
@@ -267,6 +268,8 @@ export default function BulkyApp() {
                 onStop={onStop}
                 running={running}
                 paused={paused}
+                onSendSocketMessage={sendSocketMessage}
+                onCloseSocket={closeSocketConnection}
               />
             </div>
           </ResizablePanel>

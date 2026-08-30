@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Workflow, X } from "lucide-react";
+import { BookCopy, X } from "lucide-react";
 
 /** Mono code field shared by both hook editors — muted fill, hard accent
  *  border on focus, no resize handle (the dialog sizes it). */
@@ -107,7 +107,7 @@ export default function CollectionHooksDialog({
         className="flex w-[min(640px,94vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
-          <Workflow size={14} className="shrink-0 text-app-accent-dim" aria-hidden="true" />
+          <BookCopy size={14} className="shrink-0 text-app-accent-dim" aria-hidden="true" />
           <span className="flex-1 truncate font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             {collectionName} · run hooks
           </span>

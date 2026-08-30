@@ -1,4 +1,15 @@
-import type { ApiCall, LogEntry, AuthInfo, SseEvent, Assertion } from "./types";
+import type {
+  ApiCall,
+  LogEntry,
+  AuthInfo,
+  SseEvent,
+  WsEvent,
+  Assertion,
+} from "./types";
+// Type-only — erased at compile time, so this doesn't pull socket.io-client
+// into the bundle for scripts that never call `api.io`. The runtime import
+// is a dynamic `await import(...)` inside `makeIoCall` instead.
+import type { ManagerOptions, SocketOptions } from "socket.io-client";
 import { toRunnableJs } from "./transpile";
 import { makeExpect } from "./assertions";
 import { isRawBody, summarizeBody } from "./requestBody";
@@ -38,6 +49,28 @@ type StreamResult = {
   done: Promise<{ events: SseEvent[]; text: string; status: number | null }>;
 };
 
+type WsOpts = {
+  /** Sub-protocol(s) for the WS handshake. Browsers can't set custom headers
+   *  on a WebSocket upgrade request, so this is the only connection option. */
+  protocols?: string | string[];
+};
+
+type IoOpts = Partial<ManagerOptions & SocketOptions>;
+
+/** Live handle onto an open `api.ws`/`api.io` connection — returned to the
+ *  script and, via `socketRegistry`, reachable from the UI's send composer. */
+export type SocketHandle = {
+  send: (data: string | object) => void;
+  close: (code?: number, reason?: string) => void;
+};
+
+/** `api.io`'s handle adds `emit` for named Socket.IO events — `send` stays
+ *  the lowest common denominator so the UI composer (which only ever sends
+ *  plain text) works identically against either kind. */
+type IoHandle = SocketHandle & {
+  emit: (event: string, ...args: unknown[]) => void;
+};
+
 function buildAuthHeaders(
   opts: CallOpts,
   envVars: Record<string, string>,
@@ -75,6 +108,7 @@ export async function runScript(
   responseCache?: Record<string, CachedEntry>,
   callTimeout?: number,
   abortSignal?: AbortSignal,
+  socketRegistry?: Map<number, SocketHandle>,
 ): Promise<{
   calls: ApiCall[];
   logs: LogEntry[];
@@ -662,6 +696,254 @@ export async function runScript(
       onEvent,
     );
 
+  // Shared by `api.ws` / `api.io`. Unlike a fetch-based stream, a socket is
+  // bidirectional and long-lived beyond any single request/response — so
+  // instead of a `done` promise resolved after the body finishes, this
+  // resolves (or rejects) once the connection opens (or fails to), handing
+  // back a `SocketHandle` the script keeps using for the rest of the run —
+  // and, via `socketRegistry`, that the UI's send composer can reach too.
+  const pushWsEvent = (
+    rec: ApiCall,
+    direction: WsEvent["direction"],
+    data: string,
+    event?: string,
+  ) => {
+    rec.wsEvents = [...(rec.wsEvents ?? []), { direction, data, event, ts: Date.now() }];
+    onUpdate(
+      calls.map((c) => ({ ...c })),
+      [...logs],
+    );
+  };
+
+  const makeSocketCall = (
+    url: string,
+    opts: WsOpts = {},
+  ): Promise<SocketHandle> => {
+    if (abortSignal?.aborted) return Promise.reject(new Error("Script aborted"));
+
+    const resolved = url.replace(
+      /\{\{(\w+)\}\}/g,
+      (_, k) => mutableEnv[k] ?? `{{${k}}}`,
+    );
+
+    const rec: ApiCall = {
+      idx: calls.length,
+      method: "WS",
+      url: resolved,
+      urlExpr: url,
+      status: "pending",
+      statusCode: null,
+      response: null,
+      responseHeaders: {},
+      requestBody: null,
+      requestHeaders: {},
+      authInfo: null,
+      duration: 0,
+      error: null,
+      timestamp: new Date().toISOString(),
+      cache: false,
+      note: pendingNote ?? undefined,
+      isWs: true,
+      wsKind: "ws",
+      wsEvents: [],
+      wsOpen: false,
+    };
+    pendingNote = null;
+
+    calls.push(rec);
+    claimPending(rec);
+    onUpdate(
+      calls.map((c) => ({ ...c })),
+      [...logs],
+    );
+
+    const t0 = Date.now();
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(resolved, opts.protocols);
+      } catch (e) {
+        rec.status = "error";
+        rec.error = (e as Error).message;
+        onUpdate(
+          calls.map((c) => ({ ...c })),
+          [...logs],
+        );
+        reject(e as Error);
+        return;
+      }
+
+      const onAbort = () => ws.close();
+      abortSignal?.addEventListener("abort", onAbort, { once: true });
+
+      ws.addEventListener("open", () => {
+        rec.status = "success";
+        rec.wsOpen = true;
+        pushWsEvent(rec, "system", "Connected", "open");
+
+        const handle: SocketHandle = {
+          send: (data) => {
+            const text = typeof data === "string" ? data : JSON.stringify(data);
+            ws.send(text);
+            pushWsEvent(rec, "out", text, "message");
+          },
+          close: (code, reason) => ws.close(code, reason),
+        };
+        socketRegistry?.set(rec.idx, handle);
+        if (!settled) {
+          settled = true;
+          resolve(handle);
+        }
+      });
+
+      ws.addEventListener("message", (ev) => {
+        const text = typeof ev.data === "string" ? ev.data : "[binary data]";
+        pushWsEvent(rec, "in", text, "message");
+      });
+
+      ws.addEventListener("error", () => {
+        pushWsEvent(rec, "system", "Connection error", "error");
+        if (!settled) {
+          settled = true;
+          rec.status = "error";
+          rec.error = `WebSocket error connecting to ${resolved}`;
+          onUpdate(
+            calls.map((c) => ({ ...c })),
+            [...logs],
+          );
+          reject(new Error(rec.error));
+        }
+      });
+
+      ws.addEventListener("close", (ev) => {
+        abortSignal?.removeEventListener("abort", onAbort);
+        socketRegistry?.delete(rec.idx);
+        rec.wsOpen = false;
+        rec.duration = Date.now() - t0;
+        if (rec.status === "pending") rec.status = "error";
+        pushWsEvent(rec, "system", `Disconnected (code ${ev.code})`, "close");
+        if (!settled) {
+          settled = true;
+          reject(new Error(`WebSocket closed before opening (code ${ev.code})`));
+        }
+      });
+    });
+  };
+
+  const makeIoCall = async (
+    url: string,
+    opts: IoOpts = {},
+    onEvent?: (event: { event: string; data: unknown }) => void,
+  ): Promise<IoHandle> => {
+    if (abortSignal?.aborted) throw new Error("Script aborted");
+
+    const resolved = url.replace(
+      /\{\{(\w+)\}\}/g,
+      (_, k) => mutableEnv[k] ?? `{{${k}}}`,
+    );
+
+    const rec: ApiCall = {
+      idx: calls.length,
+      method: "IO",
+      url: resolved,
+      urlExpr: url,
+      status: "pending",
+      statusCode: null,
+      response: null,
+      responseHeaders: {},
+      requestBody: null,
+      requestHeaders: {},
+      authInfo: null,
+      duration: 0,
+      error: null,
+      timestamp: new Date().toISOString(),
+      cache: false,
+      note: pendingNote ?? undefined,
+      isWs: true,
+      wsKind: "io",
+      wsEvents: [],
+      wsOpen: false,
+    };
+    pendingNote = null;
+
+    calls.push(rec);
+    claimPending(rec);
+    onUpdate(
+      calls.map((c) => ({ ...c })),
+      [...logs],
+    );
+
+    const t0 = Date.now();
+    const { io } = await import("socket.io-client");
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const socket = io(resolved, opts);
+
+      const onAbort = () => socket.close();
+      abortSignal?.addEventListener("abort", onAbort, { once: true });
+
+      const fmtArgs = (args: unknown[]) =>
+        args.length === 1 && typeof args[0] === "string"
+          ? args[0]
+          : args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ");
+
+      socket.onAny((event: string, ...args: unknown[]) => {
+        pushWsEvent(rec, "in", fmtArgs(args), event);
+        onEvent?.({ event, data: args.length === 1 ? args[0] : args });
+      });
+
+      socket.on("connect", () => {
+        rec.status = "success";
+        rec.wsOpen = true;
+        pushWsEvent(rec, "system", "Connected", "connect");
+
+        const emit = (event: string, ...args: unknown[]) => {
+          socket.emit(event, ...args);
+          pushWsEvent(rec, "out", fmtArgs(args), event);
+        };
+        const handle: SocketHandle & { emit: typeof emit } = {
+          send: (data) => emit("message", data),
+          close: () => socket.close(),
+          emit,
+        };
+        socketRegistry?.set(rec.idx, handle);
+        if (!settled) {
+          settled = true;
+          resolve(handle);
+        }
+      });
+
+      socket.on("connect_error", (err: Error) => {
+        pushWsEvent(rec, "system", `Connection error: ${err.message}`, "connect_error");
+        if (!settled) {
+          settled = true;
+          rec.status = "error";
+          rec.error = err.message;
+          onUpdate(
+            calls.map((c) => ({ ...c })),
+            [...logs],
+          );
+          reject(err);
+        }
+      });
+
+      socket.on("disconnect", (reason: string) => {
+        abortSignal?.removeEventListener("abort", onAbort);
+        socketRegistry?.delete(rec.idx);
+        rec.wsOpen = false;
+        rec.duration = Date.now() - t0;
+        pushWsEvent(rec, "system", `Disconnected: ${reason}`, "disconnect");
+        onUpdate(
+          calls.map((c) => ({ ...c })),
+          [...logs],
+        );
+      });
+    });
+  };
+
   const api = {
     get: (url: string, opts?: CallOpts) =>
       makeCall("GET", url, null, opts, false),
@@ -692,6 +974,20 @@ export async function runScript(
       opts?: CallOpts,
       onEvent?: (event: { type: string; data: string; id?: string }) => void,
     ) => makeStreamShorthand(url, body, opts, onEvent),
+    // Native WebSocket. Resolves once the connection opens (rejects if it
+    // fails to), handing back `{ send, close }` — keep using it for the rest
+    // of the run. Every inbound/outbound/lifecycle frame also streams into
+    // the response panel live, same as `sse`/`stream`. Connects directly —
+    // there's no `api.server.ws`, since a browser WebSocket doesn't hit CORS
+    // the way `fetch` does, so there's nothing to route around the proxy for.
+    ws: (url: string, opts?: WsOpts) => makeSocketCall(url, opts),
+    // Socket.IO client. Same shape as `ws`, plus `emit(event, ...args)` for
+    // named events — `send(data)` is sugar for `emit('message', data)`.
+    io: (
+      url: string,
+      opts?: IoOpts,
+      onEvent?: (event: { event: string; data: unknown }) => void,
+    ) => makeIoCall(url, opts, onEvent),
     _note: (msg: string) => {
       pendingNote = msg;
     },

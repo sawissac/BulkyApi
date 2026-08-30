@@ -14,6 +14,18 @@ export type SseEvent = {
   ts: number;
 };
 
+/** One frame on a `api.ws`/`api.io` connection. Unlike `SseEvent` (server →
+ *  client only), a socket is bidirectional, so `direction` carries what
+ *  `SseEvent` never needed to. `event` is the Socket.IO event name;
+ *  `"message"` for a raw WS text frame; `"open"` / `"close"` / `"error"` for
+ *  connection lifecycle rows. */
+export type WsEvent = {
+  direction: "in" | "out" | "system";
+  event?: string;
+  data: string;
+  ts: number;
+};
+
 export type Assertion = {
   ok: boolean;
   message: string;
@@ -54,6 +66,13 @@ export type ApiCall = {
   note?: string;
   isSse?: boolean;
   sseEvents?: SseEvent[];
+  isWs?: boolean;
+  wsKind?: "ws" | "io";
+  wsEvents?: WsEvent[];
+  /** True while the connection is open — cleared on close/error. SSE has no
+   *  equivalent (no separate "still open" signal beyond status/duration);
+   *  the editor's socket composer needs this one to know when to show. */
+  wsOpen?: boolean;
   assertions?: Assertion[];
 };
 

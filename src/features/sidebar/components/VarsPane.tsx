@@ -69,9 +69,12 @@ const ROW = 'group flex flex-col gap-0.5 bg-app-hover px-2.5 py-1.5 transition-c
  * leaves the other untouched.
  *
  * Variants: with zero variables the list `ul` still renders but drops the
- * `LIST` border, since an empty bordered box reads as a stray line. A key
- * present in `shadowedKeys` renders dimmed with a strikethrough and a badge
- * naming `shadowLabel` — the higher layer overrides it at run time.
+ * `LIST` border, since an empty bordered box reads as a stray line; if
+ * `emptyLabel` is set, it renders below the (empty) list instead of leaving
+ * the section blank — hidden again once the add row opens, so the hint and
+ * the add form never stack. A key present in `shadowedKeys` renders dimmed
+ * with a strikethrough and a badge naming `shadowLabel` — the higher layer
+ * overrides it at run time.
  *
  * Composition: an `h2` and an add button, then the list — one bordered `LIST`
  * card with `divide-y` row separators; each `ROW` stacks its key and value
@@ -113,6 +116,7 @@ function VarSection({
   onDelete,
   shadowedKeys = [],
   shadowLabel,
+  emptyLabel,
 }: VarSectionProps) {
   const [editCell, setEditCell] = useState<EditCell>(null);
   const [draft, setDraft] = useState('');
@@ -291,6 +295,10 @@ function VarSection({
         })}
       </ul>
 
+      {entries.length === 0 && emptyLabel && !showAdding && (
+        <p className="font-description text-[12px] text-app-dim">{emptyLabel}</p>
+      )}
+
       {showAdding && (
         <div className="mt-2 flex flex-col gap-1.5 rounded-md border-2 border-app-border-accent bg-app-hover p-2">
           <Input
@@ -370,6 +378,10 @@ type VarSectionProps = {
   shadowedKeys?: string[];
   /** Name of the layer that shadows `shadowedKeys`, shown in the row tooltip. */
   shadowLabel?: string;
+  /** Hint shown in place of the list while `vars` has no entries — omit to
+   *  leave the section blank (its prior behavior, still used by the
+   *  environment section). */
+  emptyLabel?: string;
 };
 
 /**
@@ -411,8 +423,9 @@ type VarSectionProps = {
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
  * Edge cases: with no collection or no environment active, only the Base
- * section and the hint show — Base is still fully editable. A hydrated state
- * with no `baseVars` key comes up with an empty Base section, not a crash.
+ * section and the hint show — Base is still fully editable, and shows its own
+ * `emptyLabel` hint if it also has no variables yet. A hydrated state with no
+ * `baseVars` key comes up with an empty Base section, not a crash.
  *
  * Dependencies: `lucide-react`, `react-redux`, `@/store/collectionsSlice`,
  * and everything {@link VarSection} pulls in.
@@ -441,6 +454,7 @@ export default function VarsPane({}: Props) {
         onDelete={(key) => dispatch(deleteBaseVar({ key }))}
         shadowedKeys={env ? Object.keys(env.vars) : []}
         shadowLabel={env?.name}
+        emptyLabel="No global variables yet — add one below to share it across every environment."
       />
 
       <hr className="border-app-border" />

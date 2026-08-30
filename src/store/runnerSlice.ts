@@ -47,6 +47,10 @@ function applyStored(nc: ApiCall, existing: ApiCall): ApiCall {
     cache: existing.cache,
     isSse: existing.isSse,
     sseEvents: existing.sseEvents,
+    isWs: existing.isWs,
+    wsKind: existing.wsKind,
+    wsEvents: existing.wsEvents,
+    wsOpen: existing.wsOpen,
     assertions: existing.assertions,
   };
 }

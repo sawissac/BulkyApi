@@ -156,19 +156,20 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
   const hasCachedResponse = call.response !== null;
   const isCached = call.cache;
 
-  // Auto-scroll the detail body as an SSE/`api.stream` call's events grow —
-  // same "stick to bottom" rule a chat log uses: keep following new events
-  // only while the reader was already at (or near) the bottom, so scrolling
-  // up to reread an earlier event isn't yanked back down by the next one.
+  // Auto-scroll the detail body as an SSE/`api.stream`/`api.ws`/`api.io`
+  // call's events grow — same "stick to bottom" rule a chat log uses: keep
+  // following new events only while the reader was already at (or near) the
+  // bottom, so scrolling up to reread an earlier event isn't yanked back
+  // down by the next one.
   const detailBodyRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
-  const eventCount = call.sseEvents?.length ?? 0;
+  const eventCount = (call.sseEvents?.length ?? 0) + (call.wsEvents?.length ?? 0);
   useEffect(() => {
-    if (!open || tab !== "response" || !call.isSse) return;
+    if (!open || tab !== "response" || (!call.isSse && !call.isWs)) return;
     const el = detailBodyRef.current;
     if (!el || !stickToBottomRef.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [open, tab, call.isSse, eventCount]);
+  }, [open, tab, call.isSse, call.isWs, eventCount]);
 
   const asserts = call.assertions ?? [];
   const failedCount = asserts.filter((a) => !a.ok).length;

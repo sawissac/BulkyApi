@@ -823,6 +823,76 @@ const stream = await api.server.stream(
 const { events, text } = await stream.done;
 console.log(events.length, 'chunks —', text.length, 'chars total');`,
   },
+  {
+    label: "WebSocket",
+    method: "WS",
+    markdown: `## WebSocket
+
+\`api.ws(url, opts?)\` opens a native WebSocket connection and resolves once it's open, handing back \`{ send, close }\`. Unlike SSE, it's bidirectional — call \`.send(...)\` any time to write to the socket, from the script or from the editor's message composer once a connection is open.
+
+| Argument | Type | Notes |
+|----------|------|-------|
+| \`url\` | \`string\` | \`ws://\` / \`wss://\`. \`{{var}}\` resolves from the active environment |
+| \`opts.protocols\` | \`string \\| string[]\` | Optional WS sub-protocol(s) — a browser socket can't set custom headers |
+
+\`\`\`ts
+const sock = await api.ws('wss://echo.websocket.org');
+sock.send('hello');
+
+// Close after 10 seconds (remove to keep it open indefinitely)
+setTimeout(() => {
+  sock.close();
+  console.log('socket closed');
+}, 10000);
+\`\`\`
+
+> Every sent and received frame streams into the response panel's Response tab as it happens, alongside \`open\`/\`close\`/\`error\` connection events. While a socket from this run is open, a message composer appears under the editor — Enter (or the Send button) calls the same \`.send(...)\` the script itself uses.`,
+    code: `// Open a WebSocket and exchange messages in real-time.
+// api.ws() resolves once connected, with .send()/.close().
+
+const sock = await api.ws('wss://echo.websocket.org');
+sock.send('hello');
+
+// Close after 10 seconds (remove this to keep it open indefinitely)
+setTimeout(() => {
+  sock.close();
+  console.log('socket closed');
+}, 10000);`,
+  },
+  {
+    label: "Socket.IO",
+    method: "IO",
+    markdown: `## Socket.IO
+
+\`api.io(url, opts?, onEvent?)\` connects with the Socket.IO client — same shape as \`api.ws\`, plus named events. \`sock.emit(event, ...args)\` sends a named event; \`sock.send(data)\` is sugar for \`emit('message', data)\`, same as \`socket.io-client\` itself.
+
+| Argument | Type | Notes |
+|----------|------|-------|
+| \`url\` | \`string\` | Point this at your own Socket.IO server |
+| \`opts\` | \`Partial<ManagerOptions & SocketOptions>\` | \`path\`, \`query\`, \`auth\`, \`transports\`, ... — passed straight to \`socket.io-client\` |
+| \`onEvent\` | \`(e: { event: string; data: unknown }) => void\` | Called for every event received, any name |
+
+\`\`\`ts
+const sock = await api.io(env.baseUrl, {}, (e) => {
+  console.log('event:', e.event, '|', e.data);
+});
+
+sock.emit('join-room', { room: 'general' });
+sock.send('hello everyone');
+\`\`\`
+
+> Same live response-panel rendering and editor composer as **WebSocket** — the composer's plain-text send always arrives as a \`"message"\` event, whatever named events the script itself emits.`,
+    code: `// Connect with Socket.IO and exchange named events in real-time.
+// api.io() resolves once connected, with .emit()/.send()/.close().
+// Point env.baseUrl at your own Socket.IO server.
+
+const sock = await api.io(env.baseUrl, {}, (e) => {
+  console.log('event:', e.event, '|', e.data);
+});
+
+sock.emit('join-room', { room: 'general' });
+sock.send('hello everyone');`,
+  },
 ];
 
 export const INITIAL_ENVIRONMENTS: Environment[] = [];

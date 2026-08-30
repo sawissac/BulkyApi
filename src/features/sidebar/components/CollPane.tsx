@@ -11,7 +11,7 @@ import {
   Download,
   Feather,
   Blend,
-  Workflow,
+  BookCopy,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { CollectionItem } from "@/lib/sampleData";
@@ -328,7 +328,7 @@ export default function CollPane({}: Props) {
                           : ""
                       }`}
                     >
-                      <Workflow size={12} aria-hidden="true" />
+                      <BookCopy size={12} aria-hidden="true" />
                       {(col.preRun?.trim() || col.postRun?.trim()) && (
                         <span
                           aria-hidden="true"

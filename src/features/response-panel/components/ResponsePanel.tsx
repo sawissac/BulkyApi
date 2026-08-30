@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ChevronUp,
   ChevronDown,
@@ -90,101 +92,76 @@ const LEVEL_CHIP = {
 } as const;
 
 /**
- * Inline token colors for highlighted log text. The light set swaps in darker
- * equivalents so keys / strings / numbers clear WCAG AA on a pale panel — the
+ * Link/inline-code accent colors for markdown-rendered log text. The light
+ * set swaps in darker equivalents so both clear WCAG AA on a pale panel — the
  * same split {@link JNode} uses for the JSON tree.
  */
 const LOG_PALETTE = {
-  dark: {
-    key: "#67e8f9",
-    string: "#fbbf24",
-    number: "#34d399",
-    keyword: "#a78bfa",
-    punct: "#64748b",
-    url: "#38bdf8",
-  },
-  light: {
-    key: "#0e7490",
-    string: "#047857",
-    number: "#9a3412",
-    keyword: "#6d28d9",
-    punct: "#57534e",
-    url: "#0369a1",
-  },
+  dark: { url: "#38bdf8", code: "#fbbf24" },
+  light: { url: "#0369a1", code: "#9a3412" },
 } as const;
 
-/** Resolved token colors for one theme — a light or dark row of
+/** Resolved accent colors for one theme — a light or dark row of
  *  {@link LOG_PALETTE}. */
-type LogColors = Record<keyof (typeof LOG_PALETTE)["dark"], string>;
+type LogColors = { url: string; code: string };
 
-/** One pass matches, in priority order: a `"quoted"` string (with an optional
- *  trailing `:` that marks it a key), a `true`/`false`/`null` keyword, a bare
- *  number not glued to a word, or an `http(s)` URL. Everything else is plain. */
-const TOKEN_RE =
-  /("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|(?<![\w.])(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?![\w.])|(https?:\/\/[^\s"]+)/g;
+/** A single "\n" is a soft break under CommonMark (renders as a space); a
+ *  trailing double-space forces a hard `<br>` instead, so pretty-printed
+ *  payloads (`JSON.stringify(v, null, 2)`-shaped messages, stack traces) keep
+ *  their line shape once run through {@link ReactMarkdown}. */
+function toHardBreaks(text: string): string {
+  return text.replace(/\n/g, "  \n");
+}
 
-/** Split one log message into colored spans by {@link TOKEN_RE}. Untouched
- *  runs stay as plain text nodes so the parent's tone color shows through. */
-function highlightLog(text: string, c: LogColors): React.ReactNode[] {
-  const out: React.ReactNode[] = [];
-  let last = 0;
-  let key = 0;
-  let m: RegExpExecArray | null;
-  TOKEN_RE.lastIndex = 0;
-  while ((m = TOKEN_RE.exec(text)) !== null) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    const [full, str, colon, keyword, num, url] = m;
-    if (str !== undefined && colon !== undefined) {
-      out.push(
-        <span key={key++} style={{ color: c.key }}>
-          {str}
-        </span>,
-        <span key={key++} style={{ color: c.punct }}>
-          {colon}
-        </span>,
-      );
-    } else if (str !== undefined) {
-      out.push(
-        <span key={key++} style={{ color: c.string }}>
-          {str}
-        </span>,
-      );
-    } else if (keyword !== undefined) {
-      out.push(
-        <span key={key++} style={{ color: c.keyword }}>
-          {keyword}
-        </span>,
-      );
-    } else if (num !== undefined) {
-      out.push(
-        <span key={key++} style={{ color: c.number }}>
-          {num}
-        </span>,
-      );
-    } else if (url !== undefined) {
-      out.push(
-        <span key={key++} style={{ color: c.url, textDecoration: "underline" }}>
-          {url}
-        </span>,
-      );
-    }
-    last = m.index + full.length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
+/** Renderers for the markdown a console message can contain. Kept
+ *  module-level (colors baked in per call) so nodes stay inline and dense —
+ *  no block margins — matching the console row's mono, single-message
+ *  layout. */
+function logMarkdownComponents(c: LogColors): Components {
+  return {
+    p: (props) => <p className="m-0" {...props} />,
+    strong: (props) => (
+      <strong className="font-semibold text-app-bright" {...props} />
+    ),
+    em: (props) => <em className="italic" {...props} />,
+    del: (props) => <del className="line-through" {...props} />,
+    a: (props) => (
+      <a
+        {...props}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: c.url }}
+        className="underline"
+      />
+    ),
+    code: (props) => (
+      <code
+        style={{ color: c.code }}
+        className="rounded bg-app-border/40 px-1 py-0.5"
+        {...props}
+      />
+    ),
+    pre: (props) => (
+      <pre className="my-1 overflow-x-auto rounded bg-app-border/40 p-1.5" {...props} />
+    ),
+    ul: (props) => <ul className="ml-4 list-disc" {...props} />,
+    ol: (props) => <ol className="ml-4 list-decimal" {...props} />,
+    li: (props) => <li {...props} />,
+  };
 }
 
 /**
  * One console row — a tone-tinted level chip beside the message, the message
- * itself run through {@link highlightLog} for inline JSON/URL coloring and
- * rendered `pre-wrap` so pretty-printed payloads keep their shape. Internal to
- * {@link ResponsePanel}; not exported.
+ * itself rendered as markdown ({@link logMarkdownComponents}) so a script's
+ * `console.log`/`expect()` text can use bold/italic/code/links, with `\n`
+ * turned into hard breaks first so pretty-printed payloads keep their shape.
+ * Internal to {@link ResponsePanel}; not exported.
  *
  * @remarks
  * Status: stable — Type: presentational row
  *
- * State & behavior: pure — no state, no effects. Recomputes the highlight
- * spans on every render from `entry.msg`.
+ * State & behavior: pure — no state, no effects. Re-renders `entry.msg` as
+ * markdown on every render.
  *
  * Composition: a flex row of a fixed-width chip and a `flex-1` message column;
  * belongs inside the console's scroll region.
@@ -215,16 +192,19 @@ function LogLine({ entry, isLight }: LogLineProps) {
       >
         {entry.level}
       </span>
-      <span className="min-w-0 flex-1 wrap-break-word whitespace-pre-wrap">
-        {highlightLog(entry.msg, c)}
-      </span>
+      <div className="min-w-0 flex-1 wrap-break-word">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={logMarkdownComponents(c)}>
+          {toHardBreaks(entry.msg)}
+        </ReactMarkdown>
+      </div>
     </div>
   );
 }
 
 type LogLineProps = {
   /** A single captured console entry — `level` picks the chip tint and the
-   *  fallback text tone, `msg` is scanned for JSON tokens and URLs. */
+   *  fallback text tone, `msg` is rendered as markdown (bold/italic/code/
+   *  links/lists), with `\n` treated as a hard line break. */
   entry: { level: string; msg: string };
   /** Whether the active theme is light — selects the darker token palette so
    *  highlighted spans keep AA contrast on a pale panel. */

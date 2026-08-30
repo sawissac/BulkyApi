@@ -274,6 +274,8 @@ export const METHOD_CLR: Record<string, string> = {
   OPTIONS: '#6366f1',
   HEAD:    '#64748b',
   SSE:     '#f472b6',
+  WS:      '#38bdf8',
+  IO:      '#fb923c',
   DOCS:    '#a78bfa',
 };
 
@@ -291,6 +293,8 @@ export const METHOD_CLR_LIGHT: Record<string, string> = {
   OPTIONS: '#4338ca',
   HEAD:    '#475569',
   SSE:     '#be185d',
+  WS:      '#0369a1',
+  IO:      '#c2410c',
   DOCS:    '#6d28d9',
 };
 
