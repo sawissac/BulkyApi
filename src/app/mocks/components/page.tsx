@@ -196,7 +196,7 @@ const ENTRIES: Entry[] = [
     props: '{ T: Theme; call: ApiCall }',
     group: 'Response panel',
     mount: 'live',
-    note: 'Response body in pretty / raw / TypeScript views; switches to an SSE event list for streams.',
+    note: 'Response body in pretty / raw / TypeScript views; switches to an SSE event list for streams. Hosted here in a scrolling, 10px-padded box so its sticky control row bleeds over the padding exactly as it does inside CallCard.',
   },
   {
     id: 'call-card',
@@ -320,7 +320,7 @@ const ENTRIES: Entry[] = [
     name: 'CodeEditor',
     path: 'src/features/code-editor/components/CodeEditor.tsx',
     props:
-      '{ T: Theme; onRun: () => void; onNext: () => void; onStop: () => void; running: boolean; stepMode: boolean; paused: boolean; onToggleStep: () => void }',
+      '{ T: Theme; onRun: (selection?: string) => void; onNext: () => void; onStop: () => void; running: boolean; stepMode: boolean; paused: boolean; onToggleStep: () => void }',
     group: 'Code editor',
     mount: 'on-demand',
     note: 'Toolbar (run / step / stop / format / examples) wrapped around the Monaco editor.',
@@ -330,7 +330,7 @@ const ENTRIES: Entry[] = [
     name: 'MonacoCodeEditor',
     path: 'src/features/code-editor/components/MonacoCodeEditor.tsx',
     props:
-      '{ value: string; onChange: (v: string) => void; envVars: Record<string, string>; T: Theme; onRun: () => void; onMount?: (editor: EditorInstance) => void }',
+      '{ value: string; onChange: (v: string) => void; envVars: Record<string, string>; T: Theme; onRun: (selection?: string) => void; onSelectionChange?: (selection: string) => void; onMount?: (editor: EditorInstance) => void }',
     group: 'Code editor',
     mount: 'on-demand',
     note: 'Monaco instance with env-var completions and theme sync. Heavy — mounts on request.',
@@ -750,10 +750,14 @@ export default function MocksComponentsPage() {
 
           <Section entry={ENTRIES[11]}>
             <Case title="JSON response">
-              <RespTab T={T} call={MOCK_CALL} />
+              <div className="max-h-[500px] overflow-y-auto overflow-x-hidden bg-app-panel p-2.5">
+                <RespTab T={T} call={MOCK_CALL} />
+              </div>
             </Case>
             <Case title="SSE stream">
-              <RespTab T={T} call={MOCK_CALL_SSE} />
+              <div className="max-h-[500px] overflow-y-auto overflow-x-hidden bg-app-panel p-2.5">
+                <RespTab T={T} call={MOCK_CALL_SSE} />
+              </div>
             </Case>
           </Section>
 

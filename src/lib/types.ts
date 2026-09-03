@@ -63,6 +63,11 @@ export type ApiCall = {
   error: string | null;
   timestamp: string | null;
   cache: boolean;
+  /** Position this call held in the run that produced it — the key the
+   *  socket registry uses. Set only on records that actually ran, and
+   *  differs from `idx` (the card's slot) once a selection run's calls are
+   *  overlaid on the whole script's stubs. */
+  runIdx?: number;
   note?: string;
   isSse?: boolean;
   sseEvents?: SseEvent[];

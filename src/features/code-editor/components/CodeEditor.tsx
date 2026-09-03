@@ -39,7 +39,11 @@ import {
   renameCollection,
   renameItem,
 } from "@/store/collectionsSlice";
-import { selectBuiltCalls, selectStepMode, setStepMode } from "@/store/runnerSlice";
+import {
+  selectBuiltCalls,
+  selectStepMode,
+  setStepMode,
+} from "@/store/runnerSlice";
 import {
   selectTweaksOpen,
   setTweaksOpen,
@@ -108,10 +112,13 @@ type Props = {
   /** Active theme, passed straight through to {@link MonacoCodeEditor} and
    *  {@link ExampleDialog} — this component reads no theme values itself. */
   T: Theme;
-  /** Fires on the Run button and the ⌘↵ shortcut (handled by the parent,
-   *  which owns the run loop — this component only renders the shortcut
-   *  label on the button itself). */
-  onRun: () => void;
+  /** Fires on the Run button, the palette's Run entry and the ⌘↵ shortcut
+   *  (handled by the parent, which owns the run loop — this component only
+   *  renders the shortcut label on the button itself). Carries the editor's
+   *  selected text whenever the selection holds non-blank source, so the
+   *  parent runs only those lines.
+   *  @param selection - Selected source, or `undefined` for the whole buffer. */
+  onRun: (selection?: string) => void;
   /** Fires on the Next button, shown only while `paused`. */
   onNext: () => void;
   /** Fires on the Stop button, shown only while `running` and not `paused`. */
@@ -178,7 +185,12 @@ type Props = {
  * `onCloseSocket(idx)` for that same call instead. Both buttons disable
  * while `running` — the script itself is driving the connection mid-run, so
  * manual sends/disconnects wait until the run finishes or is stopped; Send
- * is further disabled whenever `wsDraft` is blank.
+ * is further disabled whenever `wsDraft` is blank. `selection` mirrors the
+ * editor's selection, pushed up by {@link MonacoCodeEditor} on every cursor
+ * move; while it holds non-blank source the action block reads "Run Sel" and
+ * both it and the palette's Run entry hand that text to `onRun`, so only the
+ * selected lines execute — ⌘↵ inside the editor does the same, ⌘⇧↵ always
+ * runs the whole buffer.
  *
  * Variants: with no collection at all, the whole panel is replaced by
  * {@link EditorEmptyState} — no toolbar, editor or status bar. With at least
@@ -307,14 +319,24 @@ export default function CodeEditor({
   const [renaming, setRenaming] = useState<"coll" | "item" | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [wsDraft, setWsDraft] = useState("");
+  const [selection, setSelection] = useState("");
+
+  // A whitespace-only selection is treated as none — Monaco reports the same
+  // for its own run actions, so button, palette and ⌘↵ agree on the target.
+  const hasSelection = selection.trim().length > 0;
+  const selectionLines = hasSelection ? selection.trim().split("\n").length : 0;
+  const runTarget = () => (hasSelection ? selection : undefined);
 
   // Last-opened-wins if a script somehow opens more than one socket — a v1
   // limitation, not something the composer is built to juggle.
   const openSocket = [...builtCalls].reverse().find((c) => c.isWs && c.wsOpen);
+  // The registry is keyed by the socket's position in the run, which is not
+  // the card's slot once a selection run overlays its calls on the stubs.
+  const openSocketKey = openSocket?.runIdx ?? openSocket?.idx ?? -1;
 
   const sendWsDraft = () => {
     if (!openSocket || running || !wsDraft.trim()) return;
-    onSendSocketMessage(openSocket.idx, wsDraft);
+    onSendSocketMessage(openSocketKey, wsDraft);
     setWsDraft("");
   };
 
@@ -410,10 +432,10 @@ export default function CodeEditor({
       actions.push({
         id: "action-run",
         category: "Actions",
-        label: "Run script",
+        label: hasSelection ? "Run selection" : "Run script",
         keywords: ["execute"],
         icon: Play,
-        onSelect: onRun,
+        onSelect: () => onRun(runTarget()),
       });
     }
     actions.push(
@@ -443,11 +465,14 @@ export default function CodeEditor({
       {
         id: "action-fullscreen",
         category: "Actions",
-        label: displayMode === "fullscreen" ? "Exit fullscreen" : "Enter fullscreen",
+        label:
+          displayMode === "fullscreen" ? "Exit fullscreen" : "Enter fullscreen",
         keywords: ["zen", "full screen"],
         icon: Laptop,
         onSelect: () =>
-          void applyDisplayMode(displayMode === "fullscreen" ? "browser" : "fullscreen"),
+          void applyDisplayMode(
+            displayMode === "fullscreen" ? "browser" : "fullscreen",
+          ),
       },
       ...(
         [
@@ -537,7 +562,9 @@ export default function CodeEditor({
             category: "Environments",
             label: env.name,
             onSelect: () =>
-              dispatch(setEnvIdx({ collectionId: activeCollection.id, envIdx: i })),
+              dispatch(
+                setEnvIdx({ collectionId: activeCollection.id, envIdx: i }),
+              ),
           }))
         : [];
 
@@ -795,16 +822,20 @@ export default function CodeEditor({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={onRun}
+                onClick={() => onRun(runTarget())}
                 className={`${ACTION_BTN} bg-app-accent focus-visible:ring-app-accent`}
               >
-                Run
+                {hasSelection ? "Run Sel" : "Run"}
                 <span className="text-[10px] font-normal normal-case tracking-normal opacity-75">
                   ⌘↵
                 </span>
               </button>
             </TooltipTrigger>
-            <TooltipContent>Run shortcut</TooltipContent>
+            <TooltipContent>
+              {hasSelection
+                ? `Run ${selectionLines} selected line${selectionLines === 1 ? "" : "s"} — ⌘⇧↵ runs all`
+                : "Run shortcut"}
+            </TooltipContent>
           </Tooltip>
         )}
       </div>
@@ -817,6 +848,7 @@ export default function CodeEditor({
           envVars={envVars}
           T={T}
           onRun={onRun}
+          onSelectionChange={setSelection}
           onMount={(editor) => {
             monacoEditorRef.current = editor;
           }}
@@ -884,7 +916,7 @@ export default function CodeEditor({
                 <button
                   type="button"
                   data-testid="code-editor-socket-disconnect-button"
-                  onClick={() => onCloseSocket(openSocket.idx)}
+                  onClick={() => onCloseSocket(openSocketKey)}
                   disabled={running}
                   className={`${ACTION_BTN} h-6 bg-app-error px-2.5 focus-visible:ring-app-error`}
                 >

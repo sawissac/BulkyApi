@@ -1,6 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { ApiCall, LogEntry, Assertion } from "@/lib/types";
 import { removeItem } from "./collectionsSlice";
+import { findCallIndex } from "@/lib/callMatch";
 
 type RunnerState = {
   builtCalls: ApiCall[];
@@ -12,6 +13,10 @@ type RunnerState = {
   callsByItemId: Record<string, ApiCall[]>;
   currentItemId: string | null;
   runCacheFlags: boolean[];
+  /** Whole-script stubs captured at run start. A run of a selection executes
+   *  only some of them, so live calls are overlaid onto this list rather than
+   *  replacing it — the calls the fragment skipped stay on screen as stubs. */
+  runPreview: ApiCall[];
   extractedVars: Record<string, string>;
   assertions: Assertion[];
 };
@@ -26,6 +31,7 @@ const initialState: RunnerState = {
   callsByItemId: {},
   currentItemId: null,
   runCacheFlags: [],
+  runPreview: [],
   extractedVars: {},
   assertions: [],
 };
@@ -58,38 +64,71 @@ function applyStored(nc: ApiCall, existing: ApiCall): ApiCall {
 /**
  * Merge stored run results onto freshly analyzed call stubs.
  * Pass 1 — exact method + url match (handles env-resolved URLs).
- * Pass 2 — positional fallback for dynamic URLs that the analyzer can't resolve.
+ * Pass 2 — method + pre-interpolation `urlExpr` match, for calls whose stored
+ *   url is resolved but whose stub still carries `{{vars}}` the analyzer
+ *   can't expand.
+ * Pass 3 — positional fallback for dynamic URLs neither pass can pair.
  */
-function mergeCalls(
+function mergeCallsInto(
   analyzedCalls: ApiCall[],
   storedCalls: ApiCall[],
-): ApiCall[] {
-  if (storedCalls.length === 0) return analyzedCalls;
-
+  positional: boolean,
+): { calls: ApiCall[]; usedOld: Set<number> } {
   const usedOld = new Set<number>();
+  if (storedCalls.length === 0) return { calls: analyzedCalls, usedOld };
 
-  // Pass 1: exact method + url match
-  const result = analyzedCalls.map((nc) => {
-    const idx = storedCalls.findIndex(
-      (oc, i) =>
-        !usedOld.has(i) && oc.method === nc.method && oc.url === nc.url,
-    );
+  // Pass 1 + 2: same method, matched on the resolved url or — for a
+  // `{{var}}` only the run could expand — on the pre-interpolation
+  // expression. Without the second key a selection run's result, whose url is
+  // resolved while every stub's isn't, falls through to the positional pass
+  // and lands on whichever stub happens to share its index.
+  const result: (ApiCall | null)[] = analyzedCalls.map((nc) => {
+    const idx = findCallIndex(nc, storedCalls, usedOld);
     if (idx === -1) return null;
     usedOld.add(idx);
     return applyStored(nc, storedCalls[idx]);
   });
 
-  // Pass 2: positional fallback for unmatched calls (dynamic URLs)
+  // Pass 3: positional fallback for dynamic URLs neither key can pair. Only
+  // safe when both lists came from the same script — a selection run's
+  // indices don't line up with the whole script's.
   for (let i = 0; i < analyzedCalls.length; i++) {
     if (result[i]) continue;
-    const stored = storedCalls[i];
+    const stored = positional ? storedCalls[i] : undefined;
     result[i] =
       stored && !usedOld.has(i) && stored.method === analyzedCalls[i].method
         ? (usedOld.add(i), applyStored(analyzedCalls[i], stored))
         : analyzedCalls[i];
   }
 
-  return result as ApiCall[];
+  return { calls: result as ApiCall[], usedOld };
+}
+
+function mergeCalls(
+  analyzedCalls: ApiCall[],
+  storedCalls: ApiCall[],
+): ApiCall[] {
+  return mergeCallsInto(analyzedCalls, storedCalls, true).calls;
+}
+
+/**
+ * Overlays a run's live calls onto the whole-script stubs captured at run
+ * start, so the requests a selection run never reached keep their cards
+ * instead of vanishing the moment the first real call arrives.
+ *
+ * A live call the preview can't account for — an extra loop iteration, a url
+ * built at runtime — is appended rather than dropped, so nothing that ran
+ * goes unshown. `idx` is renumbered to the card's slot (it drives the card
+ * label, its test id and the cache toggle); `runIdx` keeps the position the
+ * run itself used, which is the socket registry's key.
+ */
+function overlayRunCalls(preview: ApiCall[], live: ApiCall[]): ApiCall[] {
+  if (preview.length === 0) return live;
+
+  const { calls, usedOld } = mergeCallsInto(preview, live, false);
+  const extras = live.filter((_, i) => !usedOld.has(i));
+
+  return [...calls, ...extras].map((c, i) => ({ ...c, idx: i }));
 }
 
 const runnerSlice = createSlice({
@@ -99,6 +138,9 @@ const runnerSlice = createSlice({
     setBuiltCalls(state, action: PayloadAction<ApiCall[]>) {
       state.builtCalls = action.payload;
       state.runCacheFlags = action.payload.map((c) => c.cache);
+    },
+    setRunPreview(state, action: PayloadAction<ApiCall[]>) {
+      state.runPreview = action.payload;
     },
     syncAnalyzedCalls(state, action: PayloadAction<ApiCall[]>) {
       state.builtCalls = mergeCalls(action.payload, state.builtCalls);
@@ -137,7 +179,10 @@ const runnerSlice = createSlice({
         state.extractedVars = {};
         state.assertions = [];
       }
-      if (!action.payload) state.paused = false;
+      if (!action.payload) {
+        state.paused = false;
+        state.runPreview = [];
+      }
     },
     setStepMode(state, action: PayloadAction<boolean>) {
       state.stepMode = action.payload;
@@ -153,8 +198,13 @@ const runnerSlice = createSlice({
         itemId: string | null;
       }>,
     ) {
-      // Restore user cache flags using snapshot taken at run start
-      const calls = action.payload.calls.map((c, i) => ({
+      // `runIdx` outlives the overlay's renumbering — the socket registry is
+      // keyed by the position the run used, not by the card's slot.
+      const live = action.payload.calls.map((c, i) => ({ ...c, runIdx: i }));
+
+      // Restore user cache flags using snapshot taken at run start. The
+      // snapshot is indexed by preview slot, which is what the overlay yields.
+      const calls = overlayRunCalls(state.runPreview, live).map((c, i) => ({
         ...c,
         cache: state.runCacheFlags[i] ?? false,
       }));
@@ -197,6 +247,7 @@ const runnerSlice = createSlice({
 
 export const {
   setBuiltCalls,
+  setRunPreview,
   syncAnalyzedCalls,
   switchToItem,
   setLogs,

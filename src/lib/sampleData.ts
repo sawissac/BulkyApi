@@ -3,6 +3,22 @@ export type CollectionItem = {
   name: string;
   method: string;
   code: string;
+  /** Folder in the same collection this item lives in. `null`/absent means it
+   *  sits at the collection root. The folder is looked up in
+   *  `Collection.folders`; an id that does not resolve falls back to root. */
+  folderId?: string | null;
+};
+
+/** One folder in a collection's sidebar tree. Folders form the tree through
+ *  `parentId` rather than nesting — `Collection.folders` stays a flat list so
+ *  every existing consumer of `Collection.items` keeps working unchanged. */
+export type Folder = {
+  id: string;
+  name: string;
+  /** Parent folder in the same collection, or `null` for a root-level folder.
+   *  A `parentId` that does not resolve is treated as root. */
+  parentId: string | null;
+  open: boolean;
 };
 
 export type Collection = {
@@ -10,6 +26,10 @@ export type Collection = {
   name: string;
   open: boolean;
   items: CollectionItem[];
+  /** Flat list of the collection's folders; the tree is derived from each
+   *  folder's `parentId`. Absent/empty means a flat, folderless collection —
+   *  the pre-folders shape, still rendered identically. */
+  folders?: Folder[];
   environments: Environment[];
   envIdx: number;
   /** Script run once before the item script on every run of any item in this

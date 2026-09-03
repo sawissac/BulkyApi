@@ -4,6 +4,7 @@ import type {
   CollectionItemRow,
   CollectionRow,
   EnvironmentRow,
+  FolderRow,
   RunnerSnapshot,
   SyncSnapshot,
   UserStateRow,
@@ -35,17 +36,20 @@ export async function pullRemoteState(): Promise<PersistedShape | null> {
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) return null;
 
-  const [colsRes, itemsRes, envsRes, stateRes] = await Promise.all([
+  const [colsRes, itemsRes, foldersRes, envsRes, stateRes] = await Promise.all([
     supabase.from('collections').select('*'),
     supabase.from('collection_items').select('*'),
+    supabase.from('folders').select('*'),
     supabase.from('environments').select('*'),
     supabase.from('user_state').select('*').maybeSingle(),
   ]);
 
-  if (colsRes.error || itemsRes.error || envsRes.error || stateRes.error) return null;
+  if (colsRes.error || itemsRes.error || foldersRes.error || envsRes.error || stateRes.error)
+    return null;
 
   const cols = (colsRes.data ?? []) as CollectionRow[];
   const items = (itemsRes.data ?? []) as CollectionItemRow[];
+  const folders = (foldersRes.data ?? []) as FolderRow[];
   const envs = (envsRes.data ?? []) as EnvironmentRow[];
   const userState = stateRes.data as UserStateRow | null;
 
@@ -59,7 +63,22 @@ export async function pullRemoteState(): Promise<PersistedShape | null> {
     items: items
       .filter((i) => i.collection_id === c.id)
       .sort(byPosition)
-      .map(({ id, name, method, code }) => ({ id, name, method, code })),
+      .map(({ id, name, method, code, folder_id }) => ({
+        id,
+        name,
+        method,
+        code,
+        folderId: folder_id ?? null,
+      })),
+    folders: folders
+      .filter((f) => f.collection_id === c.id)
+      .sort(byPosition)
+      .map(({ id, name, parent_id, open }) => ({
+        id,
+        name,
+        parentId: parent_id ?? null,
+        open,
+      })),
     environments: envs
       .filter((e) => e.collection_id === c.id)
       .sort(byPosition)
@@ -111,7 +130,12 @@ export async function pushRemoteState(snapshot: SyncSnapshot): Promise<boolean> 
   return !error;
 }
 
-/** Flattens the Redux slices into the payload `sync_state` expects. */
+/**
+ * Flattens the Redux slices into the payload `sync_state` expects. The
+ * `collections` array is passed through as-is, so each collection's `folders`
+ * list and every item's `folderId` travel with it — `sync_state` (0003) reads
+ * `c.value->'folders'` and `i.value->>'folderId'` straight from this shape.
+ */
 export function buildSnapshot(state: Record<string, unknown>): SyncSnapshot {
   const collections = state.collections as PersistedShape['collections'] | undefined;
   const editor = state.editor as { code?: string } | undefined;

@@ -13,6 +13,7 @@ import type { Theme } from "@/lib/themes";
 import type { ApiCall, Assertion } from "@/lib/types";
 import { statusColor } from "@/lib/themes";
 import { callToCurl } from "@/lib/toCurl";
+import { displayUrl } from "@/lib/callMatch";
 import MethodPill from "@/components/MethodPill";
 import StatusPill from "@/components/StatusPill";
 import {
@@ -144,13 +145,16 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  * CSS classes: none — inline theme values, matching the rest of the pane.
  *
  * Edge cases:
+ * - The header URL is passed through {@link displayUrl}, so a multi-line
+ *   template-literal argument (newlines + indentation) collapses to one line
+ *   in both the row and its tooltip.
  * - cURL copy is offered only once the call has left `idle`, so the URL and
  *   headers are the resolved ones.
  * - A failed clipboard write leaves the button in its idle state, no error.
  * - Assertions recorded before the first call attach to that first call.
  *
  * Dependencies: `lucide-react`, `react-redux`, `@/lib/toCurl`,
- * `@/store/runnerSlice`.
+ * `@/lib/callMatch`, `@/store/runnerSlice`.
  *
  * @example
  * ```tsx
@@ -329,10 +333,10 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
                 textOverflow: "ellipsis",
               }}
             >
-              {call.url}
+              {displayUrl(call.url)}
             </span>
           </TooltipTrigger>
-          <TooltipContent>{call.url}</TooltipContent>
+          <TooltipContent>{displayUrl(call.url)}</TooltipContent>
         </Tooltip>
 
         {/* Progress bar */}

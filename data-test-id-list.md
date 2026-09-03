@@ -60,9 +60,19 @@ Shared primitive — forwards the caller's `data-testid` to the `<input>` and de
 
 `coll-pane-rename-collection-input` — CollPane / inline collection rename field (via shared `Input`; single instance, since only one row can be in edit mode at a time)
 `coll-pane-rename-collection-input-clear-button` — CollPane / collection rename inline clear button
+`coll-pane-rename-folder-input` — CollPane / inline folder rename field (via shared `Input`; single instance, since only one row can be in edit mode at a time)
+`coll-pane-rename-folder-input-clear-button` — CollPane / folder rename inline clear button
 `coll-pane-rename-item-input` — CollPane / inline test-item rename field (via shared `Input`; single instance, since only one row can be in edit mode at a time)
 `coll-pane-rename-item-input-clear-button` — CollPane / test-item rename inline clear button
 `coll-pane-hooks-button-<collectionId>` — CollPane / per-collection run-hooks (pre-run/post-run) trigger button, opens CollectionHooksDialog
+`coll-pane-folder-toggle-<folderId>` — CollPane / folder expand/collapse chevron
+`coll-pane-folder-add-request-button-<folderId>` — CollPane / per-folder inline "add request" button (drops the new item into that folder)
+`coll-pane-row-menu-button-<id>` — CollPane / per-row `⋯` overflow menu trigger (`id` is the collection, folder or item id)
+`coll-pane-menu-add-folder-<id>` — CollPane / overflow menu — add a folder (root folder on a collection row, subfolder on a folder row)
+`coll-pane-menu-rename-<id>` — CollPane / overflow menu — rename this collection/folder/item
+`coll-pane-menu-move-up-<id>` — CollPane / overflow menu — move up among siblings (disabled at the top)
+`coll-pane-menu-move-down-<id>` — CollPane / overflow menu — move down among siblings (disabled at the bottom)
+`coll-pane-menu-delete-<id>` — CollPane / overflow menu — delete (opens ConfirmDialog; a folder cascades to nested folders + items)
 
 ## CollectionHooksDialog (src/features/sidebar/components/CollectionHooksDialog.tsx)
 
@@ -89,7 +99,7 @@ Shared primitive — forwards the caller's `data-testid` to the `<input>` and de
 
 ## ConfirmDialog (src/components/ConfirmDialog.tsx)
 
-Shared primitive — fixed ids regardless of caller (not derived per instance). Used by `CollPane` (collection/request deletion) and `EnvPane` (environment deletion).
+Shared primitive — fixed ids regardless of caller (not derived per instance). Used by `CollPane` (collection / folder / request deletion) and `EnvPane` (environment deletion).
 
 `confirm-dialog-root` — ConfirmDialog / dialog root
 `confirm-dialog-close-button` — ConfirmDialog / header close button
@@ -135,6 +145,19 @@ Two mounted `VarSection`s — the environment section uses the `vars-pane-*` pre
 `call-card-<idx>` — CallCard / row root (per built call, 0-based index)
 `call-card-copy-curl-button` — CallCard / header "copy as cURL" action (shown once the call leaves idle)
 `call-card-tab-<id>` — CallCard / detail tab button (per tab: response, headers, auth, payload, status, tests)
+
+## RespTab (src/features/response-panel/components/RespTab.tsx)
+
+`resp-tab-search-input` — BodySearchBar / body search field (JSONPath in PRETTY, find-in-text in RAW/TS)
+`resp-tab-search-input-clear-button` — BodySearchBar / clear button derived by `Input` (shown once the field has a value)
+`resp-tab-search-status` — BodySearchBar / match count or JSONPath error line (mounts only while a term is entered)
+`resp-tab-match-prev-button` — RespTab / step to previous find match (mounts only in RAW/TS with a term entered)
+`resp-tab-match-next-button` — RespTab / step to next find match (mounts only in RAW/TS with a term entered)
+`resp-tab-copy-button` — RespTab / copy body action
+`resp-tab-view-button-<mode>` — RespTab / view toggle (per mode: pretty, raw, ts)
+`resp-tab-body` — RespTab / body root, whichever of the three views is active
+`resp-tab-query-match-list` — QueryMatches / JSONPath result list (mounts only when a query matched)
+`resp-tab-query-empty-message` — QueryMatches / no-hits line (mounts only when a valid query matched nothing)
 
 ## ResponsePanel (src/features/response-panel/components/ResponsePanel.tsx)
 
@@ -195,3 +218,11 @@ Ids derive from the caller's `testId` base — the component hardcodes none.
 
 `error-boundary-root` / `error-boundary-code` / `error-boundary-title` / `error-boundary-message` / `error-boundary-detail` — via shared `StatusScreen`
 `error-boundary-retry-button` — ErrorBoundary / clear the error and re-render children
+
+## JsonTreeViewer (src/components/JsonTreeViewer.tsx)
+
+`json-tree-viewer-toggle-<path>` — JsonTreeViewer / expand-collapse brace (per node, dotted path from `root`)
+`json-tree-viewer-key-<path>` — JsonTreeViewer / click-to-copy key (per object member)
+`json-tree-viewer-value-<path>` — JsonTreeViewer / click-to-copy scalar value (per node)
+`json-tree-viewer-expand-<path>` — JsonTreeViewer / see more–see less toggle (per elided string)
+`json-tree-viewer-key-<path>-tooltip` / `json-tree-viewer-value-<path>-tooltip` — JsonTreeViewer / copy tooltip content ("Click to copy" → "Copied")

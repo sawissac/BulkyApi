@@ -1,5 +1,11 @@
 import { createSlice, createSelector, nanoid, type PayloadAction } from '@reduxjs/toolkit';
-import { INITIAL_COLLECTIONS, type Collection, type CollectionItem, type Environment } from '@/lib/sampleData';
+import {
+  INITIAL_COLLECTIONS,
+  type Collection,
+  type CollectionItem,
+  type Environment,
+} from '@/lib/sampleData';
+import { descendantFolderIds } from '@/lib/collectionTree';
 
 const RECENT_LIMIT = 6;
 
@@ -27,6 +33,38 @@ function pushRecent(state: CollectionsState, id: string) {
 // Helper to find the collection containing a specific environment
 function findCollectionForEnv(state: CollectionsState, envId: string): Collection | undefined {
   return state.collections.find(c => c.environments.some(e => e.id === envId));
+}
+
+/**
+ * Re-slots the row `movedId` in a flat array so it sits immediately before
+ * `beforeId`, or after the last of its `isSibling` peers when `beforeId` is
+ * null (drop at the end of a container). Order in the flat array is what the
+ * sidebar tree and the Supabase `position` both read, so a cross-container move
+ * updates the row's parent pointer first, then calls this. The row is pulled
+ * out before the anchor is located, so a downward move within one container
+ * lands where the pointer expects.
+ */
+function repositionBefore<T extends { id: string }>(
+  arr: T[],
+  movedId: string,
+  isSibling: (row: T) => boolean,
+  beforeId: string | null,
+): void {
+  const from = arr.findIndex((r) => r.id === movedId);
+  if (from < 0) return;
+  const [moved] = arr.splice(from, 1);
+  if (beforeId) {
+    const at = arr.findIndex((r) => r.id === beforeId);
+    if (at >= 0) {
+      arr.splice(at, 0, moved);
+      return;
+    }
+  }
+  const siblings = arr.filter(isSibling);
+  const at = siblings.length
+    ? arr.indexOf(siblings[siblings.length - 1]) + 1
+    : arr.length;
+  arr.splice(at, 0, moved);
 }
 
 // Removed getActiveCollection
@@ -58,7 +96,25 @@ const collectionsSlice = createSlice({
       for (const col of imported) {
         // give fresh IDs to avoid collision
         col.id = nanoid();
-        col.items.forEach((i) => (i.id = nanoid()));
+
+        // Re-id folders first, then rewrite every parent/child pointer through
+        // the same old→new map so an imported tree keeps its shape without
+        // colliding with existing ids. An unresolved pointer drops to root.
+        if (!col.folders) col.folders = [];
+        const folderIdMap = new Map<string, string>();
+        col.folders.forEach((f) => {
+          const next = nanoid();
+          folderIdMap.set(f.id, next);
+          f.id = next;
+        });
+        col.folders.forEach((f) => {
+          f.parentId = f.parentId ? folderIdMap.get(f.parentId) ?? null : null;
+        });
+        col.items.forEach((i) => {
+          i.id = nanoid();
+          i.folderId = i.folderId ? folderIdMap.get(i.folderId) ?? null : null;
+        });
+
         if (!col.environments) col.environments = [];
         col.environments.forEach((e) => (e.id = nanoid()));
         col.envIdx = col.envIdx || 0;
@@ -74,17 +130,32 @@ const collectionsSlice = createSlice({
       const col = state.collections.find((c) => c.id === action.payload.id);
       if (col && action.payload.name.trim()) col.name = action.payload.name;
     },
-    addItem(state, action: PayloadAction<{ collectionId: string; name?: string; method?: string; code?: string }>) {
+    addItem(
+      state,
+      action: PayloadAction<{
+        collectionId: string;
+        name?: string;
+        method?: string;
+        code?: string;
+        folderId?: string | null;
+      }>,
+    ) {
       const col = state.collections.find((c) => c.id === action.payload.collectionId);
       if (!col) return;
+      const folderId = action.payload.folderId ?? null;
       const item: CollectionItem = {
         id: nanoid(),
         name: action.payload.name ?? 'New Test',
         method: action.payload.method ?? 'GET',
         code: action.payload.code ?? `// New Test\nconst r = await api.get(env.baseUrl + '/');\nconsole.log(r.status);\n`,
+        folderId,
       };
       col.items.push(item);
       col.open = true;
+      if (folderId) {
+        const folder = col.folders?.find((f) => f.id === folderId);
+        if (folder) folder.open = true;
+      }
       state.activeId = item.id;
       pushRecent(state, item.id);
     },
@@ -120,11 +191,109 @@ const collectionsSlice = createSlice({
       const col = state.collections.find((c) => c.id === action.payload.collectionId);
       if (col) col[action.payload.hook] = action.payload.code;
     },
+    // --- Folder Reducers ---
+    addFolder(
+      state,
+      action: PayloadAction<{ collectionId: string; parentId?: string | null; name: string }>,
+    ) {
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      if (!col || !action.payload.name.trim()) return;
+      col.folders ??= [];
+      const parentId = action.payload.parentId ?? null;
+      col.folders.push({ id: nanoid(), name: action.payload.name, parentId, open: true });
+      col.open = true;
+      if (parentId) {
+        const parent = col.folders.find((f) => f.id === parentId);
+        if (parent) parent.open = true;
+      }
+    },
+    renameFolder(state, action: PayloadAction<{ collectionId: string; folderId: string; name: string }>) {
+      if (!action.payload.name.trim()) return;
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      const folder = col?.folders?.find((f) => f.id === action.payload.folderId);
+      if (folder) folder.name = action.payload.name;
+    },
+    toggleFolderOpen(state, action: PayloadAction<{ collectionId: string; folderId: string }>) {
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      const folder = col?.folders?.find((f) => f.id === action.payload.folderId);
+      if (folder) folder.open = !folder.open;
+    },
+    removeFolder(state, action: PayloadAction<{ collectionId: string; folderId: string }>) {
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      if (!col?.folders) return;
+      // Cascade: the folder, every folder nested under it, and every item in
+      // any of them. The UI dispatches `removeItem` per item first so the
+      // runner/ui cross-slice cleanup runs; the filter here is the safety net
+      // for a direct call.
+      const doomed = descendantFolderIds(col.folders, action.payload.folderId);
+      col.folders = col.folders.filter((f) => !doomed.has(f.id));
+      const removedItemIds = new Set(
+        col.items.filter((i) => i.folderId != null && doomed.has(i.folderId)).map((i) => i.id),
+      );
+      col.items = col.items.filter((i) => !removedItemIds.has(i.id));
+      if (state.activeId && removedItemIds.has(state.activeId)) state.activeId = null;
+      state.recentItemIds = state.recentItemIds.filter((x) => !removedItemIds.has(x));
+    },
+    moveItem(
+      state,
+      action: PayloadAction<{
+        collectionId: string;
+        itemId: string;
+        targetFolderId: string | null;
+        beforeId: string | null;
+      }>,
+    ) {
+      const { collectionId, itemId, targetFolderId, beforeId } = action.payload;
+      const col = state.collections.find((c) => c.id === collectionId);
+      const item = col?.items.find((i) => i.id === itemId);
+      if (!col || !item) return;
+      if (targetFolderId && !col.folders?.some((f) => f.id === targetFolderId)) return;
+      item.folderId = targetFolderId;
+      repositionBefore(
+        col.items,
+        itemId,
+        (i) => (i.folderId ?? null) === targetFolderId,
+        beforeId,
+      );
+    },
+    moveFolder(
+      state,
+      action: PayloadAction<{
+        collectionId: string;
+        folderId: string;
+        targetParentId: string | null;
+        beforeId: string | null;
+      }>,
+    ) {
+      const { collectionId, folderId, targetParentId, beforeId } = action.payload;
+      const col = state.collections.find((c) => c.id === collectionId);
+      if (!col?.folders) return;
+      const folder = col.folders.find((f) => f.id === folderId);
+      if (!folder) return;
+      // Can't drop a folder into itself or into one of its own descendants.
+      if (targetParentId && descendantFolderIds(col.folders, folderId).has(targetParentId)) return;
+      if (targetParentId && !col.folders.some((f) => f.id === targetParentId)) return;
+      folder.parentId = targetParentId;
+      repositionBefore(
+        col.folders,
+        folderId,
+        (f) => f.parentId === targetParentId,
+        beforeId,
+      );
+    },
+    moveCollection(state, action: PayloadAction<{ id: string; beforeId: string | null }>) {
+      repositionBefore(state.collections, action.payload.id, () => true, action.payload.beforeId);
+    },
     hydrateCollections(_state, action: PayloadAction<CollectionsState>) {
       return {
         ...action.payload,
         recentItemIds: action.payload.recentItemIds ?? [],
         baseVars: action.payload.baseVars ?? {},
+        collections: (action.payload.collections ?? []).map((c) => ({
+          ...c,
+          folders: c.folders ?? [],
+          items: c.items.map((i) => ({ ...i, folderId: i.folderId ?? null })),
+        })),
       };
     },
     // --- Environment Reducers ---
@@ -218,6 +387,13 @@ export const {
   renameItem,
   setItemMethod,
   saveItemCode,
+  addFolder,
+  renameFolder,
+  toggleFolderOpen,
+  removeFolder,
+  moveItem,
+  moveFolder,
+  moveCollection,
   hydrateCollections,
   setEnvIdx,
   addEnvironment,

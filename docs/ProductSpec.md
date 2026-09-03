@@ -85,7 +85,9 @@ Each non-SSE call resolves to `{ data, status, headers, ok }`.
 
 The runtime also injects `expect(...)` and `api.assert(...)` for checks (§3.5),
 `sleep(ms)` for delays, `api.file(accept?)` / `api.form(fields)` for uploads
-(§3.7), and a writable `env` (§3.4).
+(§3.7), the full **`lodash`** library (call as `lodash.groupBy(...)`,
+`lodash.cloneDeep(...)`, etc. — typed in the editor), and a writable `env`
+(§3.4).
 
 Responses can be typed for editor help — the buffer is TypeScript and types are
 stripped before execution:
@@ -287,8 +289,8 @@ accent dot means one is set) to attach two collection-level scripts:
   request in the collection. Use it to authenticate once or seed data.
 - **Post-run** — runs once after the request script. Use it for cleanup.
 
-All three run in one pass and share `api`, `console`, `sleep`, `expect` and the
-same environment. Pass data forward with `env.set('token', …)` in the pre-run
+All three run in one pass and share `api`, `console`, `sleep`, `expect`,
+`lodash` and the same environment. Pass data forward with `env.set('token', …)` in the pre-run
 and read it with `env.get('token')` (or `{{token}}`) later — **local variables
 do not cross** between the segments. Their calls appear as ordinary cards.
 A blank hook does nothing. A `return` or a throw in the request script can
@@ -317,6 +319,32 @@ Each card expands to these tabs:
 | **Payload** | Request headers and request body sent. A file upload (§3.7) lists field names and file sizes instead of a JSON dump. |
 | **Status** | HTTP status code, duration, timestamp, host |
 | **Tests** | Recorded expectations for this call — only when the run made any (§3.5) |
+
+### 5.1 Searching a Response Body
+
+The Response tab carries a search field above the body. What it does depends on
+the active view:
+
+- **Pretty** — a **JSONPath** query over the parsed body. Matches replace the
+  tree, each shown with the path that reached it:
+
+  ```text
+  $..Id                              every Id, at any depth
+  $.value[*].SenderType              one field across a list
+  $.value[?(@.SenderType=='LLM')]    filter by a field's value
+  $.value[?(@.status >= 400)].url    filter with a comparison
+  ```
+
+  Filter expressions are evaluated by the JSONPath parser itself, not `eval`.
+  An expression that doesn't parse leaves the full tree on screen and reports
+  the error beside the field, so the body never blanks out mid-typing.
+
+- **Raw** and **TS** — plain find-in-text. Every match is highlighted in place;
+  the term is matched literally (case-insensitive), so `value[0]` finds
+  `value[0]`.
+
+Either way the count sits beside the field, and **Copy** still takes the whole
+body — the search narrows the view, not the payload.
 
 The card header also carries a **copy-as-cURL** button (once the call has left
 `idle`) — it copies a runnable `curl` built from the resolved URL, the headers

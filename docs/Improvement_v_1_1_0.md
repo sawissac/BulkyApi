@@ -10,26 +10,26 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
 
 ## Scripting & Execution
 
-- [x] **Assertions API** — `P0` `M` — shipped
+- [X] **Assertions API** — `P0` `M` — shipped
   `expect(actual).toBe/toEqual/toBeTruthy/toContain/toMatch/toHaveStatus/toBeOk/…`
   with `.not`, plus `api.assert(cond, msg)`. Non-throwing: results collected onto
   the matching call card (`✓/✗` badge + **Tests** tab) and a run-level Tests
   strip. `src/lib/assertions.ts`, wired through `runScript` and `runnerSlice`.
-- [x] **Capture response → env** — `P0` `S` — shipped
+- [X] **Capture response → env** — `P0` `S` — shipped
   `env.set('token', v)` / `env.get('token')` alongside the existing `env.x = v`.
   Changed vars surface in the Extracted panel to promote into the environment.
   `env` is now a proxy in `scriptRunner.ts`.
 - [ ] **Data-driven runs** — `P1` `M`
   Attach a dataset (JSON/CSV rows) to an item; run the script once per row with
   `data.*` bound. One card group per row, aggregate pass/fail.
-- [x] **`sleep(ms)` / delay helper** — `P1` `S` — shipped
+- [X] **`sleep(ms)` / delay helper** — `P1` `S` — shipped
   `await sleep(ms)` global; rejects immediately when the run is stopped.
 - [ ] **Retry option** — `P1` `S`
   `{ retry: { count: 3, delay: 500, on: [502, 503] } }` per call.
 - [ ] **Parallel calls** — `P1` `M`
   `api.all([...])` / `api.race([...])`. Waterfall view already exists — show
   overlapping bars.
-- [x] **`api.head` / `api.options`** — `P2` `S` — shipped
+- [X] **`api.head` / `api.options`** — `P2` `S` — shipped
   Both verbs on `api.*` and `api.server.*`, routed through the shared
   `makeCall` (no request body; `methodSendsBody` already excluded HEAD/OPTIONS).
   `scriptAnalyzer` regex detects them, `API_LIB` types them, `METHOD_CLR` /
@@ -38,7 +38,7 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
 - [ ] **GraphQL helper** — `P2` `M`
   `api.graphql(url, query, variables)` — builds the POST body, surfaces
   `errors[]` distinctly from transport errors.
-- [x] **Multipart / file upload** — `P1` `M` — shipped
+- [X] **Multipart / file upload** — `P1` `M` — shipped
   `api.file(accept?)` opens a native picker; `api.form(fields)` builds the
   `FormData` (a bare `File`/`Blob` also works as a raw body). Neither is
   JSON-encoded; `Content-Type` is left to the browser. `api.server.*`
@@ -48,7 +48,7 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
   never the live object, so Redux/persistence don't choke on it. Payload tab
   and Copy-as-cURL (`-F` flags) both render the summary.
   `src/lib/requestBody.ts`, `src/app/api/proxy/route.ts`.
-- [x] **Pre-run / post-run hooks** — `P2` `M` — shipped
+- [X] **Pre-run / post-run hooks** — `P2` `M` — shipped
   Per-collection `preRun` / `postRun` scripts, edited in `CollectionHooksDialog`
   from a collection's row (accent dot when set). `composeScript` folds the
   hooks around the item script into one source — each segment in its own block
@@ -65,13 +65,13 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
 
 ## Response Panel
 
-- [ ] **Search / filter in JSON tree** — `P0` `M`
+- [X] **Search / filter in JSON tree** — `P0` `M`
   Filter keys and values in the response viewer; jump to match.
-- [x] **Copy as cURL** — `P0` `S` — shipped
+- [X] **Copy as cURL** — `P0` `S` — shipped
   Terminal icon in the call-card header (once the call leaves idle) copies a
   runnable `curl` built from the resolved URL, sent headers and JSON body.
   `src/lib/toCurl.ts`.
-- [x] **Non-JSON response rendering** — `P1` `M` — shipped
+- [X] **Non-JSON response rendering** — `P1` `M` — shipped
   `detectResponseKind` routes XML / HTML / text / image bodies away from the
   JSON tree: indented markup, a sandboxed HTML **Preview**, inline image from
   the call URL, RAW always available. `src/lib/responseFormat.ts`, `RespTab`.
@@ -88,23 +88,46 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
 
 ## Collections & Sidebar
 
-- [ ] **Folder nesting** — `P0` `M`
-  Items are flat today. Nested folders per the spec's "one scenario per file"
-  scaling problem.
+- [X] **Folder nesting** — `P0` `M` — shipped
+  Arbitrary-depth folders per collection. `Collection.folders` is a flat list,
+  the tree comes from each folder's `parentId`; items carry an optional
+  `folderId`. `Collection.items` stays the flat list of every item, so every
+  existing selector, the runner and persistence are untouched. `buildTree`
+  (`src/lib/collectionTree.ts`) derives the render tree (folders before items,
+  array order within a level, orphan/cycle-safe). New reducers `addFolder` /
+  `renameFolder` / `toggleFolderOpen` / `removeFolder` (cascade — drops nested
+  folders + their items, behind a `ConfirmDialog` that names the request count)
+  and the move reducers below. `CollPane` renders the tree recursively with
+  per-depth indent. Supabase carries it: `0003_folders.sql` adds a `folders`
+  table + `collection_items.folder_id` and reconciles both in `sync_state`;
+  `pullRemoteState` rebuilds the tree. `src/store/collectionsSlice.ts`,
+  `src/features/sidebar/components/CollPane.tsx`.
 - [ ] **Run whole collection** — `P0` `L`
   Batch runner: run every item in order, produce a summary report
   (pass/fail/skip, duration). Depends on the Assertions API.
-- [ ] **Drag to reorder** — `P1` `S`
-  Reorder items and collections.
+  *Deliberately deferred this pass* — descoped alongside the folder-nesting /
+  drag-to-reorder work; no batch-run UI shipped yet.
+- [X] **Drag to reorder** — `P1` `S` — shipped
+  Native HTML5 drag-and-drop (no new dependency) in `CollPane` — reorder
+  collections, folders and items, and drag an item/folder into or out of a
+  folder. An insertion line marks before/after; the middle of a folder row is
+  an "into this folder" drop. Reducers `moveItem` / `moveFolder` /
+  `moveCollection` take a `beforeId` anchor (`null` = end of container); a
+  folder can't be dropped into its own descendant and cross-collection drops
+  are ignored. Native DnD is pointer-only, so the keyboard path is
+  "Move up" / "Move down" in each row's `⋯` overflow menu (new
+  `src/components/ui/dropdown-menu.tsx`). That menu also absorbed rename / add
+  folder / delete — a hovered row is now down to one or two visible icons so it
+  never covers its own name.
 - [ ] **Duplicate item / collection** — `P1` `S`
-- [ ] **Global search** — `P1` `M`
+- [X] **Global search** — `P1` `M`
   Search item names + script bodies across all collections.
 - [ ] **Collection-level variables** — `P2` `M`
   A scope between env and script — shared config that isn't environment-specific.
 
 ## Environments & Secrets
 
-- [x] **Inline env var editor** — `P0` `M` — shipped
+- [X] **Inline env var editor** — `P0` `M` — shipped
   `VarsPane` edits the active environment inline: click-to-rename key,
   click-to-edit value, add row, delete (via `ConfirmDialog`), reveal toggle
   for sensitive keys. Backed by `setVar` / `deleteVar` / `renameVar` in
@@ -116,7 +139,7 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
   Paste or upload a `.env` file to populate an environment.
 - [ ] **Top-bar env switcher** — `P1` `S`
   Switch active environment without opening the sidebar pane.
-- [x] **Global / base environment** — `P2` `M` — shipped
+- [X] **Global / base environment** — `P2` `M` — shipped
   `collections.baseVars` — one global key/value bag every environment inherits.
   `selectEnvVars` is now a memoized merge `{ ...baseVars, ...ownVars }` (own key
   wins), so completion, the analyzer preview and the runner all see the base
@@ -161,7 +184,7 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
 
 ## Editor
 
-- [x] **`api.*` / `env.*` IntelliSense** — `P0` `M` — shipped
+- [X] **`api.*` / `env.*` IntelliSense** — `P0` `M` — shipped
   The `api` / `env` extra-libs already typed the client, options and responses
   and completed `{{env}}` keys; v1.1.0 extends `API_LIB` / `envLib` with the new
   `expect` matcher chain, `sleep`, `api.assert`, and `env.set` / `env.get`.
@@ -169,7 +192,7 @@ Legend: `[ ]` not started · `[~]` partial · `[x]` done
 - [ ] **Inline analyzer diagnostics** — `P1` `M`
   `scriptAnalyzer` already parses calls without executing — surface parse errors
   as squiggles.
-- [ ] **Command palette (`⌘K`)** — `P1` `M`
+- [X] **Command palette (`⌘K`)** — `P1` `M`
   Run, switch item, switch env, insert snippet, change theme.
 - [ ] **Snippet library** — `P2` `S`
   Auth block, pagination loop, poll-until, assertion template.

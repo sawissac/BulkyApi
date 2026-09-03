@@ -4,11 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type {
   editor as MonacoEditorNS,
+  IDisposable,
   languages,
   Position,
 } from "monaco-editor";
 import type { Theme } from "@/lib/themes";
 import { registerTranspiler } from "@/lib/transpile";
+import {
+  odataCompletions,
+  odataWordLength,
+  stringLiteralAt,
+  type OdataItemKind,
+} from "@/lib/odataCompletion";
 
 export type EditorInstance = MonacoEditorNS.IStandaloneCodeEditor;
 
@@ -280,8 +287,15 @@ type Props = {
   envVars: Record<string, string>;
   /** Active theme; its colors are compiled into Monaco's `bulky` theme. */
   T: Theme;
-  /** Fires on ⌘↵ / Ctrl+↵ inside the editor. */
-  onRun: () => void;
+  /** Fires on ⌘↵ / Ctrl+↵ inside the editor, on ⌘⇧↵ / Ctrl+Shift+↵, and on
+   *  the `Run Selection` context-menu action. Receives the selected text
+   *  whenever the run should cover only that selection, and nothing when the
+   *  whole buffer should run.
+   *  @param selection - Selected source, or `undefined` for the whole buffer. */
+  onRun: (selection?: string) => void;
+  /** Fires on every selection change with the selected text — the empty
+   *  string once the selection collapses back to a caret. */
+  onSelectionChange?: (selection: string) => void;
   /** Fires once with the editor instance, for imperative actions (format). */
   onMount?: (editor: EditorInstance) => void;
 };
@@ -307,7 +321,17 @@ type Props = {
  * diagnostics are raised as an `Error` carrying the compiler's message and
  * line. The globals effect re-publishes the `env` declarations as an extra lib
  * on every `envVars` change; the `api` lib — which also declares the `expect`
- * and `sleep` runtime helpers — is static.
+ * and `sleep` runtime helpers — is static, as is the `lodash` lib
+ * ({@link "@/lib/lodashEditorLib"}, bundled from `@types/lodash` and loaded as
+ * its own chunk) that types the `lodash` global the runner injects.
+ * On mount the editor registers three run actions — `Run Script` (⌘↵, passing
+ * the selected text when the selection holds non-blank source, so only those
+ * lines execute), `Run Selection` (context menu, gated on
+ * `editorHasSelection`) and `Run Whole Script` (⌘⇧↵, which ignores the
+ * selection) — and subscribes to selection changes, reporting the selected
+ * text through `onSelectionChange` so the panel can label its own Run button.
+ * Both callbacks are read through refs because the actions and the listener
+ * are registered once, on mount; the listener is disposed on unmount.
  *
  * Variants: none.
  *
@@ -316,7 +340,10 @@ type Props = {
  * working unchanged.
  *
  * Accessibility: Monaco owns its own focus, ARIA and keyboard model. ⌘↵ /
- * Ctrl+↵ is bound to `onRun` in addition to the panel's own Run button. ⌘C /
+ * Ctrl+↵ runs — the selection alone when there is one — and ⌘⇧↵ /
+ * Ctrl+Shift+↵ always runs the whole buffer, both in addition to the panel's
+ * own Run button and both listed in the editor's context menu next to `Run
+ * Selection`. ⌘C /
  * Ctrl+C triggers the completion widget when the selection is empty, and
  * still copies whenever text is selected — so the standard copy path is only
  * shadowed on an empty caret, where it was a no-op anyway.
@@ -329,10 +356,16 @@ type Props = {
  * transpiler and executes the buffer as-is — fine for JavaScript, a syntax
  * error for type syntax. `{{name}}` completions live in a manual provider
  * because they sit inside string literals, where the language service offers
- * nothing.
+ * nothing; OData completions share that constraint and ride a second manual
+ * provider. That one covers quoted strings and template literals alike —
+ * {@link stringLiteralAt} lexes the buffer rather than the caret's line, so a
+ * URL split across lines of a template still resolves — and stays silent
+ * unless the word being typed starts with `$` or the caret sits past a `?`,
+ * which keeps ordinary strings and JSON bodies free of the widget.
  *
  * Dependencies: `@monaco-editor/react`, `monaco-editor` (types only),
- * `@/lib/transpile`, `@/lib/themes`.
+ * `@/lib/transpile`, `@/lib/themes`, `@/lib/odataCompletion`,
+ * `@/lib/lodashEditorLib` (dynamic import).
  *
  * @example
  * ```tsx
@@ -346,6 +379,7 @@ type Props = {
  * ```
  *
  * @see {@link registerTranspiler}
+ * @see {@link odataCompletions}
  */
 export default function MonacoCodeEditor({
   value,
@@ -353,14 +387,30 @@ export default function MonacoCodeEditor({
   envVars,
   T,
   onRun,
+  onSelectionChange,
   onMount,
 }: Props) {
   const [monaco, setMonaco] = useState<Monaco | null>(null);
   const envVarsRef = useRef(envVars);
+  const onRunRef = useRef(onRun);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const selectionDisposableRef = useRef<IDisposable | null>(null);
 
   useEffect(() => {
     envVarsRef.current = envVars;
   }, [envVars]);
+
+  useEffect(() => {
+    onRunRef.current = onRun;
+    onSelectionChangeRef.current = onSelectionChange;
+  }, [onRun, onSelectionChange]);
+
+  useEffect(
+    () => () => {
+      selectionDisposableRef.current?.dispose();
+    },
+    [],
+  );
 
   const transpile = useCallback(
     async (m: Monaco, code: string): Promise<string> => {
@@ -507,7 +557,24 @@ export default function MonacoCodeEditor({
     });
     ts.typescriptDefaults.addExtraLib(API_LIB, "file:///bulky-api.d.ts");
 
+    // `lodash` global — types bundled from `@types/lodash` (~450 kB), so pulled
+    // as its own chunk instead of riding in the editor bundle. Registering it
+    // after mount is fine: the worker re-checks open models when a lib lands.
+    let cancelled = false;
+    void import("@/lib/lodashEditorLib").then(({ LODASH_EDITOR_LIB }) => {
+      if (!cancelled) {
+        ts.typescriptDefaults.addExtraLib(
+          LODASH_EDITOR_LIB,
+          "file:///bulky-lodash.d.ts",
+        );
+      }
+    });
+
     registerTranspiler((code) => transpile(monaco, code));
+
+    return () => {
+      cancelled = true;
+    };
   }, [monaco, transpile]);
 
   // Environment variables as typed `env` members, refreshed as they change
@@ -561,6 +628,67 @@ export default function MonacoCodeEditor({
     return () => disp.dispose();
   }, [monaco]);
 
+  useEffect(() => {
+    if (!monaco) return;
+
+    const K = monaco.languages.CompletionItemKind;
+    const kinds: Record<OdataItemKind, languages.CompletionItemKind> = {
+      keyword: K.Keyword,
+      operator: K.Operator,
+      function: K.Function,
+      value: K.Value,
+      snippet: K.Snippet,
+    };
+
+    const disp = monaco.languages.registerCompletionItemProvider("typescript", {
+      triggerCharacters: ["$", "?", "&", "(", ",", ";", "=", "/", " "],
+      provideCompletionItems(
+        model: MonacoEditorNS.ITextModel,
+        position: Position,
+      ) {
+        const offset = model.getOffsetAt(position);
+        const frame = stringLiteralAt(model.getValue(), offset);
+        if (!frame) return { suggestions: [] };
+
+        const before = model.getValue().slice(frame.start, offset);
+        const items = odataCompletions(before);
+        if (items.length === 0) return { suggestions: [] };
+
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: position.column - odataWordLength(before),
+          endColumn: position.column,
+        };
+
+        return {
+          suggestions: items.map(
+            (item) =>
+              ({
+                label: item.label,
+                kind: kinds[item.kind],
+                detail: item.detail,
+                documentation: item.documentation
+                  ? { value: item.documentation }
+                  : undefined,
+                insertText: item.insertText,
+                insertTextRules: item.snippet
+                  ? monaco.languages.CompletionItemInsertTextRule
+                      .InsertAsSnippet
+                  : undefined,
+                filterText: item.label,
+                commitCharacters: [],
+                sortText: `0${item.label}`,
+                range,
+              }) as languages.CompletionItem,
+          ),
+        };
+      },
+    });
+
+    return () => disp.dispose();
+  }, [monaco]);
+
   return (
     <Editor
       height="100%"
@@ -591,10 +719,50 @@ export default function MonacoCodeEditor({
       }}
       beforeMount={(m) => setMonaco(m)}
       onMount={(editor, monacoInstance) => {
-        editor.addCommand(
-          monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Enter,
-          onRun,
+        const selectedText = (): string => {
+          const sel = editor.getSelection();
+          if (!sel || sel.isEmpty()) return "";
+          return editor.getModel()?.getValueInRange(sel) ?? "";
+        };
+        // A selection of nothing but whitespace is no selection at all — run
+        // the whole buffer rather than an empty script.
+        const runTarget = (): string | undefined => {
+          const text = selectedText();
+          return text.trim() ? text : undefined;
+        };
+
+        const KM = monacoInstance.KeyMod;
+        editor.addAction({
+          id: "bulky.run",
+          label: "Run Script",
+          keybindings: [KM.CtrlCmd | monacoInstance.KeyCode.Enter],
+          contextMenuGroupId: "navigation",
+          contextMenuOrder: 0,
+          run: () => onRunRef.current(runTarget()),
+        });
+        editor.addAction({
+          id: "bulky.runSelection",
+          label: "Run Selection",
+          precondition: "editorHasSelection",
+          contextMenuGroupId: "navigation",
+          contextMenuOrder: 1,
+          run: () => onRunRef.current(runTarget()),
+        });
+        editor.addAction({
+          id: "bulky.runWhole",
+          label: "Run Whole Script",
+          keybindings: [
+            KM.CtrlCmd | KM.Shift | monacoInstance.KeyCode.Enter,
+          ],
+          contextMenuGroupId: "navigation",
+          contextMenuOrder: 2,
+          run: () => onRunRef.current(),
+        });
+
+        selectionDisposableRef.current = editor.onDidChangeCursorSelection(
+          () => onSelectionChangeRef.current?.(selectedText()),
         );
+
         editor.addCommand(
           monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyC,
           () => {

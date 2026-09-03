@@ -1,16 +1,16 @@
-# Graph Report - BulkyApi  (2026-08-30)
+# Graph Report - BulkyApi  (2026-09-03)
 
 ## Corpus Check
-- 108 files · ~98,271 words
+- 116 files · ~165,265 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1024 nodes · 1732 edges · 127 communities (61 shown, 66 thin omitted)
+- 1104 nodes · 1873 edges · 139 communities (73 shown, 66 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0efce89f`
+- Built from commit: `03ac359c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -79,24 +79,23 @@
 - [[_COMMUNITY_Action Card Icon Recipe|Action Card Icon Recipe]]
 - [[_COMMUNITY_Action Card Title Recipe|Action Card Title Recipe]]
 - [[_COMMUNITY_Action Card Subtitle Recipe|Action Card Subtitle Recipe]]
+- [[_COMMUNITY_Sample Code Constant|Sample Code Constant]]
 - [[_COMMUNITY_Docs Code Constant|Docs Code Constant]]
 - [[_COMMUNITY_Initial Environments|Initial Environments]]
 - [[_COMMUNITY_Theme Key Type|Theme Key Type]]
 - [[_COMMUNITY_Themes Registry|Themes Registry]]
 - [[_COMMUNITY_Method Color (Light)|Method Color (Light)]]
 - [[_COMMUNITY_Push Recent Util|Push Recent Util]]
+- [[_COMMUNITY_Chrome MCP Usage Gate|Chrome MCP Usage Gate]]
+- [[_COMMUNITY_PNPM Build Allowlist|PNPM Build Allowlist]]
+- [[_COMMUNITY_Bulky API SOP|Bulky API SOP]]
 - [[_COMMUNITY_Interface Layout Spec|Interface Layout Spec]]
-- [[_COMMUNITY_Running a Script Spec|Running a Script Spec]]
 - [[_COMMUNITY_Inspecting Results Spec|Inspecting Results Spec]]
 - [[_COMMUNITY_Test Cases Spec|Test Cases Spec]]
 - [[_COMMUNITY_Env & Variables Spec|Env & Variables Spec]]
 - [[_COMMUNITY_File Actions Spec|File Actions Spec]]
 - [[_COMMUNITY_Theming & Layout Spec|Theming & Layout Spec]]
 - [[_COMMUNITY_Error Handling Spec|Error Handling Spec]]
-- [[_COMMUNITY_Best Practices Spec|Best Practices Spec]]
-- [[_COMMUNITY_Tailwind Migration Note|Tailwind Migration Note]]
-- [[_COMMUNITY_ResizablePanel Typing Note|ResizablePanel Typing Note]]
-- [[_COMMUNITY_Folder Optimization Checklist|Folder Optimization Checklist]]
 - [[_COMMUNITY_Tool Button Style|Tool Button Style]]
 - [[_COMMUNITY_Action Button Style|Action Button Style]]
 - [[_COMMUNITY_Tool Label Style|Tool Label Style]]
@@ -138,30 +137,42 @@
 - [[_COMMUNITY_Community 124|Community 124]]
 - [[_COMMUNITY_Community 125|Community 125]]
 - [[_COMMUNITY_Community 126|Community 126]]
+- [[_COMMUNITY_Community 127|Community 127]]
+- [[_COMMUNITY_Community 128|Community 128]]
+- [[_COMMUNITY_Community 129|Community 129]]
+- [[_COMMUNITY_Community 130|Community 130]]
+- [[_COMMUNITY_Community 131|Community 131]]
+- [[_COMMUNITY_Community 132|Community 132]]
+- [[_COMMUNITY_Community 133|Community 133]]
+- [[_COMMUNITY_Community 134|Community 134]]
+- [[_COMMUNITY_Community 135|Community 135]]
+- [[_COMMUNITY_Community 136|Community 136]]
+- [[_COMMUNITY_Community 137|Community 137]]
+- [[_COMMUNITY_Community 138|Community 138]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `data-testid registry` - 25 edges
+1. `data-testid registry` - 27 edges
 2. `Theme` - 24 edges
-3. `CodeEditor` - 21 edges
-4. `Bulky API — Standard Operating Procedure (SOP)` - 20 edges
-5. `cn()` - 19 edges
+3. `cn()` - 23 edges
+4. `CodeEditor` - 21 edges
+5. `Bulky API — Standard Operating Procedure (SOP)` - 20 edges
 6. `MocksComponentsPage` - 19 edges
 7. `BulkyApp` - 16 edges
-8. `3. Writing a Script` - 15 edges
-9. `CallCard` - 15 edges
-10. `TooltipContent()` - 14 edges
+8. `TooltipContent()` - 15 edges
+9. `3. Writing a Script` - 15 edges
+10. `CallCard` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `React Component JSDoc Convention` --rationale_for--> `MocksComponentsPage`  [INFERRED]
   CLAUDE.md → src/app/mocks/components/page.tsx
 - `React Component JSDoc Convention` --rationale_for--> `BulkyApp`  [INFERRED]
   CLAUDE.md → src/app/BulkyApp.tsx
+- `Move timeout config to TweaksPanel` --rationale_for--> `TweaksPanel`  [EXTRACTED]
+  docs/Improvement_v_1_0_0.md → src/features/tweaks/components/TweaksPanel.tsx
 - `Abort running script` --rationale_for--> `CodeEditor`  [EXTRACTED]
   docs/Improvement_v_1_0_0.md → src/features/code-editor/components/CodeEditor.tsx
 - `Project Layout (src/ tree)` --references--> `BulkyApp`  [EXTRACTED]
   README.md → src/app/BulkyApp.tsx
-- `Debounce saveItemCode` --rationale_for--> `BulkyApp`  [EXTRACTED]
-  docs/Improvement_v_1_0_0.md → src/app/BulkyApp.tsx
 
 ## Hyperedges (group relationships)
 - **PWA App-Shell Caching Setup** — swjs_service_worker, manifest_manifest, nextconfig_nextconfig [INFERRED 0.85]
@@ -180,233 +191,277 @@
 - **Run/Step/Stop Execution Control Flow** — codeeditor_codeeditor, codeeditor_props, monacocodeeditor_monacocodeeditor [EXTRACTED 1.00]
 - **Example Script Selection & Load Flow** — codeeditor_codeeditor, sampledata_example_scripts, exampledialog_exampledialog, editorslice_setcode [EXTRACTED 1.00]
 
-## Communities (127 total, 66 thin omitted)
+## Communities (139 total, 66 thin omitted)
 
 ### Community 0 - "Response Panel Components & Props"
+Cohesion: 0.05
+Nodes (50): applySnapshot(), clearEditorWithoutCollections(), LegacyEnvState, ServiceWorkerRegister(), GET(), ErrorBoundary, Props, State (+42 more)
+
+### Community 1 - "Layout & Display Modes"
 Cohesion: 0.07
 Nodes (51): analyzeScript(), extractNoteBeforeIndex(), isInsideComment(), Config, hasCredentials(), hasSupabaseEnv(), loadedEnvFile, curlToScript() (+43 more)
 
-### Community 1 - "Layout & Display Modes"
-Cohesion: 0.05
-Nodes (38): Props, EditorInstance, IGNORED_DIAGNOSTICS, Props, PayloadTab(), Props, makeExpect(), Matchers (+30 more)
-
 ### Community 2 - "App Bootstrap & Providers"
-Cohesion: 0.06
-Nodes (29): Props, CollectionHooksDialogProps, Props, CATEGORY_ORDER, Command, CommandCategory, Props, ConfirmDialogProps (+21 more)
+Cohesion: 0.07
+Nodes (37): ChildSlot, childSlots(), CopyTokenProps, JNode(), JNodeProps, SYNTAX, BodySearchBarProps, HighlightedPreProps (+29 more)
 
 ### Community 3 - "Error Boundary & Mock Fixtures"
-Cohesion: 0.06
-Nodes (52): ApiDocs, ApiWaterfall, AuthTab, Dot, CallCard, CollectionsState (type), findCollectionForEnv, EditorState (type) (+44 more)
+Cohesion: 0.07
+Nodes (27): ActivityRail (src/features/sidebar/components/ActivityRail.tsx), CallCard (src/features/response-panel/components/CallCard.tsx), CodeEditor (src/features/code-editor/components/CodeEditor.tsx), CollectionHooksDialog (src/features/sidebar/components/CollectionHooksDialog.tsx), CollPane (src/features/sidebar/components/CollPane.tsx), CommandPalette (src/features/code-editor/components/CommandPalette.tsx), ConfirmDialog (src/components/ConfirmDialog.tsx), data-testid registry (+19 more)
 
 ### Community 4 - "Sidebar Dialogs & Panes"
 Cohesion: 0.11
-Nodes (22): JNodeProps, SYNTAX, isSseBody(), KIND_LABEL, NonJsonBody(), ParsedSseEvent, parseSseBody(), Props (+14 more)
+Nodes (20): HTTP_METHODS, MOCK_CALL, MOCK_CALL_CACHED, MOCK_CALL_ERROR, MOCK_CALL_SSE, MOCK_CALLS, MOCK_JSON, MOCK_REQ_HEADERS (+12 more)
 
 ### Community 5 - "Code Editor & Method Detail"
-Cohesion: 0.1
-Nodes (21): HTTP_METHODS, MOCK_CALL, MOCK_CALL_CACHED, MOCK_CALL_ERROR, MOCK_CALL_SSE, MOCK_CALLS, MOCK_JSON, MOCK_REQ_HEADERS (+13 more)
+Cohesion: 0.12
+Nodes (19): TABS, CallCard(), DetailTab, Props, CYCLE_METHODS, METHOD_INFO, MethodPillProps, describe() (+11 more)
 
 ### Community 6 - "Sidebar & Curl Parsing"
 Cohesion: 0.11
-Nodes (22): Props, highlightLog(), LEVEL_CHIP, LOG_PALETTE, LOG_TONE, LogColors, LogLine(), LogLineProps (+14 more)
+Nodes (20): Props, highlightLog(), LEVEL_CHIP, LOG_PALETTE, LOG_TONE, LogColors, LogLine(), LogLineProps (+12 more)
 
 ### Community 7 - "Response Panel Tab Set"
-Cohesion: 0.11
-Nodes (18): CodeEditor(), MonacoCodeEditor, Props, SHORTCUTS, MD, Props, FilePane(), useDisplayMode() (+10 more)
+Cohesion: 0.12
+Nodes (18): makeExpect(), Matchers, RecordAssertion, CachedEntry, CallOpts, IoHandle, IoOpts, OnUpdate (+10 more)
 
 ### Community 8 - "Code Editor State Wiring"
-Cohesion: 0.08
-Nodes (25): ActivityRail (src/features/sidebar/components/ActivityRail.tsx), CallCard (src/features/response-panel/components/CallCard.tsx), CodeEditor (src/features/code-editor/components/CodeEditor.tsx), CollectionHooksDialog (src/features/sidebar/components/CollectionHooksDialog.tsx), CollPane (src/features/sidebar/components/CollPane.tsx), CommandPalette (src/features/code-editor/components/CommandPalette.tsx), ConfirmDialog (src/components/ConfirmDialog.tsx), data-testid registry (+17 more)
+Cohesion: 0.1
+Nodes (24): ButtonGroup, CodeEditor, handleFormat, toggleExamples, selectActiveCollection, selectActiveItem, selectEnvVars, selectCode (+16 more)
 
 ### Community 9 - "Redux Store Architecture"
-Cohesion: 0.1
-Nodes (15): DisplayModeDialogProps, OPTIONS, PANE_LABELS, SidebarProps, DisplayMode, initialState, selectCommandPaletteOpen(), selectDisplayMode() (+7 more)
+Cohesion: 0.11
+Nodes (18): PANE_LABELS, SidebarProps, LAYOUT_OPTIONS, THEME_CORNER_CLASS, THEME_OPTIONS, TweaksPanelProps, initialState, LayoutKey (+10 more)
 
 ### Community 10 - "SSE Response Parsing"
-Cohesion: 0.17
-Nodes (16): Props, TONES, ImportCollectionDialogProps, curlToScript(), parseCurl(), ParsedCurl, tokenize(), downloadBlob() (+8 more)
+Cohesion: 0.13
+Nodes (14): buildTree(), descendantFolderIds(), itemIdsInFolders(), TreeNode, Collection, CollectionItem, Environment, Folder (+6 more)
 
 ### Community 11 - "File Import & Curl Parsing"
-Cohesion: 0.1
-Nodes (23): ButtonGroup, CodeEditor, handleFormat, toggleExamples, selectActiveCollection, selectActiveItem, selectEnvVars, selectCode (+15 more)
+Cohesion: 0.16
+Nodes (12): Props, Props, Props, StatusScreen(), StatusTone, TONE, METHOD_CLR_LIGHT, methodVars() (+4 more)
 
 ### Community 12 - "Project Docs & Dependencies"
-Cohesion: 0.1
-Nodes (22): BulkyApp, Home(), BulkyApp, React Component JSDoc Convention, CodeEditor Props, Abort running script, Console height toggle, Debounce saveItemCode (+14 more)
+Cohesion: 0.18
+Nodes (15): BulkyApp(), LAYOUT_SIZES, useScriptRunner(), composeScript(), analyzeScript(), extractNoteBeforeIndex(), isInsideComment(), SocketHandle (+7 more)
 
 ### Community 13 - "Persistence & Improvement Notes"
-Cohesion: 0.14
-Nodes (17): Props, CallCard(), MocksComponentsPage(), Props, StatusScreen(), StatusTone, TONE, Props (+9 more)
+Cohesion: 0.2
+Nodes (14): FilePane(), Props, TONES, ImportCollectionDialogProps, useFileActions(), curlToScript(), parseCurl(), ParsedCurl (+6 more)
 
 ### Community 14 - "BulkyApp Debounce & Improvements"
-Cohesion: 0.15
-Nodes (15): DetailTab, Props, CYCLE_METHODS, METHOD_INFO, MethodPillProps, describe(), KNOWN_CODES, StatusPill() (+7 more)
+Cohesion: 0.13
+Nodes (18): ActivityRail, BulkyApp, Home(), BulkyApp, React Component JSDoc Convention, CodeEditor Props, DisplayModeDialog, Debounce saveItemCode (+10 more)
 
 ### Community 15 - "State Hydration Flow"
-Cohesion: 0.19
-Nodes (14): BulkyApp(), LAYOUT_SIZES, ActivityRail(), TABS, useScriptRunner(), composeScript(), analyzeScript(), extractNoteBeforeIndex() (+6 more)
-
-### Community 16 - "UI Primitives & Mock Gallery"
-Cohesion: 0.11
-Nodes (18): 10. Theming & Layout, 10. Theming, Layout & Display, 11. Error Handling, 11. Sync & Account, 12. Best Practices, 12. Proxy, 13. Error Handling, 14. Best Practices (+10 more)
-
-### Community 17 - "Script Runner Hook"
 Cohesion: 0.12
 Nodes (17): API surface (in scripts), Author, Bulky API, code:bash (pnpm install), code:bash (pnpm build), code:block3 (src/), code:js (await api.get(url, opts?)), code:jsonc ([) (+9 more)
 
-### Community 18 - "Activity Rail & Display Mode Hooks"
+### Community 16 - "UI Primitives & Mock Gallery"
+Cohesion: 0.11
+Nodes (17): 10. Theming & Layout, 10. Theming, Layout & Display, 11. Error Handling, 11. Sync & Account, 12. Best Practices, 12. Proxy, 13. Error Handling, 14. Best Practices (+9 more)
+
+### Community 17 - "Script Runner Hook"
 Cohesion: 0.12
 Nodes (18): Add proxy timeout, Cap persisted response size, Fix error: any, Replace opts as never casts, SSRF risk in proxy — accepted, Stop spreading every call on every update, RootLayout, manifest() (+10 more)
 
+### Community 18 - "Activity Rail & Display Mode Hooks"
+Cohesion: 0.16
+Nodes (12): ActivityRail(), CodeEditor(), MonacoCodeEditor, Props, MD, Props, useDisplayMode(), ExampleScript (+4 more)
+
 ### Community 19 - "Redux Reducers & Mock Store"
 Cohesion: 0.18
-Nodes (11): Props, collectionsSlice, CollectionsState, EMPTY_VARS, initialState, selectActiveCollection(), selectActiveEnv(), selectEnvIdx() (+3 more)
+Nodes (12): PayloadTab(), Props, describeFile(), isBodySummary(), isRawBody(), RawBody, summarizeBody(), callToCurl() (+4 more)
 
 ### Community 20 - "Proxy Route & Security Notes"
-Cohesion: 0.18
-Nodes (17): CollPane, ConfirmDialog, EnvPane, ExampleDialog, Input, NewCollectionDialog, NewEnvironmentDialog, Sidebar (+9 more)
+Cohesion: 0.17
+Nodes (10): CollectionHooksDialogProps, DragPayload, DropMark, Props, RowKey, DropdownMenu(), DropdownMenuContent(), DropdownMenuItem() (+2 more)
 
 ### Community 21 - "Service Worker Shell Cache"
+Cohesion: 0.14
+Nodes (15): EXPAND_ITEMS, FORMATS, FUNCTIONS, LITERALS, odataCompletions(), OdataContext, odataContextAt(), OdataItem (+7 more)
+
+### Community 22 - "Call Sync & Item Switching"
+Cohesion: 0.2
+Nodes (16): CollPane, ConfirmDialog, EnvPane, Input, NewCollectionDialog, NewEnvironmentDialog, Sidebar, CollPane testid contract (+8 more)
+
+### Community 23 - "Home Page Entry"
 Cohesion: 0.12
 Nodes (16): Next.js 16 Breaking-Changes Notice, Graphify Knowledge-Graph Usage Rules, Writing a Script (SOP §3), Script API Surface (api.get/post/put/patch/delete), Bulky API Project, localforage Persistence, lucide-react Icons, Monaco Editor (@monaco-editor/react) (+8 more)
 
-### Community 22 - "Call Sync & Item Switching"
-Cohesion: 0.15
-Nodes (9): Props, LAYOUT_OPTIONS, THEME_CORNER_CLASS, THEME_OPTIONS, TweaksPanelProps, THEMES, selectCallTimeout(), selectLayout() (+1 more)
-
-### Community 23 - "Home Page Entry"
-Cohesion: 0.16
-Nodes (9): authSlice, AuthState, AuthStatus, initialState, selectAuthStatus(), selectSupabaseConfigured(), selectSyncStatus(), selectUserEmail() (+1 more)
-
 ### Community 24 - "removeItem Cross-Slice Cleanup"
+Cohesion: 0.16
+Nodes (8): Props, EditCell, Props, SENSITIVE, VarSectionProps, selectBaseVars(), Button(), buttonVariants
+
+### Community 25 - "Brand Marks"
+Cohesion: 0.16
+Nodes (6): CurlImportDialogProps, SHORTCUTS, NewCollectionDialogProps, NewEnvironmentDialogProps, Input, InputProps
+
+### Community 26 - "PostCSS Config"
+Cohesion: 0.14
+Nodes (8): EditorInstance, IGNORED_DIAGNOSTICS, Props, OdataItemKind, odataWordLength(), stringLiteralAt(), registerTranspiler(), Transpiler
+
+### Community 27 - "ESLint Config"
 Cohesion: 0.13
 Nodes (14): BulkyApi MCP server, code:bash (pnpm mcp:install     # or: pnpm -C mcp install), code:bash (BULKY_EMAIL=you@example.com), code:bash (claude mcp add bulky-api -- node /absolute/path/to/BulkyApi/), code:js (// note: fetch the user, then update it), code:bash (pnpm mcp:smoke), Differences from the browser runner, Limits and safety (+6 more)
 
-### Community 25 - "Brand Marks"
+### Community 28 - "Next.js Config"
+Cohesion: 0.21
+Nodes (15): AuthTab, Dot, CallCard, HeadTab, KVRow, MOCK_CALL, MOCK_CALL_CACHED, MOCK_CALL_ERROR (+7 more)
+
+### Community 29 - "PWA Manifest"
+Cohesion: 0.19
+Nodes (12): applyStored(), initialState, mergeCalls(), mergeCallsInto(), overlayRunCalls(), runnerSlice, RunnerState, selectAssertions() (+4 more)
+
+### Community 30 - "Proxy API Route"
 Cohesion: 0.14
 Nodes (13): Auth, Bulky API — Feature Roadmap v1.1.0, Collections & Sidebar, Editor, Environments & Secrets, Import / Export, Platform / PWA, Quality & Infra *(carried from v1.0.0 deferred)* (+5 more)
 
-### Community 26 - "PostCSS Config"
-Cohesion: 0.16
-Nodes (14): ActivityRail, Button, ButtonGroup, DisplayModeDialog, Keyboard shortcut for Run, MocksComponentsPage, MonacoCodeEditor, ResizablePanelGroup / ResizablePanel / ResizableHandle (+6 more)
-
-### Community 27 - "ESLint Config"
+### Community 31 - "Service Worker Config"
 Cohesion: 0.24
-Nodes (10): LayoutKey, ResponseView, getSupabaseBrowser(), CollectionItemRow, CollectionRow, EnvironmentRow, RunnerSnapshot, SyncSnapshot (+2 more)
+Nodes (13): CollectionsState (type), findCollectionForEnv, EditorState (type), RootState (type), store (configureStore instance), Feature-Based Folder Structure Convention, Redux Toolkit Centralized State Architecture, scheduleSave (+5 more)
 
-### Community 28 - "Next.js Config"
-Cohesion: 0.21
-Nodes (8): applySnapshot(), clearEditorWithoutCollections(), LegacyEnvState, ServiceWorkerRegister(), useServiceWorker(), Collection, Environment, PersistedShape
-
-### Community 29 - "PWA Manifest"
+### Community 32 - "SSE Event Components"
 Cohesion: 0.21
 Nodes (12): 3.4 Writing Values Back to the Environment, 3.5 Console Logging, 3.6 Authentication, 3.7 Annotating Calls, 3.7 File Uploads, 3.8 Annotating Calls, 3.8 Console Logging, 3. Writing a Script (+4 more)
 
-### Community 30 - "Proxy API Route"
-Cohesion: 0.27
-Nodes (9): buildPayload(), capCalls(), clearPersistedState(), closeRemoteSync(), flushRemote(), loadPersistedState(), openRemoteSync(), buildSnapshot() (+1 more)
+### Community 33 - "Button Group Separator"
+Cohesion: 0.18
+Nodes (10): bodies, common, hoisted, lib, line, lines, nsExtra, openIdx (+2 more)
 
-### Community 31 - "Service Worker Config"
-Cohesion: 0.2
-Nodes (7): ErrorBoundary, Props, State, scheduleSave(), AppDispatch, RootState, store
+### Community 34 - "Runner Slice Pruning"
+Cohesion: 0.22
+Nodes (7): CATEGORY_ORDER, Command, CommandCategory, Props, fuzzyFilter(), fuzzyMatch(), FuzzyResult
 
-### Community 32 - "SSE Event Components"
+### Community 35 - "Keyboard Shortcuts"
+Cohesion: 0.22
+Nodes (7): ConfirmDialogProps, Props, selectActiveCollection(), selectEnvIdx(), selectEnvironments(), selectEnvVars, selectOwnEnvVars()
+
+### Community 36 - "Next.js Type Reference"
 Cohesion: 0.18
 Nodes (11): 3.5 Assertions & Delays, 7.1 Environments Are Per-Collection, 7.1 Switching Environments, 7.2 Switching Environments, 7.2 Viewing Variables, 7.3 Using Variables in Scripts, 7.3 Viewing & Editing Variables, 7.3 Viewing Variables (+3 more)
 
-### Community 33 - "Button Group Separator"
-Cohesion: 0.29
-Nodes (6): GET(), BulkySupabase, isSupabaseConfigured(), Database, hasSupabaseEnv(), getSupabaseServer()
+### Community 37 - "PostCSS Config Note"
+Cohesion: 0.18
+Nodes (11): hydrateCollections, hydrateEditor, ErrorBoundary, Add error boundary, loadPersistedState, HydrateStore, Providers, ServiceWorkerRegister (+3 more)
 
-### Community 34 - "Runner Slice Pruning"
+### Community 38 - "Next.js Env Reference"
+Cohesion: 0.2
+Nodes (4): DisplayModeDialogProps, OPTIONS, DisplayMode, selectDisplayMode()
+
+### Community 39 - "ESLint Config Note"
 Cohesion: 0.24
 Nodes (10): CurlImportDialog, curlToScript, parseCurl, ParsedCurl (type), tokenize, FilePane, downloadBlob, pickFile (+2 more)
 
-### Community 35 - "Keyboard Shortcuts"
-Cohesion: 0.2
-Nodes (10): hydrateCollections, hydrateEditor, ErrorBoundary, Add error boundary, loadPersistedState, HydrateStore, Providers, ServiceWorkerRegister (+2 more)
+### Community 40 - "Doc Section Marker"
+Cohesion: 0.47
+Nodes (6): cn(), ButtonGroup(), ButtonGroupSeparator(), ButtonGroupText(), buttonGroupVariants, Separator()
 
-### Community 36 - "Next.js Type Reference"
+### Community 41 - "Test Case Concept"
 Cohesion: 0.22
 Nodes (9): Course, Course & Curriculum, CourseMaterial, CoursePromptTemplate, CourseStarterMessage, CourseTopic, OriginalPromptTemplate, OriginalStarterMessage (+1 more)
 
-### Community 37 - "PostCSS Config Note"
+### Community 42 - "Boom Debug Marker"
+Cohesion: 0.22
+Nodes (9): 3.10 WebSocket & Socket.IO, 3.9 Console Logging, 5.1 Searching a Response Body, 5. Inspecting Results, 7.4 Using Variables in Scripts, code:js (console.log('Message');), code:ts (const sock = await api.ws('wss://echo.websocket.org');), code:text ($..Id                              every Id, at any depth) (+1 more)
+
+### Community 43 - "Button Group Text"
+Cohesion: 0.22
+Nodes (9): Abort running script, Extract onRun to custom hook, analyzeScript, extractNoteBeforeIndex, isInsideComment, sandboxed console object, runScript, LogEntry (type) (+1 more)
+
+### Community 44 - "Resizable Panel"
+Cohesion: 0.25
+Nodes (9): ApiWaterfall, capCall, capCalls, selectBuiltCalls, selectRunStartedAt, METHOD_CLR, STATUS_TXT, statusColor (+1 more)
+
+### Community 45 - "Resizable Handle"
+Cohesion: 0.29
+Nodes (4): Props, findCallIndex(), normalizeUrlExpr(), ApiCall
+
+### Community 46 - "Tooltip Provider"
 Cohesion: 0.25
 Nodes (8): 3.1 Available API Methods, 3.2 Using Environment Variables, 3.3 Chaining Calls, 3.4 Authentication, code:js (await api.get(url, opts?)), code:ts (type User = { id: number; name: string };), code:js (// In code — env.key), code:js (const users = await api.get(env.baseUrl + '/users');)
 
-### Community 38 - "Next.js Env Reference"
+### Community 47 - "ClassName Merge Util"
 Cohesion: 0.25
 Nodes (7): Bulky API — Improvement & Optimization Checklist v1.0.0, Code Quality / Architecture, Maintainability, Memory / Unbounded Growth, Performance, Security, UX / Missing Features
 
-### Community 39 - "ESLint Config Note"
+### Community 48 - "Cached Entry Type"
+Cohesion: 0.25
+Nodes (8): Button, ButtonGroup, Keyboard shortcut for Run, MocksComponentsPage, MonacoCodeEditor, ResizablePanelGroup / ResizablePanel / ResizableHandle, setLogs, MocksComponentsPage testid contract
+
+### Community 49 - "Call Options Type"
 Cohesion: 0.5
 Nodes (8): buildInterface, camelToPascal, capitalize, inferType, InterfaceMap (type), jsonToTypeScript, mergeArrayItemInterfaces, sanitizeKey
 
-### Community 40 - "Doc Section Marker"
+### Community 50 - "Call Status Type"
+Cohesion: 0.25
+Nodes (8): ApiDocs, Console height toggle, Move timeout config to TweaksPanel, JNode (JsonTreeViewer), MOCK_CALLS, MOCK_JSON, ResponsePanel, setBuiltCalls
+
+### Community 51 - "Label Style Recipe"
 Cohesion: 0.67
 Nodes (6): POST(), proxyErrorResponse(), proxyJson(), proxyPassthrough(), proxyStream(), respondWithUpstream()
 
-### Community 41 - "Test Case Concept"
+### Community 52 - "Meta Style Recipe"
 Cohesion: 0.29
 Nodes (3): metadata, viewport, Props
 
-### Community 42 - "Boom Debug Marker"
-Cohesion: 0.29
-Nodes (7): Contract, Contracts & Billing, CourseConfig, Msa, MsaDocument, OrderFormDocument, PaymentMethod
-
-### Community 43 - "Button Group Text"
+### Community 53 - "Icon Button Recipe"
 Cohesion: 0.29
 Nodes (7): Identity & Access, Permission, Role, RolePermission, User, UserRoleOrganization, UserRoleScope
 
-### Community 45 - "Resizable Handle"
-Cohesion: 0.33
-Nodes (6): EmailNotificationLog, InvitationMailList, Notifications & Audit, SuperAdminAuditHistory, UserRoleAuditCourseTransfer, UserRoleAuditHistory
+### Community 54 - "Danger Icon Button Recipe"
+Cohesion: 0.29
+Nodes (7): Contract, Contracts & Billing, CourseConfig, Msa, MsaDocument, OrderFormDocument, PaymentMethod
 
-### Community 46 - "Tooltip Provider"
+### Community 55 - "Reveal Style Recipe"
+Cohesion: 0.33
+Nodes (7): Extract auth header builder, sandboxed api object, buildAuthHeaders, makeCall (closure), makeSseCall (closure), AuthInfo (type), SseEvent (type)
+
+### Community 57 - "Input Style Recipe"
 Cohesion: 0.33
 Nodes (6): Flashcard, LearnerProfile, QuestionBank, Quiz, QuizQuestion, Quizzes & Assessment
 
-### Community 47 - "ClassName Merge Util"
-Cohesion: 0.33
-Nodes (5): Audit fields, Entity Sets, Enums, Key Relationships, Profile Service — Database Schema (Simplified)
-
-### Community 48 - "Cached Entry Type"
+### Community 58 - "Row Style Recipe"
 Cohesion: 0.33
 Nodes (6): Organization, Organization, OrganizationDomain, OrganizationInvitation, OrganizationThreshold, OrganizationThresholdReceiver
 
-### Community 49 - "Call Options Type"
+### Community 59 - "Row Select Recipe"
 Cohesion: 0.33
-Nodes (6): 3.10 WebSocket & Socket.IO, 3.9 Console Logging, 7.4 Using Variables in Scripts, code:js (console.log('Message');), code:ts (const sock = await api.ws('wss://echo.websocket.org');), code:js (env.baseUrl            // → https://jsonplaceholder.typicode)
+Nodes (5): Audit fields, Entity Sets, Enums, Key Relationships, Profile Service — Database Schema (Simplified)
 
-### Community 50 - "Call Status Type"
+### Community 60 - "Action Card Recipe"
+Cohesion: 0.33
+Nodes (6): EmailNotificationLog, InvitationMailList, Notifications & Audit, SuperAdminAuditHistory, UserRoleAuditCourseTransfer, UserRoleAuditHistory
+
+### Community 61 - "Action Card Icon Recipe"
 Cohesion: 0.33
 Nodes (6): collectionsReducer, editorReducer, Prune viewByItemId, createMockStore, runnerReducer, uiSlice / uiReducer
 
-### Community 51 - "Label Style Recipe"
-Cohesion: 0.6
-Nodes (4): config, isPublicPath(), proxy(), withAuthCookies()
+### Community 62 - "Action Card Title Recipe"
+Cohesion: 0.4
+Nodes (4): editorSlice, EditorState, initialState, selectCode()
 
-### Community 52 - "Meta Style Recipe"
+### Community 63 - "Action Card Subtitle Recipe"
 Cohesion: 0.4
 Nodes (5): 4.1 Step Mode, 4.2 Stopping a Run, 4.3 Per-Call Timeout, 4.4 Pre-run / Post-run Hooks, 4. Running a Script
 
-### Community 53 - "Icon Button Recipe"
+### Community 64 - "Sample Code Constant"
 Cohesion: 0.5
 Nodes (3): copy, SHELL, url
 
-### Community 54 - "Danger Icon Button Recipe"
+### Community 65 - "Docs Code Constant"
 Cohesion: 0.5
 Nodes (4): AI & Conversation, ConversationDetail, ConversationHistory, LLMModel
 
-### Community 55 - "Reveal Style Recipe"
+### Community 66 - "Initial Environments"
 Cohesion: 0.5
 Nodes (4): applyStored, mergeCalls, switchToItem, syncAnalyzedCalls
 
-### Community 59 - "Row Select Recipe"
+### Community 70 - "Push Recent Util"
 Cohesion: 0.67
 Nodes (3): removeItem (action/reducer), removeItem cleanup handler (extraReducers), removeItem cleanup handler (extraReducers)
 
-### Community 60 - "Action Card Recipe"
+### Community 71 - "Chrome MCP Usage Gate"
 Cohesion: 0.67
 Nodes (3): BulkyApi Favicon Icon, Bulky API Wordmark Logo, Bulky API Logo Mark
 
@@ -419,7 +474,7 @@ Nodes (3): BulkyApi Favicon Icon, Bulky API Wordmark Logo, Bulky API Logo Mark
   public/logo-mark.svg · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **440 isolated node(s):** `config`, `eslintConfig`, `nextConfig`, `SHELL`, `url` (+435 more)
+- **473 isolated node(s):** `config`, `eslintConfig`, `nextConfig`, `SHELL`, `url` (+468 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **66 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -432,11 +487,11 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Bulky API Logo Mark` and `BulkyApi Favicon Icon`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `Theme` connect `Response Panel Tab Set` to `Layout & Display Modes`, `App Bootstrap & Providers`, `Sidebar Dialogs & Panes`, `Code Editor & Method Detail`, `Sidebar & Curl Parsing`, `Redux Store Architecture`, `SSE Response Parsing`, `Resizable Panel`, `Persistence & Improvement Notes`, `BulkyApp Debounce & Improvements`, `Redux Reducers & Mock Store`, `Call Sync & Item Switching`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
-- **Why does `MocksComponentsPage` connect `PostCSS Config` to `Runner Slice Pruning`, `Error Boundary & Mock Fixtures`, `Keyboard Shortcuts`, `File Import & Curl Parsing`, `Project Docs & Dependencies`, `Call Status Type`, `Proxy Route & Security Notes`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
-- **Why does `CodeEditor` connect `File Import & Curl Parsing` to `PostCSS Config`, `Project Docs & Dependencies`, `Proxy Route & Security Notes`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
+- **Why does `Theme` connect `Activity Rail & Display Mode Hooks` to `App Bootstrap & Providers`, `Keyboard Shortcuts`, `Sidebar Dialogs & Panes`, `Code Editor & Method Detail`, `Sidebar & Curl Parsing`, `Dim Style Recipe`, `Redux Store Architecture`, `File Import & Curl Parsing`, `Persistence & Improvement Notes`, `Resizable Handle`, `Redux Reducers & Mock Store`, `Proxy Route & Security Notes`, `removeItem Cross-Slice Cleanup`, `PostCSS Config`?**
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **Why does `ApiCall` connect `Resizable Handle` to `Response Panel Components & Props`, `App Bootstrap & Providers`, `Sidebar Dialogs & Panes`, `Code Editor & Method Detail`, `Sidebar & Curl Parsing`, `Response Panel Tab Set`, `Project Docs & Dependencies`, `Redux Reducers & Mock Store`, `removeItem Cross-Slice Cleanup`, `PWA Manifest`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
+- **Why does `MocksComponentsPage` connect `Cached Entry Type` to `PostCSS Config Note`, `ESLint Config Note`, `Code Editor State Wiring`, `Resizable Panel`, `BulkyApp Debounce & Improvements`, `Call Status Type`, `Call Sync & Item Switching`, `Action Card Icon Recipe`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
 - **What connects `config`, `eslintConfig`, `nextConfig` to the rest of the system?**
-  _440 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _473 weakly-connected nodes found - possible documentation gaps or missing edges._

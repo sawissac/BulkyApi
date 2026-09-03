@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Theme } from '@/lib/themes';
 import type { ApiCall } from '@/lib/types';
+import { displayUrl } from '@/lib/callMatch';
 import { Copy, FileText, FileCode2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
@@ -32,8 +33,8 @@ export default function ApiDocs({ T, calls }: Props) {
     let md = '# API Documentation\n\n';
 
     calls.forEach((c) => {
-      md += `## ${c.method} ${c.urlExpr}\n\n`;
-      md += `**Resolved URL:** \`${c.url}\`\n\n`;
+      md += `## ${c.method} ${displayUrl(c.urlExpr)}\n\n`;
+      md += `**Resolved URL:** \`${displayUrl(c.url)}\`\n\n`;
       
       if (c.status === 'success' || c.status === 'error') {
         md += `**Status:** ${c.statusCode} ${c.status === 'success' ? '✅' : '❌'}\n\n`;

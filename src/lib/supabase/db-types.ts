@@ -12,7 +12,8 @@ export type CollectionRow = {
   position: number;
 };
 
-/** Row of `public.collection_items`. */
+/** Row of `public.collection_items`. `folder_id` is a plain (un-keyed) folder
+ *  id or null for a root-level item — see `0003_folders.sql`. */
 export type CollectionItemRow = {
   id: string;
   collection_id: string;
@@ -20,6 +21,20 @@ export type CollectionItemRow = {
   name: string;
   method: string;
   code: string;
+  folder_id: string | null;
+  position: number;
+};
+
+/** Row of `public.folders`. `parent_id` is another folder's id in the same
+ *  collection, or null for a root-level folder. Not a foreign key — the
+ *  `sync_state` reconcile trusts client ids (see `0003_folders.sql`). */
+export type FolderRow = {
+  id: string;
+  collection_id: string;
+  user_id: string;
+  parent_id: string | null;
+  name: string;
+  open: boolean;
   position: number;
 };
 
@@ -77,6 +92,12 @@ export type Database = {
         Row: CollectionItemRow;
         Insert: Omit<CollectionItemRow, 'user_id'> & { user_id?: string };
         Update: Partial<CollectionItemRow>;
+        Relationships: [];
+      };
+      folders: {
+        Row: FolderRow;
+        Insert: Omit<FolderRow, 'user_id'> & { user_id?: string };
+        Update: Partial<FolderRow>;
         Relationships: [];
       };
       environments: {

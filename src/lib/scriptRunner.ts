@@ -1094,6 +1094,10 @@ export async function runScript(
   };
 
   try {
+    // Lazy — same reasoning as `socket.io-client` above: keeps lodash out of
+    // the main bundle, pulled in only once a script actually runs. `default`
+    // is the full `LoDashStatic` (CJS `module.exports = _`, via esModuleInterop).
+    const lodash = (await import("lodash")).default;
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const AF = Object.getPrototypeOf(async function () {}).constructor as new (
       ...args: string[]
@@ -1104,8 +1108,9 @@ export async function runScript(
       "console",
       "sleep",
       "expect",
+      "lodash",
       processedCode,
-    )(api, envProxy, con, sleep, expect);
+    )(api, envProxy, con, sleep, expect, lodash);
   } catch (e) {
     const msg = (e as Error).message;
     if (msg !== "Script aborted") {

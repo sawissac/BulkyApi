@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue, useEffect, useRef } from "react";
 import {
   Loader2,
   Radio,
@@ -10,7 +10,9 @@ import {
   ArrowUp,
   ArrowDown,
   Info,
+  Search,
 } from "lucide-react";
+import Highlighter from "react-highlight-words";
 import type { Theme } from "@/lib/themes";
 import type { ApiCall } from "@/lib/types";
 import JNode from "@/components/JsonTreeViewer";
@@ -20,9 +22,16 @@ import {
   formatMarkup,
   type ResponseKind,
 } from "@/lib/responseFormat";
+import {
+  runJsonQuery,
+  countMatches,
+  countTreeMatches,
+  type JsonQueryMatch,
+} from "@/lib/responseSearch";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -893,9 +902,526 @@ function NonJsonBody({
 
 type ViewMode = "pretty" | "raw" | "ts";
 
+/**
+ * Whether a PRETTY-view term should be read as a JSONPath rather than as a
+ * find term. `$` is the JSONPath root and never plain response text, so it
+ * alone decides — one field serves both jobs with nothing to toggle.
+ */
+function isJsonPath(term: string): boolean {
+  return term.trim().startsWith("$");
+}
+
+/** Message shown beside the search field: a match count, or a query error. */
+type SearchStatus = { kind: "info" | "error"; text: string } | null;
+
+/**
+ * Search field above a JSON response body. One field, two jobs: a JSONPath
+ * query against the parsed object in `query` mode, a find term in `text`
+ * mode. Internal to {@link RespTab} — the caller owns the term and decides
+ * which mode it reads as, from the view and from whether the term opens with
+ * a `$`.
+ *
+ * @remarks
+ * Status: stable — Type: control
+ *
+ * State & behavior: fully controlled; holds nothing. The placeholder and
+ * accessible name switch with `mode`, so the same field reads as a query box
+ * over the tree and a find box over the raw dump. Clearing is handled by
+ * {@link Input}'s own clear button, which re-fires `onChange` with an empty
+ * value.
+ *
+ * Variants:
+ * - query — JSONPath placeholder, for a PRETTY term that starts with `$` and
+ *   for the empty field, whose placeholder advertises both jobs.
+ * - text — plain substring placeholder, for any other term.
+ *
+ * Composition: renders {@link Input} with a leading `Search` icon; `status`
+ * renders as a sibling line to its right.
+ *
+ * Accessibility: the field carries an `aria-label` naming the active mode.
+ * The status line is `aria-live="polite"` so a screen reader hears the match
+ * count settle instead of every intermediate keystroke.
+ *
+ * Test ids: field `resp-tab-search-input` (clear button
+ * `resp-tab-search-input-clear-button`), status line
+ * `resp-tab-search-status`.
+ *
+ * CSS classes: none — Tailwind utilities over the `app-*` theme tokens.
+ *
+ * Edge cases: a long JSONPath error message can outgrow the row, so the
+ * status line is width-capped and truncated rather than pushing the field
+ * to zero width. Ligatures are switched off on both the field and the status
+ * line: JetBrains Mono ligates dot runs, which made a typed `$..Id` read back
+ * as `$ .Id` and look like the field had eaten a character.
+ */
+function BodySearchBar({
+  T,
+  mode,
+  value,
+  onChange,
+  status,
+}: BodySearchBarProps) {
+  const isQuery = mode === "query";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flex: 1,
+        minWidth: 0,
+      }}
+    >
+      <Input
+        icon={Search}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck={false}
+        autoComplete="off"
+        placeholder={
+          isQuery ? "$..Id for JSONPath · or find in tree" : "Find in text"
+        }
+        aria-label={isQuery ? "JSONPath query" : "Find in response text"}
+        data-testid="resp-tab-search-input"
+        clearLabel={isQuery ? "Clear query" : "Clear search"}
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          fontVariantLigatures: "none",
+        }}
+        className="py-1"
+      />
+      {status && (
+        <span
+          aria-live="polite"
+          data-testid="resp-tab-search-status"
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            fontVariantLigatures: "none",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: 190,
+            flexShrink: 0,
+            color: status.kind === "error" ? T.error : T.textDim,
+          }}
+        >
+          {status.text}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type BodySearchBarProps = {
+  /** Active theme; supplies the status line's info/error colors. */
+  T: Theme;
+  /** Which job the field is doing — drives placeholder, label and nothing else. */
+  mode: "query" | "text";
+  /** Current search term. Controlled — the caller owns it. */
+  value: string;
+  /**
+   * Fires on every keystroke and on the clear button, with the field's full
+   * value (empty string when cleared). Not debounced; the caller defers the
+   * expensive work instead.
+   * @param value - current field value
+   */
+  onChange: (value: string) => void;
+  /** Trailing message. Nothing renders when `null`. */
+  status: SearchStatus;
+};
+
+/**
+ * Result list for an active JSONPath query — one card per hit, each showing
+ * the normalized path that reached the value above the value's own subtree.
+ * Internal to {@link RespTab}.
+ *
+ * @remarks
+ * Status: stable — Type: display
+ *
+ * State & behavior: stateless. Each value is handed to {@link JNode}, which
+ * keeps its own expand/collapse state; because a new query produces new
+ * elements at new positions, those trees remount and re-open to their default
+ * depth rather than holding a stale collapsed state from the previous query.
+ *
+ * Variants: an empty `matches` renders the no-hits line instead of the list.
+ *
+ * Composition: renders {@link JNode} per match.
+ *
+ * Test ids: list container `resp-tab-query-match-list`, empty line
+ * `resp-tab-query-empty-message`. Individual matches carry none — a JSONPath
+ * is not a stable domain id, so tests select rows by position inside the
+ * container.
+ *
+ * CSS classes: none — inline theme-driven styles, matching the rest of the
+ * response body.
+ *
+ * Edge cases: a match on the root (`$`) renders the whole document as one
+ * card, which is the honest result rather than a special case.
+ */
+function QueryMatches({ T, matches }: { T: Theme; matches: JsonQueryMatch[] }) {
+  if (matches.length === 0) {
+    return (
+      <div
+        data-testid="resp-tab-query-empty-message"
+        style={{
+          fontFamily: "var(--font-description)",
+          fontSize: 11,
+          fontStyle: "italic",
+          color: T.textDim,
+          background: T.bgHover,
+          border: `1px solid ${T.border}`,
+          borderRadius: 6,
+          padding: 10,
+        }}
+      >
+        No matches for this query.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-testid="resp-tab-query-match-list"
+      style={{ display: "flex", flexDirection: "column", gap: 4 }}
+    >
+      {matches.map((m, i) => (
+        <div
+          key={`${m.path}-${i}`}
+          style={{
+            background: T.bgHover,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            padding: 10,
+            maxWidth: "100%",
+            overflowX: "auto",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: T.textDim,
+              marginBottom: 5,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {m.path}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              lineHeight: 1.7,
+            }}
+          >
+            <JNode data={m.value} T={T} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The PRETTY body: a {@link JNode} tree with the current find term marked.
+ * Internal to {@link RespTab}.
+ *
+ * @remarks
+ * Status: stable — Type: display
+ *
+ * State & behavior: holds no state, only a ref onto the scroll container.
+ * Whenever the term, the body behind it or `activeIndex` changes, the tree's
+ * active `<mark>` is scrolled into view with `block: "nearest"`, so stepping
+ * through hits walks the panel down the tree without yanking a match that is
+ * already on screen. An active term also forces every node open, since a hit
+ * inside a collapsed branch could otherwise be counted but never shown.
+ *
+ * Composition: renders {@link JNode}.
+ *
+ * Test ids: none of its own — the caller's `data-testid` lands on the
+ * container.
+ *
+ * CSS classes: none of its own; it scrolls to `JNode`'s
+ * `json-tree-viewer__mark--active`.
+ *
+ * Edge cases: a term with no hits leaves the scroll position alone, and the
+ * scroll is instant rather than smooth since the deferred term can land a new
+ * match on consecutive frames while typing.
+ */
+function HighlightedTree({
+  T,
+  data,
+  query,
+  activeIndex,
+  "data-testid": testId,
+}: HighlightedTreeProps) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!query || activeIndex < 0) return;
+    boxRef.current
+      ?.querySelector(".json-tree-viewer__mark--active")
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [query, activeIndex, data]);
+
+  return (
+    <div
+      ref={boxRef}
+      data-testid={testId}
+      style={{
+        marginTop: 10,
+        fontFamily: "var(--font-mono)",
+        fontSize: 11,
+        lineHeight: 1.7,
+        background: T.bgHover,
+        border: `1px solid ${T.border}`,
+        borderRadius: 6,
+        padding: 10,
+        maxWidth: "100%",
+        overflowX: "auto",
+      }}
+    >
+      <JNode
+        data={data}
+        T={T}
+        query={query}
+        activeIndex={activeIndex}
+        openAll={query !== ""}
+      />
+    </div>
+  );
+}
+
+type HighlightedTreeProps = {
+  /** Active theme; supplies the surface, border and syntax palette. */
+  T: Theme;
+  /** Parsed response body to render as a tree. */
+  data: unknown;
+  /** Find term to mark. An empty string renders the tree untouched. */
+  query: string;
+  /** Zero-based index of the match to treat as current and scroll to, counted
+   *  across the whole tree. `-1` while there is no current match. */
+  activeIndex: number;
+  /** Lands on the scroll container. */
+  "data-testid"?: string;
+};
+
+/**
+ * Monospace body dump with the current find term marked. Internal to
+ * {@link RespTab} — used for both the RAW JSON and the generated TS view.
+ *
+ * @remarks
+ * Status: stable — Type: display
+ *
+ * State & behavior: holds no state, only a ref onto the `<pre>`. With no
+ * `query` it renders the text directly, skipping the highlighter's chunking
+ * pass entirely; with one it delegates to `react-highlight-words`, which is
+ * case-insensitive and (via `autoEscape`) treats the term as a literal, so
+ * regex metacharacters typed into the field match themselves instead of
+ * throwing. Whenever the term, the body behind it or `activeIndex` changes,
+ * the `activeIndex`-th `<mark>` the highlighter emitted is scrolled into view
+ * with `block: "nearest"`, so a match far down a long body is brought to the
+ * reader without yanking the card around when it already sits on screen —
+ * which is also what walks the view from hit to hit as the caller's up/down
+ * buttons move the index.
+ *
+ * Variants: `color` swaps the base text tone — the theme's text color for RAW,
+ * its accent for the TS view. The current match is tinted harder than the
+ * rest and outlined, so it stays findable among its neighbours.
+ *
+ * Composition: renders `Highlighter` inside a `<pre>`.
+ *
+ * Test ids: none of its own — the caller's `data-testid` lands on the `<pre>`.
+ *
+ * CSS classes: none — inline theme-driven styles.
+ *
+ * Edge cases: highlighting splits the text into many spans, so a very large
+ * body with a one-character term produces a lot of nodes; the caller defers
+ * the term to keep typing responsive rather than capping the match count. A
+ * term with no hits leaves the scroll position alone — there is no `<mark>`
+ * to scroll to — and the scroll is instant rather than smooth, since the
+ * deferred term can land a new one on consecutive frames while typing. An
+ * `activeIndex` past the last match scrolls nothing: keeping it inside the
+ * match count (and wrapping it) is the caller's job.
+ */
+function HighlightedPre({
+  T,
+  text,
+  query,
+  color,
+  activeIndex,
+  "data-testid": testId,
+}: HighlightedPreProps) {
+  const preRef = useRef<HTMLPreElement | null>(null);
+
+  useEffect(() => {
+    if (!query || activeIndex < 0) return;
+    preRef.current
+      ?.querySelectorAll("mark")
+      [activeIndex]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [query, text, activeIndex]);
+
+  const style: React.CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 11,
+    color,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    background: T.bgHover,
+    border: `1px solid ${T.border}`,
+    borderRadius: 6,
+    padding: 10,
+    margin: 0,
+  };
+
+  if (!query) {
+    return (
+      <pre ref={preRef} data-testid={testId} style={style}>
+        {text}
+      </pre>
+    );
+  }
+
+  return (
+    <pre ref={preRef} data-testid={testId} style={style}>
+      <Highlighter
+        searchWords={[query]}
+        textToHighlight={text}
+        autoEscape
+        activeIndex={activeIndex}
+        highlightStyle={{
+          background: `${T.cyan}38`,
+          color: T.textBright,
+          borderRadius: 2,
+          padding: "0 1px",
+        }}
+        activeStyle={{
+          background: `${T.cyan}80`,
+          color: T.textBright,
+          outline: `1px solid ${T.cyan}`,
+          borderRadius: 2,
+          padding: "0 1px",
+        }}
+        unhighlightStyle={{ color }}
+      />
+    </pre>
+  );
+}
+
+type HighlightedPreProps = {
+  /** Active theme; supplies the surface, border and highlight tint. */
+  T: Theme;
+  /** Body text to render. */
+  text: string;
+  /** Term to mark. An empty string renders `text` untouched. */
+  query: string;
+  /** Base color for unmatched text. */
+  color: string;
+  /** Zero-based index of the match to treat as current: tinted harder than
+   *  the others and scrolled into view whenever it, `query` or `text`
+   *  changes. `-1` while there is no current match. */
+  activeIndex: number;
+  /** Lands on the `<pre>`. */
+  "data-testid"?: string;
+};
+
+/**
+ * The Response tab of a call card: the body, plus the controls for reading it
+ * — PRETTY (a collapsible JSON tree), RAW (the re-serialized JSON) and TS
+ * (types generated from the body) — with a search field over each. Handles
+ * every body shape a call can produce, delegating SSE frames to
+ * {@link SseEvents}, socket frames to {@link WsEvents} and non-JSON payloads
+ * to {@link NonJsonBody}.
+ *
+ * @remarks
+ * Status: stable — Type: feature
+ *
+ * State & behavior: `view` selects the body renderer. Search terms are kept
+ * per view — the PRETTY term in `jsonQuery`, the RAW / TS term in `textQuery`
+ * — so
+ * switching PRETTY↔RAW never reinterprets one as the other. Both terms are
+ * passed through `useDeferredValue`, so a keystroke paints immediately and the
+ * query/highlight pass lands on the next frame. `matchNav` holds the current
+ * find hit for the RAW / TS views, keyed by `view` plus the term so a new term
+ * (or a view switch) restarts at the first hit without an effect; the up/down
+ * buttons step it and the stored index is wrapped modulo the match count, so
+ * walking past either end rolls around instead of stalling. `tsOutput` is only
+ * generated while the TS view is active. A JSONPath that fails to parse leaves the full
+ * tree on screen and reports the parser's message in the status line, so the
+ * body never blanks out mid-expression.
+ *
+ * Variants:
+ * - SSE / socket calls — the frame log, no view toggle or search.
+ * - pending / errored calls — a spinner or the error box.
+ * - non-JSON bodies — {@link NonJsonBody}, which brings its own toggles.
+ * - JSON bodies — the PRETTY / RAW / TS toggle documented here.
+ *
+ * Composition: renders {@link BodySearchBar}, {@link QueryMatches},
+ * {@link HighlightedPre} and {@link HighlightedTree}. The control row (search field,
+ * match navigation, copy, view toggle) is `position: sticky` at the top of
+ * the card's scrolling detail body, so it stays reachable while a long body
+ * scrolls under it. It bleeds over that container's 10px padding with
+ * matching negative margins and an opaque `T.bgPanel` fill, so nothing shows
+ * through the strip above or beside it, and a hairline bottom border marks
+ * where the body starts. `top` is the negative of that top bleed rather than
+ * `0`: a sticky box is pinned by its margin box, so a `-10px` top margin
+ * against `top: 0` would hold the visible row 10px clear of the scrollport
+ * and leak scrolled text through the gap.
+ *
+ * Accessibility: the search field is labelled per mode; its status line is
+ * `aria-live="polite"` and reads `<n>/<total> matches` wherever a find term
+ * is active — the tree included — so stepping is announced. The match up/down buttons are icon-only and carry
+ * `aria-label`s ("Previous match" / "Next match"), and disable together once
+ * the term matches nothing. The view toggle is a plain button group — the
+ * active button is marked with `data-active`.
+ *
+ * Test ids: copy button `resp-tab-copy-button`, view toggles
+ * `resp-tab-view-button-<mode>` (pretty, raw, ts), match navigation
+ * `resp-tab-match-prev-button` / `resp-tab-match-next-button` (mounted only in
+ * RAW / TS with a term entered), body root `resp-tab-body`.
+ * Search ids are listed on {@link BodySearchBar} and {@link QueryMatches}.
+ *
+ * CSS classes: `VIEW_GROUP` / `VIEW_BTN` / `COPY_BTN_*` Tailwind recipes over
+ * the `app-*` theme tokens; the body itself is inline-styled from `T`.
+ *
+ * Edge cases:
+ * - A term typed over the tree is a JSONPath when it starts with `$` and a
+ *   find term otherwise: the first filters the body down to a match list, the
+ *   second marks hits in place across keys and scalar values and drives the
+ *   up/down buttons. RAW and TS only ever get the find term, since neither is
+ *   a JSON document to query. Match navigation follows the
+ *   same split — PRETTY already lists every hit as its own card, so it needs
+ *   no stepping.
+ * - Copy always takes the whole body (or the whole generated TS), never the
+ *   filtered subset — the search narrows the view, not the payload.
+ *
+ * @example
+ * ```tsx
+ * <RespTab T={theme} call={call} />
+ * ```
+ *
+ * @see {@link runJsonQuery}
+ */
 export default function RespTab({ T, call }: Props) {
   const [view, setView] = useState<ViewMode>("pretty");
   const [copied, setCopied] = useState(false);
+  const [jsonQuery, setJsonQuery] = useState("");
+  const [textQuery, setTextQuery] = useState("");
+  const [matchNav, setMatchNav] = useState({ key: "", idx: 0 });
+
+  const deferredJsonQuery = useDeferredValue(jsonQuery);
+  const deferredTextQuery = useDeferredValue(textQuery);
+
+  const queryResult = useMemo(
+    () =>
+      runJsonQuery(
+        call.response,
+        isJsonPath(deferredJsonQuery) ? deferredJsonQuery : "",
+      ),
+    [call.response, deferredJsonQuery],
+  );
 
   const tsOutput = useMemo(() => {
     if (view !== "ts") return "";
@@ -989,6 +1515,7 @@ export default function RespTab({ T, call }: Props) {
       size="xs"
       onClick={() => setView(mode)}
       data-active={view === mode || undefined}
+      data-testid={`resp-tab-view-button-${mode}`}
       className={VIEW_BTN}
     >
       {label}
@@ -998,17 +1525,91 @@ export default function RespTab({ T, call }: Props) {
   const copyText =
     view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2);
 
+  const isPretty = view === "pretty";
+  const activeQuery = (isPretty ? deferredJsonQuery : deferredTextQuery).trim();
+  const hasQuery = activeQuery !== "";
+  const pathMode = isPretty && isJsonPath(activeQuery);
+  const findMode = hasQuery && !pathMode;
+  const matchCount = !findMode
+    ? 0
+    : isPretty
+      ? countTreeMatches(call.response, activeQuery)
+      : countMatches(copyText, activeQuery);
+  const navKey = `${view}:${activeQuery}`;
+  const storedIdx = matchNav.key === navKey ? matchNav.idx : 0;
+  const activeMatch =
+    matchCount > 0 ? ((storedIdx % matchCount) + matchCount) % matchCount : -1;
+  const stepMatch = (delta: number) =>
+    setMatchNav({ key: navKey, idx: activeMatch + delta });
+
+  const status: SearchStatus = !hasQuery
+    ? null
+    : pathMode
+      ? queryResult.ok
+        ? {
+            kind: "info",
+            text: `${queryResult.matches.length} match${queryResult.matches.length === 1 ? "" : "es"}`,
+          }
+        : { kind: "error", text: queryResult.error }
+      : {
+          kind: "info",
+          text:
+            matchCount === 0
+              ? "No matches"
+              : `${activeMatch + 1}/${matchCount} match${matchCount === 1 ? "" : "es"}`,
+        };
+
   return (
     <div style={{ minWidth: 0, maxWidth: "100%" }}>
       <div
         style={{
+          position: "sticky",
+          top: -10,
+          zIndex: 1,
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-end",
           gap: 6,
-          marginBottom: 7,
+          margin: "-10px -10px 0",
+          padding: "10px 10px 7px",
+          background: T.bgPanel,
+          borderBottom: `1px solid ${T.border}`,
         }}
       >
+        <BodySearchBar
+          T={T}
+          mode={isPretty && !findMode ? "query" : "text"}
+          value={isPretty ? jsonQuery : textQuery}
+          onChange={isPretty ? setJsonQuery : setTextQuery}
+          status={status}
+        />
+        {findMode && (
+          <ButtonGroup className={VIEW_GROUP}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => stepMatch(-1)}
+              disabled={matchCount === 0}
+              aria-label="Previous match"
+              data-testid="resp-tab-match-prev-button"
+              className={VIEW_BTN}
+            >
+              <ArrowUp size={10} />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => stepMatch(1)}
+              disabled={matchCount === 0}
+              aria-label="Next match"
+              data-testid="resp-tab-match-next-button"
+              className={VIEW_BTN}
+            >
+              <ArrowDown size={10} />
+            </Button>
+          </ButtonGroup>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -1016,8 +1617,9 @@ export default function RespTab({ T, call }: Props) {
               variant="outline"
               size="xs"
               onClick={() => handleCopy(copyText)}
+              data-testid="resp-tab-copy-button"
               className={cn(
-                "gap-1 text-[8px] font-bold uppercase tracking-widest",
+                "shrink-0 gap-1 text-[8px] font-bold uppercase tracking-widest",
                 copied ? COPY_BTN_COPIED : COPY_BTN_IDLE,
               )}
             >
@@ -1036,53 +1638,35 @@ export default function RespTab({ T, call }: Props) {
         </ButtonGroup>
       </div>
       {view === "raw" ? (
-        <pre
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: T.text,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            background: T.bgHover,
-            border: `1px solid ${T.border}`,
-            borderRadius: 6,
-            padding: 10,
-          }}
-        >
-          {copyText}
-        </pre>
+        <HighlightedPre
+          T={T}
+          text={copyText}
+          query={activeQuery}
+          color={T.text}
+          activeIndex={activeMatch}
+          data-testid="resp-tab-body"
+        />
       ) : view === "ts" ? (
-        <pre
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: T.cyan,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            background: T.bgHover,
-            border: `1px solid ${T.border}`,
-            borderRadius: 6,
-            padding: 10,
-          }}
-        >
-          {tsOutput}
-        </pre>
-      ) : (
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            lineHeight: 1.7,
-            background: T.bgHover,
-            border: `1px solid ${T.border}`,
-            borderRadius: 6,
-            padding: 10,
-            maxWidth: "100%",
-            overflowX: "auto",
-          }}
-        >
-          <JNode data={call.response} T={T} />
+        <HighlightedPre
+          T={T}
+          text={tsOutput}
+          query={activeQuery}
+          color={T.cyan}
+          activeIndex={activeMatch}
+          data-testid="resp-tab-body"
+        />
+      ) : pathMode && queryResult.ok ? (
+        <div data-testid="resp-tab-body">
+          <QueryMatches T={T} matches={queryResult.matches} />
         </div>
+      ) : (
+        <HighlightedTree
+          T={T}
+          data={call.response}
+          query={findMode ? activeQuery : ""}
+          activeIndex={activeMatch}
+          data-testid="resp-tab-body"
+        />
       )}
     </div>
   );

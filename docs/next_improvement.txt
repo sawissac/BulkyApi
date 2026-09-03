@@ -1,2 +1,0 @@
-odata completions
-odata hosting.

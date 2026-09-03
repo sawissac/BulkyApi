@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import type { Theme } from '@/lib/themes';
 import { statusColor, methodColor } from '@/lib/themes';
 import { selectBuiltCalls, selectRunStartedAt } from '@/store/runnerSlice';
+import { displayUrl } from '@/lib/callMatch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Props = {
@@ -123,7 +124,8 @@ export default function ApiWaterfall({ T }: Props) {
           const barColor = call.status === 'idle' ? T.border : call.status === 'error' ? T.error : T.cyan;
           const isPending = call.status === 'pending';
 
-          const urlDisplay = call.url.length > 38 ? '…' + call.url.slice(-36) : call.url;
+          const url = displayUrl(call.url);
+          const urlDisplay = url.length > 38 ? '…' + url.slice(-36) : url;
 
           return (
             <Tooltip key={call.idx}>
@@ -188,7 +190,7 @@ export default function ApiWaterfall({ T }: Props) {
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                {call.method} {call.url}
+                {call.method} {url}
                 {call.statusCode ? ` — ${call.statusCode}` : ''}
                 {call.duration ? ` — ${call.duration}ms` : ''}
               </TooltipContent>
