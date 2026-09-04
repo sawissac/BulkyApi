@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   CircleUserRound,
   CloudOff,
+  Database,
   FileLock,
   FolderDown,
   FolderOpen,
@@ -49,6 +50,7 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
   { id: "collections", label: "Requests", Icon: FolderOpen },
   { id: "env", label: "Envs", Icon: FileLock },
   { id: "vars", label: "Vars", Icon: TableProperties },
+  { id: "db", label: "DB", Icon: Database },
   { id: "file", label: "File", Icon: FolderDown },
 ];
 

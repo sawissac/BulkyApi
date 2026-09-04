@@ -32,6 +32,12 @@ export type Collection = {
   folders?: Folder[];
   environments: Environment[];
   envIdx: number;
+  /** Saved Postgres connections. Absent/empty means the collection has none
+   *  configured yet — the pre-connections shape, still loaded unchanged. */
+  connections?: DbConnection[];
+  /** Index into `connections` of the one `api.query.pgsql` uses when a script
+   *  names none. Out of range (or absent) resolves to no active connection. */
+  connIdx?: number;
   /** Script run once before the item script on every run of any item in this
    *  collection — auth, seed data. Blank/absent means no pre-run step. */
   preRun?: string;
@@ -45,6 +51,31 @@ export type Environment = {
   id: string;
   name: string;
   vars: Record<string, string>;
+};
+
+/** How a saved connection negotiates TLS. `''` sends whatever the driver
+ *  defaults to (no TLS for a local socket); `'require'` verifies the server
+ *  certificate; `'no-verify'` encrypts without verifying it, which is what a
+ *  managed Postgres behind a self-signed pooler certificate needs. */
+export type DbSsl = '' | 'require' | 'no-verify';
+
+/** One saved Postgres connection, configured in the DB pane and reached from a
+ *  script as `api.query.pgsql(...)`. Structured rather than one DSN string so
+ *  the pane can mask the password on its own and the parts stay editable; the
+ *  DSN is rebuilt from these by `connectionUrl` at run time.
+ *
+ *  The password is stored on the collection like any environment variable, so
+ *  it syncs with the account (§11 of the SOP) — but it is stripped from a
+ *  collection exported to a file, which is the copy most likely to be shared. */
+export type DbConnection = {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl: DbSsl;
 };
 
 export const SAMPLE_CODE = `// Bulky API — Automation Script
@@ -146,6 +177,15 @@ export const DOCS_CODE = `// ═════════════════
 //
 //  event: { type, data, id }  — type defaults to 'message'
 //
+//  api.query.pgsql(sql, params?, opts?)
+//
+//  Runs raw SQL against Postgres. Values go in params
+//  as $1, $2, ... — the statement is never interpolated.
+//  Connection: the DB pane's active one, or the one
+//  opts.db names — { db: 'reporting' }.
+//  Returns: { rows, rowCount, command, fields, duration }
+//  Throws on a failed query.
+//
 // ── opts ────────────────────────────────────────────────
 //
 //  {
@@ -208,7 +248,7 @@ Everything the runtime injects into a script: the \`api\` client, the \`env\` ba
 
 | Name | Type | Description |
 |------|------|-------------|
-| \`api\` | \`BulkyApi\` | HTTP client — \`get\`, \`post\`, \`put\`, \`patch\`, \`delete\`, \`options\`, \`head\`, \`sse\`, \`stream\`, \`assert\` |
+| \`api\` | \`BulkyApi\` | HTTP client — \`get\`, \`post\`, \`put\`, \`patch\`, \`delete\`, \`options\`, \`head\`, \`sse\`, \`stream\`, \`assert\`, plus \`query.pgsql\` for raw SQL |
 | \`env\` | \`Record<string, string>\` | Active environment variables. Writable — \`env.x = v\` / \`env.set('x', v)\` is visible to later calls |
 | \`console\` | \`Console\` | \`.log\` / \`.warn\` / \`.error\` / \`.info\` — output lands in the Console panel |
 | \`expect\` | \`(actual) => Matchers\` | Records a pass/fail check. Never throws — see **Assertions** |
@@ -230,6 +270,7 @@ Everything the runtime injects into a script: the \`api\` client, the \`env\` ba
 | \`api.assert(condition, message?)\` | — | \`void\` — records a pass/fail, never throws |
 | \`api.file(accept?)\` | — | \`Promise<File>\` — opens a native file picker |
 | \`api.form(fields)\` | — | \`FormData\` — builds a multipart body |
+| \`api.query.pgsql(sql, params?, opts?)\` | — | \`Promise<SqlResult<T>>\` — raw SQL against Postgres, see **Postgres** |
 
 Every verb also exists on \`api.server.*\`, which routes the call through the app's own proxy — reach for it when CORS blocks the browser from calling a host directly. File uploads work there too: the proxy streams the body straight through instead of JSON-encoding it.
 
@@ -289,6 +330,37 @@ await api.post(env.baseUrl + '/upload', picked);
 \`\`\`
 
 Neither body is JSON-encoded and neither gets the default \`Content-Type: application/json\` — the browser sets its own (the multipart boundary for \`api.form()\`, the file's type for a bare \`File\`/\`Blob\`). Works through \`api.server.*\` too: the proxy streams the upload to the target rather than wrapping it in JSON.
+
+### Postgres
+
+\`api.query.pgsql(sql, params?, opts?)\` runs raw SQL. A browser can't speak the Postgres wire protocol, so the query always travels through the app's own \`/api/query/pgsql\` route — there is no direct-vs-proxied choice the way there is for HTTP.
+
+\`\`\`ts
+const r = await api.query.pgsql(
+  'select id, name from users where org_id = $1 order by id',
+  [env.orgId],
+);
+console.log(r.rowCount, 'rows |', r.command, '|', r.duration + 'ms');
+\`\`\`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| \`rows\` | \`T[]\` | The result rows |
+| \`rowCount\` | \`number \\| null\` | \`null\` for a statement that reports none — DDL, mostly |
+| \`command\` | \`string\` | Command tag — \`SELECT\`, \`INSERT\`, ... |
+| \`fields\` | \`{ name, dataTypeID }[]\` | Column metadata |
+| \`duration\` | \`number\` | Round trip in ms |
+| \`statements\` | \`Result[]\` | Only for a \`;\`-separated batch — one entry per statement |
+
+The connection lives in the sidebar's **DB pane**, per collection — host, port, database, user, password and TLS, with a **Test connection** button. A call that names none runs on whichever connection is active there; \`{ db: 'reporting' }\` picks another by name, and a name matching none fails the call rather than running somewhere unintended.
+
+\`\`\`ts
+await api.query.pgsql('select count(*) from events', [], { db: 'reporting' });
+\`\`\`
+
+\`opts.url\` still takes a raw connection string and overrides the pane entirely; with neither, the environment's \`DATABASE_URL\` is the last resort. \`opts.ssl\` (\`true\` to verify the server certificate, \`'no-verify'\` to encrypt without verifying it) overrides the saved connection's own setting, and \`opts.timeout\` sets Postgres' \`statement_timeout\` in ms.
+
+> Values belong in \`params\` as \`$1\`, \`$2\`, ... — the driver binds them out of band. The statement itself is never interpolated, and \`{{var}}\` resolves in the connection string only. Omitting \`params\` runs the text as a batch, so several \`;\`-separated statements work in one call. A failed query **throws**, the way any Postgres client behaves — there's no \`ok: false\` result to inspect, so wrap it in \`try/catch\` when a failure is expected.
 
 ### Environment variables
 
@@ -912,6 +984,52 @@ const sock = await api.io(env.baseUrl, {}, (e) => {
 
 sock.emit('join-room', { room: 'general' });
 sock.send('hello everyone');`,
+  },
+  {
+    label: "Postgres query",
+    method: "PGSQL",
+    markdown: `## Postgres query
+
+\`api.query.pgsql(sql, params?, opts?)\` runs raw SQL. The browser can't speak the Postgres wire protocol, so every query travels through the app's own \`/api/query/pgsql\` route, which holds the pooled connections.
+
+| Argument | Type | Notes |
+|----------|------|-------|
+| \`sql\` | \`string\` | Run verbatim. Never interpolated — \`{{var}}\` resolves in the connection string only |
+| \`params\` | \`unknown[]\` | Bound to \`$1\`, \`$2\`, ... out of band. Omit it and the text runs as a \`;\`-separated batch |
+| \`opts.db\` | \`string\` | Name of a connection saved in the DB pane. Omit to use the one marked active there |
+| \`opts.url\` | \`string\` | Raw connection string, overriding the pane. Falls back to \`env.DATABASE_URL\` when nothing is saved |
+| \`opts.ssl\` | \`boolean \\| 'no-verify'\` | Overrides the saved connection's TLS setting. \`'no-verify'\` encrypts without checking the certificate — what a managed Postgres behind a self-signed pooler needs |
+| \`opts.timeout\` | \`number\` | Postgres \`statement_timeout\` in ms |
+
+\`\`\`ts
+type User = { id: number; name: string };
+
+const r = await api.query.pgsql<User>(
+  'select id, name from users where org_id = $1 order by id limit 10',
+  [1],
+);
+console.log(r.rowCount, 'rows in', r.duration + 'ms');
+\`\`\`
+
+Resolves to \`{ rows, rowCount, command, fields, duration }\` — plus \`statements\` for a batch, one entry per statement. A failed query **throws** (the way every Postgres client behaves), with the SQLSTATE \`code\`, \`detail\`, \`hint\` and \`position\` on the card's Response tab.
+
+> The card shows the statement where an HTTP call shows its URL, and the Payload tab carries the SQL, the bound parameters, and the database it went to — never the password, which is stripped before the record is stored.`,
+    code: `// Raw SQL against Postgres. Add a connection in the sidebar's
+// DB pane first (or paste a postgres:// string into it), then
+// press Test connection there to prove it before running this.
+// Values go in params as $1, $2 — never string-concatenated in.
+
+type User = { id: number; name: string };
+
+const r = await api.query.pgsql<User>(
+  'select id, name from users where org_id = $1 order by id limit 10',
+  [1],
+);
+
+console.log(r.rowCount, 'rows in', r.duration + 'ms');
+for (const u of r.rows) console.log(u.id, u.name);
+
+expect(r.rowCount).toBeGreaterThan(0);`,
   },
 ];
 

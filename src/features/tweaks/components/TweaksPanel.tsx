@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { THEMES, type Theme, type ThemeKey } from "@/lib/themes";
-import type { LayoutKey } from "@/store/uiSlice";
+import type { LayoutKey, PatternStyle } from "@/store/uiSlice";
 import {
   selectTheme,
   selectLayout,
@@ -21,6 +21,10 @@ import {
   setTweaksOpen,
   selectCallTimeout,
   setCallTimeout,
+  selectPatternStyle,
+  selectPatternOpacity,
+  setPatternStyle,
+  setPatternOpacity,
 } from "@/store/uiSlice";
 import * as ui from "@/lib/ui";
 
@@ -62,6 +66,33 @@ const LAYOUT_OPTIONS: Array<{
     Icon: Form,
   },
 ];
+
+/** Sidebar/response-panel background choices — each `id` names one of the
+ *  `app-panel-texture--*` utilities in `globals.css` (`'none'` renders none
+ *  of them). Swatches preview at a fixed full strength (see
+ *  `PATTERN_SWATCH_STYLE`) regardless of the live `patternOpacity`, so a
+ *  faint live setting never makes the choices themselves hard to tell apart. */
+const PATTERN_OPTIONS: Array<{ id: PatternStyle; label: string }> = [
+  { id: "none", label: "None" },
+  { id: "checker", label: "Checker" },
+  { id: "dots", label: "Dots" },
+  { id: "graph", label: "Graph" },
+];
+
+/** Forces every swatch to render at full strength, independent of the app's
+ *  actual `--app-pattern-alpha` — a live setting turned down low would
+ *  otherwise make the options themselves nearly indistinguishable. */
+const PATTERN_SWATCH_STYLE = { "--app-pattern-alpha": "1" } as React.CSSProperties;
+
+/** Corner-rounding class per pattern tile index, for the fixed single-row,
+ *  4-column grid below — simpler than `THEME_CORNER_CLASS` since a 4-column
+ *  grid of exactly 4 tiles has no responsive breakpoint to account for and
+ *  only one row, so the end tiles each carry both their top and bottom
+ *  corner instead of just one. */
+const PATTERN_CORNER_CLASS: Record<number, string> = {
+  0: "rounded-l-md",
+  3: "rounded-r-md",
+};
 
 /**
  * Segmented-group tile for a theme choice — color block on top, name below.
@@ -127,39 +158,60 @@ const ROW_BTN =
  *
  * State & behavior: local state is only the call-timeout text field, kept
  * separate from the store so typing does not stutter waiting on the 400ms
- * debounce before `setCallTimeout` dispatches. Theme and layout pills dispatch
- * on click with no debounce. Escape and a click on the scrim close the dialog
- * by dispatching `setTweaksOpen(false)`; so does the footer's Done button.
+ * debounce before `setCallTimeout` dispatches. Theme, layout and background-
+ * pattern-style pills dispatch on click with no debounce; the pattern
+ * intensity slider dispatches `setPatternOpacity` on every `input` event —
+ * cheap enough (one CSS custom property write) that it needs no debounce
+ * either, unlike the timeout field's every-keystroke risk of a malformed
+ * number mid-type. Escape and a click on the scrim close the dialog by
+ * dispatching `setTweaksOpen(false)`; so does the footer's Done button.
  * Focus moves to the close button on mount.
  *
- * Variants: none of its own — the theme grid and layout list each render one
- * selected option among their choices, marked by `data-active` and
- * `aria-pressed`. Theme is a grid of square tiles, each filled with a diagonal
- * gradient from that theme's actual accent color (`Theme.cyan`) into a darker
- * `color-mix` shade of the same color, so the choice previews before it is
- * applied; the selected tile gets a `Check` badge over the swatch. This is
- * the one deliberate exception to the flat "no gradients" rule in `@/lib/ui`
- * — scoped to this decorative swatch only. Layout
+ * Variants: none of its own — the theme grid, layout list and pattern grid
+ * each render one selected option among their choices, marked by
+ * `data-active` and `aria-pressed`. Theme is a grid of square tiles, each
+ * filled with a diagonal gradient from that theme's actual accent color
+ * (`Theme.cyan`) into a darker `color-mix` shade of the same color, so the
+ * choice previews before it is applied; the selected tile gets a `Check`
+ * badge over the swatch. This is one of two deliberate exceptions to the
+ * flat "no gradients" rule in `@/lib/ui` — scoped to these decorative
+ * swatches only, the other being the pattern grid below. Layout
  * is a stacked list of full-width rows, each carrying a lucide icon
  * (`PanelLeftRightDashed`/`LaptopMinimal`/`Form`), a name, and a one-line
  * description of the resulting pane split; the selected row gets a trailing
- * `Check`. Both the theme grid and the layout list read as one segmented
- * button group rather than loose items: the group container's own outer
- * `border`+`rounded-lg` plus `gap-px`/`divide-y` (colored `app-border`) draws
- * the frame and the hairlines between members. Each theme tile rounds only
- * the corner(s) it actually shares with the group's own outer corner, via
- * `THEME_CORNER_CLASS` — this does not depend on the parent's
- * `overflow-hidden` clipping a member's square corner down to the parent's
- * rounded edge, which some renderers do unreliably for an inset `box-shadow`;
- * a corner tile relying on that clip alone would show a square nub poking
- * past the curve, and an interior tile rounded unconditionally would read as
- * a floating rounded card instead of a flush grid cell. Layout rows round
- * only `first:rounded-t-md last:rounded-b-md` for the same reason, simplified
- * because a `divide-y` stack only ever has two outer corners. Each tile/row carries a faded
- * `bg-app-hover` fill so the group reads as one solid control block; hover
- * swaps that fill to `bg-app-selected` and the active member gets
- * `bg-app-accent-faint` plus the inset ring. Call Timeout stays a plain row
- * below a `border-t` divider since it is a single control, not a group.
+ * `Check`. Background Pattern is a single-row, 4-column grid of tiles shaped
+ * like the theme grid's — a swatch over a label, `Check` badge on the
+ * selected one — except each swatch renders the real
+ * `app-panel-texture--<id>` class (`'none'` gets a flat `bg-app-sidebar`
+ * swatch instead) pinned to
+ * `PATTERN_SWATCH_STYLE`'s `--app-pattern-alpha: 1` so the four choices stay
+ * visually distinct even when the live setting is dialed faint; the
+ * Intensity slider beneath it — a plain `<input type="range">`,
+ * `accent-app-accent` for its native thumb/track color — drives that live
+ * setting (`patternOpacity`) and is hidden outright while `patternStyle` is
+ * `'none'`, since there is nothing for it to scale. All three groups read as
+ * one segmented button group rather than loose items: the group container's
+ * own outer `border`+`rounded-lg` plus `gap-px`/`divide-y` (colored
+ * `app-border`) draws the frame and the hairlines between members. Each
+ * theme/pattern tile rounds only the corner(s) it actually shares with the
+ * group's own outer corner, via `THEME_CORNER_CLASS`/`PATTERN_CORNER_CLASS`
+ * — this does not depend on the parent's `overflow-hidden` clipping a
+ * member's square corner down to the parent's rounded edge, which some
+ * renderers do unreliably for an inset `box-shadow`; a corner tile relying
+ * on that clip alone would show a square nub poking past the curve, and an
+ * interior tile rounded unconditionally would read as a floating rounded
+ * card instead of a flush grid cell. `PATTERN_CORNER_CLASS` needs no
+ * responsive variant the way `THEME_CORNER_CLASS` does — a fixed 4-column,
+ * single-row grid has no breakpoint where the corner-to-index mapping
+ * changes, and its end tiles round both corners on their side rather than
+ * just one, there being only the one row.
+ * Layout rows round only `first:rounded-t-md last:rounded-b-md` for the same
+ * reason, simplified because a `divide-y` stack only ever has two outer
+ * corners. Each tile/row carries a faded `bg-app-hover` fill so the group
+ * reads as one solid control block; hover swaps that fill to
+ * `bg-app-selected` and the active member gets `bg-app-accent-faint` plus
+ * the inset ring. Call Timeout stays a plain row below a `border-t` divider
+ * since it is a single control, not a group.
  *
  * Composition: renders no children. Reads `T` as an accepted prop only to keep
  * its signature consistent with the other panels {@link ActivityRail} composes
@@ -168,22 +220,33 @@ const ROW_BTN =
  *
  * Accessibility: `role="dialog"` with `aria-modal` and a label. Pills carry
  * `aria-pressed` for their selected state. The timeout field is labelled by
- * the visible "Call Timeout" heading via `aria-labelledby`.
+ * the visible "Call Timeout" heading via `aria-labelledby`; the intensity
+ * slider by a plain `<label htmlFor>` rather than `aria-labelledby`, since
+ * "Intensity" belongs to it alone and isn't shared with a wider section like
+ * "Call Timeout" is with its own field.
  *
  * Test ids: root `tweaks-panel-root`, close `tweaks-panel-close-button`, theme
  * pills `tweaks-panel-theme-button-<theme-id>`, theme swatch dots
  * `tweaks-panel-theme-swatch-<theme-id>`, layout pills
- * `tweaks-panel-layout-button-<layout-id>`, timeout input
+ * `tweaks-panel-layout-button-<layout-id>`, pattern pills
+ * `tweaks-panel-pattern-button-<pattern-id>`, pattern swatches
+ * `tweaks-panel-pattern-swatch-<pattern-id>`, intensity slider
+ * `tweaks-panel-pattern-opacity-input`, timeout input
  * `tweaks-panel-timeout-input`, timeout clear
  * `tweaks-panel-timeout-input-clear-button`, footer `tweaks-panel-done-button`.
  *
- * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
+ * CSS classes: `app-panel-texture--<id>` (`src/app/globals.css`) on each
+ * non-`'none'` pattern swatch — otherwise Tailwind utilities over the
+ * `app-*` theme tokens only.
  *
  * Edge cases:
  * - Clearing the timeout field or pressing "clear" both resolve to `0`
  *   (no limit), not `undefined`.
  * - A non-numeric paste is coerced to `0` on the trailing dispatch, though the
  *   field itself keeps whatever text was typed until then.
+ * - Switching `patternStyle` to `'none'` leaves `patternOpacity` in the store
+ *   untouched — the slider just stops rendering — so picking a pattern again
+ *   later resumes at whatever intensity was last set instead of a reset default.
  *
  * Dependencies: `lucide-react`, `react-redux`, shared recipes from `@/lib/ui`,
  * `@/components/ui/input` ({@link Input}).
@@ -200,6 +263,8 @@ export default function TweaksPanel({}: TweaksPanelProps) {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
   const layout = useSelector(selectLayout);
+  const patternStyle = useSelector(selectPatternStyle);
+  const patternOpacity = useSelector(selectPatternOpacity);
   const callTimeout = useSelector(selectCallTimeout);
 
   const [localTimeout, setLocalTimeout] = useState(
@@ -243,7 +308,7 @@ export default function TweaksPanel({}: TweaksPanelProps) {
         aria-modal="true"
         aria-label="Settings"
         data-testid="tweaks-panel-root"
-        className="flex w-[min(560px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
+        className="flex max-h-[min(680px,90vh)] w-[min(560px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
         <div className="flex shrink-0 items-center gap-2 border-b-2 border-app-border-mid px-5 py-3">
           <span className="flex-1 font-title text-[13px] font-semibold uppercase tracking-[0.04em] text-app-bright">
@@ -261,7 +326,7 @@ export default function TweaksPanel({}: TweaksPanelProps) {
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
           <div>
             <div className={`${ui.label} mb-2`}>Color Theme</div>
             <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-app-border bg-app-border sm:grid-cols-5">
@@ -336,6 +401,69 @@ export default function TweaksPanel({}: TweaksPanelProps) {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="border-t border-app-border pt-4">
+            <div className={`${ui.label} mb-2`}>Background Pattern</div>
+            <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border border-app-border bg-app-border">
+              {PATTERN_OPTIONS.map(({ id, label }, index) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => dispatch(setPatternStyle(id))}
+                  aria-pressed={patternStyle === id}
+                  data-active={patternStyle === id || undefined}
+                  data-testid={`tweaks-panel-pattern-button-${id}`}
+                  className={`${SWATCH_BTN} ${PATTERN_CORNER_CLASS[index] ?? ""}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    data-testid={`tweaks-panel-pattern-swatch-${id}`}
+                    className={`relative block h-9 w-full shrink-0 overflow-hidden rounded-sm border border-app-border bg-app-sidebar ${
+                      id === "none" ? "" : `app-panel-texture--${id}`
+                    }`}
+                    style={id === "none" ? undefined : PATTERN_SWATCH_STYLE}
+                  >
+                    {patternStyle === id && (
+                      <Check
+                        size={13}
+                        aria-hidden="true"
+                        className="absolute right-0.5 top-0.5 rounded-full bg-black/40 p-0.5 text-white"
+                      />
+                    )}
+                  </span>
+                  <span className="font-title text-[10px] font-semibold uppercase tracking-[0.06em] text-app-dim group-data-active:text-app-accent">
+                    {label}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {patternStyle !== "none" && (
+              <div className="mt-3 flex items-center gap-2.5">
+                <label
+                  htmlFor="tweaks-panel-pattern-opacity-input"
+                  className="font-description text-[11px] text-app-dim"
+                >
+                  Intensity
+                </label>
+                <input
+                  id="tweaks-panel-pattern-opacity-input"
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={patternOpacity}
+                  onChange={(e) =>
+                    dispatch(setPatternOpacity(Number(e.target.value)))
+                  }
+                  data-testid="tweaks-panel-pattern-opacity-input"
+                  className="h-1.5 flex-1 accent-app-accent"
+                />
+                <span className={`${ui.meta} w-8 text-right`}>
+                  {patternOpacity}%
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="border-t border-app-border pt-4">

@@ -1,0 +1,471 @@
+/**
+ * Postgres completion vocabulary for SQL string literals.
+ *
+ * The SQL text lives inside a plain string — most often the first argument of
+ * `api.query.pgsql("select * from users where id = $1")`, but scripts also
+ * build the statement in a variable first (`const sql = "select ...";`) — and
+ * either way the TypeScript language service has nothing to offer there, so
+ * the editor needs its own provider, the same way
+ * {@link "@/lib/odataCompletion"} covers OData URLs. This module holds the
+ * Monaco-free half: whether the caret sits inside a SQL-shaped string, and
+ * what to offer there. `MonacoCodeEditor` maps the result onto Monaco
+ * completion items.
+ */
+
+import { stringLiteralAt } from "./odataCompletion";
+
+/** Item flavor, mapped to a Monaco `CompletionItemKind` by the caller. */
+export type SqlItemKind = "keyword" | "function" | "type" | "value";
+
+export type SqlItem = {
+  label: string;
+  insertText: string;
+  kind: SqlItemKind;
+  detail: string;
+  documentation?: string;
+  /** `insertText` is a snippet template, not literal text. */
+  snippet?: boolean;
+};
+
+/** Matches the open paren of `api.pgsql(` / `api.query.pgsql(` (any single
+ *  namespace segment is accepted, mirroring the permissive verb match in
+ *  `scriptAnalyzer`'s call regex) right up to the caret. A string opened here
+ *  is SQL by construction, so it qualifies at any length — even empty. */
+const PGSQL_CALL_OPEN =
+  /\bapi\s*\.\s*(?:[A-Za-z_$][\w$]*\s*\.\s*)?pgsql\s*\(\s*$/i;
+
+/** Statement-leading keywords a SQL string plausibly opens with. Checked
+ *  against only the string's first word, so `select id from t` and a `sql`
+ *  variable built up over several lines both qualify from that first word
+ *  on. */
+const LEADING_KEYWORDS = [
+  "select",
+  "insert",
+  "update",
+  "delete",
+  "with",
+  "create",
+  "alter",
+  "drop",
+  "truncate",
+  "begin",
+  "commit",
+  "rollback",
+  "grant",
+  "revoke",
+  "explain",
+  "vacuum",
+  "analyze",
+  "merge",
+  "call",
+  "copy",
+  "refresh",
+];
+
+/**
+ * Whether a string's content so far reads like the start of a SQL statement:
+ * its first word is a leading keyword, or a prefix of one (so completions
+ * already offer `select` while `sel` is still being typed). Requires at
+ * least two letters — a bare empty or one-letter string is too little to
+ * call SQL on content alone, unlike one opened directly by a `pgsql(` call.
+ *
+ * @param before - String content from its first character to the caret.
+ */
+function looksLikeSql(before: string): boolean {
+  const word =
+    before.replace(/^\s+/, "").match(/^[A-Za-z]*/)?.[0].toLowerCase() ?? "";
+  if (word.length < 2) return false;
+  return LEADING_KEYWORDS.some((k) => k === word || k.startsWith(word));
+}
+
+/**
+ * Start offset of the SQL string literal the caret is inside, or `null` when
+ * the caret is in code or in a string that is neither opened by a `pgsql(`
+ * call nor {@link looksLikeSql} on its own content.
+ *
+ * @param text - Full buffer.
+ * @param offset - Caret offset into `text`.
+ */
+export function pgsqlStringStart(text: string, offset: number): number | null {
+  const frame = stringLiteralAt(text, offset);
+  if (!frame) return null;
+  const beforeQuote = text.slice(0, frame.start - 1);
+  if (PGSQL_CALL_OPEN.test(beforeQuote)) return frame.start;
+  return looksLikeSql(text.slice(frame.start, offset)) ? frame.start : null;
+}
+
+/** Length of the partial word before the caret — the range a completion replaces. */
+export function sqlWordLength(before: string): number {
+  return (before.match(/[A-Za-z0-9_]*$/) ?? [""])[0].length;
+}
+
+/**
+ * Whether the caret position described by `before` (SQL-string content from
+ * its first character up to the caret) is a spot to offer SQL vocabulary. A
+ * word preceded by `.` is left alone — that is a qualified name
+ * (`schema.table`, `t.column`), never a keyword position.
+ */
+function isKeywordPosition(before: string): boolean {
+  const word = (before.match(/[A-Za-z0-9_]*$/) ?? [""])[0];
+  const rest = before.slice(0, before.length - word.length);
+  return !rest.endsWith(".");
+}
+
+const KEYWORDS: SqlItem[] = [
+  { label: "select", insertText: "select ", kind: "keyword", detail: "projection" },
+  { label: "from", insertText: "from ", kind: "keyword", detail: "source table" },
+  { label: "where", insertText: "where ", kind: "keyword", detail: "row filter" },
+  { label: "insert into", insertText: "insert into ${1:table} (${2:cols}) values (${3:vals})", kind: "keyword", detail: "insert statement", snippet: true },
+  { label: "values", insertText: "values (${1})", kind: "keyword", detail: "row literals", snippet: true },
+  { label: "update", insertText: "update ${1:table} set ${2:col} = ${3:value}", kind: "keyword", detail: "update statement", snippet: true },
+  { label: "set", insertText: "set ", kind: "keyword", detail: "assignment (update)" },
+  { label: "delete from", insertText: "delete from ${1:table} where ${2:condition}", kind: "keyword", detail: "delete statement", snippet: true },
+  { label: "join", insertText: "join ${1:table} on ${2:condition}", kind: "keyword", detail: "inner join", snippet: true },
+  { label: "left join", insertText: "left join ${1:table} on ${2:condition}", kind: "keyword", detail: "left outer join", snippet: true },
+  { label: "right join", insertText: "right join ${1:table} on ${2:condition}", kind: "keyword", detail: "right outer join", snippet: true },
+  { label: "full join", insertText: "full join ${1:table} on ${2:condition}", kind: "keyword", detail: "full outer join", snippet: true },
+  { label: "inner join", insertText: "inner join ${1:table} on ${2:condition}", kind: "keyword", detail: "inner join", snippet: true },
+  { label: "on", insertText: "on ", kind: "keyword", detail: "join condition" },
+  { label: "as", insertText: "as ", kind: "keyword", detail: "alias" },
+  { label: "group by", insertText: "group by ", kind: "keyword", detail: "aggregation grouping" },
+  { label: "order by", insertText: "order by ", kind: "keyword", detail: "result ordering" },
+  { label: "having", insertText: "having ", kind: "keyword", detail: "post-aggregation filter" },
+  { label: "limit", insertText: "limit ${1:10}", kind: "keyword", detail: "row cap", snippet: true },
+  { label: "offset", insertText: "offset ${1:0}", kind: "keyword", detail: "row skip", snippet: true },
+  { label: "with", insertText: "with ${1:name} as (${2:select ...})", kind: "keyword", detail: "CTE", snippet: true },
+  { label: "returning", insertText: "returning ", kind: "keyword", detail: "row(s) affected, Postgres extension" },
+  { label: "distinct", insertText: "distinct ", kind: "keyword", detail: "dedupe rows" },
+  { label: "union", insertText: "union\n", kind: "keyword", detail: "combine, dedupe" },
+  { label: "union all", insertText: "union all\n", kind: "keyword", detail: "combine, keep duplicates" },
+  { label: "case", insertText: "case when ${1:condition} then ${2:value} else ${3:value} end", kind: "keyword", detail: "conditional expression", snippet: true },
+  { label: "when", insertText: "when ", kind: "keyword", detail: "case branch" },
+  { label: "then", insertText: "then ", kind: "keyword", detail: "case result" },
+  { label: "else", insertText: "else ", kind: "keyword", detail: "case default" },
+  { label: "end", insertText: "end", kind: "keyword", detail: "case terminator" },
+  { label: "and", insertText: "and ", kind: "keyword", detail: "logical and" },
+  { label: "or", insertText: "or ", kind: "keyword", detail: "logical or" },
+  { label: "not", insertText: "not ", kind: "keyword", detail: "logical negation" },
+  { label: "in", insertText: "in (${1})", kind: "keyword", detail: "membership test", snippet: true },
+  { label: "exists", insertText: "exists (${1:select ...})", kind: "keyword", detail: "subquery test", snippet: true },
+  { label: "between", insertText: "between ${1:a} and ${2:b}", kind: "keyword", detail: "range test", snippet: true },
+  { label: "like", insertText: "like '${1:%pattern%}'", kind: "keyword", detail: "pattern match", snippet: true },
+  { label: "ilike", insertText: "ilike '${1:%pattern%}'", kind: "keyword", detail: "case-insensitive pattern match, Postgres extension", snippet: true },
+  { label: "is null", insertText: "is null", kind: "keyword", detail: "null test" },
+  { label: "is not null", insertText: "is not null", kind: "keyword", detail: "non-null test" },
+  { label: "asc", insertText: "asc", kind: "keyword", detail: "ascending" },
+  { label: "desc", insertText: "desc", kind: "keyword", detail: "descending" },
+  { label: "create table", insertText: "create table ${1:name} (\n\t${2:id} ${3:serial} primary key\n)", kind: "keyword", detail: "DDL", snippet: true },
+  { label: "alter table", insertText: "alter table ${1:name} ", kind: "keyword", detail: "DDL", snippet: true },
+  { label: "drop table", insertText: "drop table ${1:name}", kind: "keyword", detail: "DDL", snippet: true },
+  { label: "truncate", insertText: "truncate ${1:table}", kind: "keyword", detail: "DDL, wipes all rows", snippet: true },
+  { label: "primary key", insertText: "primary key", kind: "keyword", detail: "constraint" },
+  { label: "foreign key", insertText: "foreign key (${1:col}) references ${2:table}(${3:col})", kind: "keyword", detail: "constraint", snippet: true },
+  { label: "references", insertText: "references ${1:table}(${2:col})", kind: "keyword", detail: "FK target", snippet: true },
+  { label: "unique", insertText: "unique", kind: "keyword", detail: "constraint" },
+  { label: "check", insertText: "check (${1:condition})", kind: "keyword", detail: "constraint", snippet: true },
+  { label: "default", insertText: "default ", kind: "keyword", detail: "column default" },
+  { label: "not null", insertText: "not null", kind: "keyword", detail: "constraint" },
+  { label: "cascade", insertText: "cascade", kind: "keyword", detail: "FK/drop propagation" },
+  { label: "begin", insertText: "begin", kind: "keyword", detail: "start transaction" },
+  { label: "commit", insertText: "commit", kind: "keyword", detail: "end transaction" },
+  { label: "rollback", insertText: "rollback", kind: "keyword", detail: "abort transaction" },
+  { label: "over", insertText: "over (${1:partition by col order by col})", kind: "keyword", detail: "window spec", snippet: true },
+  { label: "partition by", insertText: "partition by ", kind: "keyword", detail: "window grouping" },
+];
+
+const FUNCTIONS: SqlItem[] = [
+  { label: "count", insertText: "count(${1:*})", kind: "function", detail: "row count", snippet: true },
+  { label: "sum", insertText: "sum(${1:col})", kind: "function", detail: "total", snippet: true },
+  { label: "avg", insertText: "avg(${1:col})", kind: "function", detail: "mean", snippet: true },
+  { label: "min", insertText: "min(${1:col})", kind: "function", detail: "smallest value", snippet: true },
+  { label: "max", insertText: "max(${1:col})", kind: "function", detail: "largest value", snippet: true },
+  { label: "coalesce", insertText: "coalesce(${1:col}, ${2:default})", kind: "function", detail: "first non-null", snippet: true },
+  { label: "nullif", insertText: "nullif(${1:a}, ${2:b})", kind: "function", detail: "null when equal", snippet: true },
+  { label: "cast", insertText: "cast(${1:expr} as ${2:type})", kind: "function", detail: "type conversion", snippet: true },
+  { label: "now", insertText: "now()", kind: "function", detail: "current timestamptz" },
+  { label: "current_timestamp", insertText: "current_timestamp", kind: "function", detail: "current timestamptz" },
+  { label: "current_date", insertText: "current_date", kind: "function", detail: "current date" },
+  { label: "extract", insertText: "extract(${1:field} from ${2:col})", kind: "function", detail: "date/time component", snippet: true },
+  { label: "date_trunc", insertText: "date_trunc('${1:day}', ${2:col})", kind: "function", detail: "truncate to precision", snippet: true },
+  { label: "to_char", insertText: "to_char(${1:col}, '${2:YYYY-MM-DD}')", kind: "function", detail: "format as text", snippet: true },
+  { label: "to_date", insertText: "to_date(${1:col}, '${2:YYYY-MM-DD}')", kind: "function", detail: "parse text to date", snippet: true },
+  { label: "to_timestamp", insertText: "to_timestamp(${1:col}, '${2:YYYY-MM-DD HH24:MI:SS}')", kind: "function", detail: "parse text to timestamp", snippet: true },
+  { label: "lower", insertText: "lower(${1:col})", kind: "function", detail: "lowercase", snippet: true },
+  { label: "upper", insertText: "upper(${1:col})", kind: "function", detail: "uppercase", snippet: true },
+  { label: "trim", insertText: "trim(${1:col})", kind: "function", detail: "strip surrounding whitespace", snippet: true },
+  { label: "length", insertText: "length(${1:col})", kind: "function", detail: "string length", snippet: true },
+  { label: "substring", insertText: "substring(${1:col} from ${2:1} for ${3:n})", kind: "function", detail: "substring", snippet: true },
+  { label: "concat", insertText: "concat(${1:a}, ${2:b})", kind: "function", detail: "join strings", snippet: true },
+  { label: "array_agg", insertText: "array_agg(${1:col})", kind: "function", detail: "collect into array, Postgres extension", snippet: true },
+  { label: "json_agg", insertText: "json_agg(${1:col})", kind: "function", detail: "collect into json array, Postgres extension", snippet: true },
+  { label: "jsonb_build_object", insertText: "jsonb_build_object('${1:key}', ${2:value})", kind: "function", detail: "build a jsonb object, Postgres extension", snippet: true },
+  { label: "row_number", insertText: "row_number() over (${1:order by col})", kind: "function", detail: "window row index", snippet: true },
+  { label: "rank", insertText: "rank() over (${1:order by col})", kind: "function", detail: "window rank, ties share", snippet: true },
+  { label: "dense_rank", insertText: "dense_rank() over (${1:order by col})", kind: "function", detail: "window rank, no gaps", snippet: true },
+  { label: "generate_series", insertText: "generate_series(${1:1}, ${2:10})", kind: "function", detail: "row generator, Postgres extension", snippet: true },
+];
+
+const TYPES: SqlItem[] = [
+  { label: "integer", insertText: "integer", kind: "type", detail: "4-byte int" },
+  { label: "bigint", insertText: "bigint", kind: "type", detail: "8-byte int" },
+  { label: "smallint", insertText: "smallint", kind: "type", detail: "2-byte int" },
+  { label: "serial", insertText: "serial", kind: "type", detail: "auto-incrementing integer, Postgres extension" },
+  { label: "bigserial", insertText: "bigserial", kind: "type", detail: "auto-incrementing bigint, Postgres extension" },
+  { label: "text", insertText: "text", kind: "type", detail: "unbounded string, Postgres extension" },
+  { label: "varchar", insertText: "varchar(${1:255})", kind: "type", detail: "bounded string", snippet: true },
+  { label: "char", insertText: "char(${1:1})", kind: "type", detail: "fixed-length string", snippet: true },
+  { label: "boolean", insertText: "boolean", kind: "type", detail: "true/false" },
+  { label: "date", insertText: "date", kind: "type", detail: "calendar date" },
+  { label: "timestamp", insertText: "timestamp", kind: "type", detail: "date + time, no zone" },
+  { label: "timestamptz", insertText: "timestamptz", kind: "type", detail: "date + time with zone, Postgres extension" },
+  { label: "numeric", insertText: "numeric(${1:10},${2:2})", kind: "type", detail: "exact decimal", snippet: true },
+  { label: "real", insertText: "real", kind: "type", detail: "4-byte float" },
+  { label: "double precision", insertText: "double precision", kind: "type", detail: "8-byte float" },
+  { label: "uuid", insertText: "uuid", kind: "type", detail: "128-bit identifier" },
+  { label: "json", insertText: "json", kind: "type", detail: "text-stored JSON" },
+  { label: "jsonb", insertText: "jsonb", kind: "type", detail: "binary JSON, indexable, Postgres extension" },
+  { label: "bytea", insertText: "bytea", kind: "type", detail: "binary blob" },
+];
+
+const LITERALS: SqlItem[] = [
+  { label: "null", insertText: "null", kind: "value", detail: "null literal" },
+  { label: "true", insertText: "true", kind: "value", detail: "boolean literal" },
+  { label: "false", insertText: "false", kind: "value", detail: "boolean literal" },
+];
+
+/**
+ * Completions for the caret position described by `before`.
+ *
+ * @param before - SQL-string content from its first character to the caret.
+ * @returns Keyword, function, type and literal items; empty right after a
+ *   `.`, where a qualified name is expected instead.
+ */
+export function sqlCompletions(before: string): SqlItem[] {
+  if (!isKeywordPosition(before)) return [];
+  return [...KEYWORDS, ...FUNCTIONS, ...TYPES, ...LITERALS];
+}
+
+// ── Syntax highlighting ─────────────────────────────────────────────────────
+//
+// Monaco's TypeScript tokenizer colors an entire SQL string as one uniform
+// "string" span; everything below finds the qualifying sub-ranges of a
+// buffer and classifies the words inside them so `MonacoCodeEditor` can lay
+// semantic-token overrides on top. Vocabulary is derived from the completion
+// lists above rather than duplicated, so the two stay in sync on their own.
+
+/** Reserved words, derived from every (possibly multi-word) keyword and
+ *  literal label above — `"insert into"` contributes both `insert` and
+ *  `into`. */
+const RESERVED_WORDS = new Set(
+  [...KEYWORDS, ...LITERALS].flatMap((item) =>
+    item.label.toLowerCase().split(/\s+/),
+  ),
+);
+
+/** Data-type words, derived the same way — `"double precision"` contributes
+ *  both `double` and `precision`. */
+const TYPE_WORDS = new Set(
+  TYPES.flatMap((item) => item.label.toLowerCase().split(/\s+/)),
+);
+
+/** Function names that count only when the word is actually called —
+ *  `count` bare is just an identifier, `count(` is the aggregate. */
+const FUNCTION_NAMES = new Set(FUNCTIONS.map((item) => item.label.toLowerCase()));
+
+export type SqlTokenType =
+  | "keyword"
+  | "function"
+  | "type"
+  | "string"
+  | "number"
+  | "placeholder"
+  | "comment";
+
+export type SqlToken = {
+  /** Offset into the SQL substring passed to {@link tokenizeSql} — not the buffer. */
+  start: number;
+  end: number;
+  type: SqlTokenType;
+};
+
+/**
+ * Classifies the words, literals, placeholders and comments inside one SQL
+ * string's content. A small hand-rolled scanner rather than a real SQL
+ * lexer — good enough for coloring, not for validating the statement.
+ * Punctuation, operators and identifiers (table/column names) are left
+ * unclassified, so they keep whatever color the surrounding TypeScript
+ * string token already had.
+ *
+ * @param sql - SQL string content, e.g. the slice {@link findSqlLiteralRanges}
+ *   located.
+ * @returns Tokens in ascending order, offsets relative to `sql` itself.
+ */
+export function tokenizeSql(sql: string): SqlToken[] {
+  const tokens: SqlToken[] = [];
+  const n = sql.length;
+  let i = 0;
+
+  while (i < n) {
+    const c = sql[i];
+
+    if (c === "-" && sql[i + 1] === "-") {
+      const nl = sql.indexOf("\n", i);
+      const end = nl === -1 ? n : nl;
+      tokens.push({ start: i, end, type: "comment" });
+      i = end;
+      continue;
+    }
+
+    if (c === "/" && sql[i + 1] === "*") {
+      const close = sql.indexOf("*/", i + 2);
+      const end = close === -1 ? n : close + 2;
+      tokens.push({ start: i, end, type: "comment" });
+      i = end;
+      continue;
+    }
+
+    if (c === "'") {
+      let j = i + 1;
+      while (j < n) {
+        if (sql[j] === "'" && sql[j + 1] === "'") {
+          j += 2;
+          continue;
+        }
+        if (sql[j] === "'") {
+          j += 1;
+          break;
+        }
+        j += 1;
+      }
+      tokens.push({ start: i, end: j, type: "string" });
+      i = j;
+      continue;
+    }
+
+    if (c === "$" && /[0-9]/.test(sql[i + 1] ?? "")) {
+      let j = i + 1;
+      while (j < n && /[0-9]/.test(sql[j])) j += 1;
+      tokens.push({ start: i, end: j, type: "placeholder" });
+      i = j;
+      continue;
+    }
+
+    if (/[0-9]/.test(c)) {
+      let j = i + 1;
+      while (j < n && /[0-9.]/.test(sql[j])) j += 1;
+      tokens.push({ start: i, end: j, type: "number" });
+      i = j;
+      continue;
+    }
+
+    if (/[A-Za-z_]/.test(c)) {
+      let j = i + 1;
+      while (j < n && /[A-Za-z0-9_]/.test(sql[j])) j += 1;
+      const word = sql.slice(i, j).toLowerCase();
+
+      let k = j;
+      while (k < n && /\s/.test(sql[k])) k += 1;
+      const calledAsFunction = sql[k] === "(" && FUNCTION_NAMES.has(word);
+
+      if (calledAsFunction) {
+        tokens.push({ start: i, end: j, type: "function" });
+      } else if (TYPE_WORDS.has(word)) {
+        tokens.push({ start: i, end: j, type: "type" });
+      } else if (RESERVED_WORDS.has(word)) {
+        tokens.push({ start: i, end: j, type: "keyword" });
+      }
+      i = j;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return tokens;
+}
+
+/**
+ * Every SQL-qualifying string literal in the whole buffer — same
+ * qualification {@link pgsqlStringStart} uses (opened by a `pgsql(` call, or
+ * {@link looksLikeSql} on its own content), but a single pass over the whole
+ * text rather than one offset, for redrawing decorations after an edit.
+ * Mirrors {@link stringLiteralAt}'s lexer (comments skipped, escapes
+ * consumed, template holes tracked) but only reports a frame once it closes,
+ * and only at the top nesting level — a string inside a template literal's
+ * `${...}` hole is never itself the SQL argument.
+ *
+ * @param text - Full buffer.
+ * @returns Content ranges (`start` inclusive, `end` exclusive of the closing
+ *   quote), in ascending order.
+ */
+export function findSqlLiteralRanges(
+  text: string,
+): Array<{ start: number; end: number }> {
+  type Frame = { quote: "'" | '"' | "`"; start: number };
+  const ranges: Array<{ start: number; end: number }> = [];
+  const stack: (Frame | "expr")[] = [];
+  const n = text.length;
+  let i = 0;
+
+  while (i < n) {
+    const top = stack[stack.length - 1];
+    const c = text[i];
+
+    if (top && top !== "expr") {
+      if (c === "\\") {
+        i += 2;
+        continue;
+      }
+      if (c === top.quote) {
+        const { start } = top;
+        const end = i;
+        stack.pop();
+        if (stack.length === 0) {
+          const beforeQuote = text.slice(0, start - 1);
+          const content = text.slice(start, end);
+          if (PGSQL_CALL_OPEN.test(beforeQuote) || looksLikeSql(content)) {
+            ranges.push({ start, end });
+          }
+        }
+        i += 1;
+        continue;
+      }
+      if (c === "\n" && top.quote !== "`") {
+        stack.pop();
+        i += 1;
+        continue;
+      }
+      if (c === "$" && top.quote === "`" && text[i + 1] === "{") {
+        stack.push("expr");
+        i += 2;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (c === "}" && top === "expr") {
+      stack.pop();
+      i += 1;
+      continue;
+    }
+    if (c === "/" && text[i + 1] === "/") {
+      const nl = text.indexOf("\n", i);
+      i = nl === -1 ? n : nl + 1;
+      continue;
+    }
+    if (c === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end === -1 ? n : end + 2;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === "`") {
+      stack.push({ quote: c, start: i + 1 });
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+
+  return ranges;
+}

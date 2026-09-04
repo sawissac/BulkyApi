@@ -100,6 +100,6 @@ export const MOCK_CALL_CACHED: ApiCall = {
 
 export const MOCK_CALLS: ApiCall[] = [MOCK_CALL, MOCK_CALL_CACHED, MOCK_CALL_ERROR, MOCK_CALL_SSE];
 
-export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'SSE', 'DOCS'];
+export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'SSE', 'PGSQL', 'DOCS'];
 
 export const STATUS_CODES: (number | null)[] = [null, 200, 201, 301, 400, 404, 429, 500];

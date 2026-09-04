@@ -19,12 +19,14 @@ const METHOD_INFO: Record<string, string> = {
   sse: "Server-Sent Events stream. Long-lived connection; the server pushes events as they occur.",
   ws: "WebSocket connection. Long-lived and bidirectional — send and receive messages until it closes.",
   io: "Socket.IO connection. Long-lived and bidirectional, with named events on top of the socket.",
+  pgsql: "Raw SQL statement run against Postgres. Not an HTTP request — it goes out over the app's own database route.",
   docs: "Documentation entry — not a live HTTP request.",
 };
 
 /** Cycle order used when a caller opts into click-to-change via
- *  `onMethodChange`. Deliberately narrower than `METHOD_INFO` — SSE and Docs
- *  are display-only labels, not methods a user picks for a live request. */
+ *  `onMethodChange`. Deliberately narrower than `METHOD_INFO` — SSE, the
+ *  socket kinds, PGSQL and Docs are display-only labels, not methods a user
+ *  picks for a live request. */
 const CYCLE_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
 /**

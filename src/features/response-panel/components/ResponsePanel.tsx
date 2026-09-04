@@ -25,6 +25,7 @@ import {
   selectResponseView,
   setResponseView,
   setResponseViewForItem,
+  selectPatternStyle,
 } from "@/store/uiSlice";
 import { selectActiveId } from "@/store/collectionsSlice";
 import { selectActiveEnv, setVar } from "@/store/collectionsSlice";
@@ -263,10 +264,16 @@ type LogLineProps = {
  * `response-panel-console-list` on the scrollable log body; {@link CallCard}
  * carries the per-call ids.
  *
- * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
- * The root carries the same faint dot-grid wash as {@link Sidebar}
- * (`radial-gradient` at `--app-border-mid`, 18px pitch), so the two flanking
- * panels read as one surface against the flat editor pane between them.
+ * CSS classes: `app-panel-texture--<patternStyle>` (`src/app/globals.css`)
+ * — the same shared classes {@link Sidebar} carries (plain classes, not
+ * `@utility`s — each needs a real selector for its `::before`), picked by
+ * the same `patternStyle` (`uiSlice`, Settings-driven) so the two flanking
+ * panels always show the same pattern and never drift out of sync; `'none'`
+ * renders no class. The `::before` gradient is colored from
+ * `var(--app-accent)` via `color-mix`; `--app-pattern-alpha`
+ * (`patternOpacity` ÷ 100) scales its `opacity` as one unit, so the two
+ * panels read as one surface against the flat editor pane between them,
+ * across every theme, light/dark, and Settings' chosen intensity alike.
  *
  * Edge cases:
  * - No `api.*` calls in the script → the cards view shows a text-only empty
@@ -312,6 +319,9 @@ export default function ResponsePanel({
   const logs = useSelector(selectLogs);
   const view = useSelector(selectResponseView);
   const activeId = useSelector(selectActiveId);
+  const patternStyle = useSelector(selectPatternStyle);
+  const textureClass =
+    patternStyle === "none" ? "" : `app-panel-texture--${patternStyle}`;
 
   const extractedVars = useSelector(selectExtractedVars);
   const assertions = useSelector(selectAssertions);
@@ -368,7 +378,9 @@ export default function ResponsePanel({
   })();
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-app-sidebar bg-[radial-gradient(circle,var(--app-border-mid)_1px,transparent_1px)] bg-size-[18px_18px] pt-1">
+    <div
+      className={`${textureClass} flex h-full w-full flex-col overflow-hidden bg-app-sidebar pt-1`}
+    >
       {/* Header — omitted entirely with no active request, since there is
           no script to summarize. */}
       {activeId && (

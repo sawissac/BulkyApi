@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import RespTab from "./RespTab";
+import TableTab from "./TableTab";
 import HeadTab from "./HeadTab";
 import AuthTab from "./AuthTab";
 import PayloadTab from "./PayloadTab";
@@ -31,6 +32,7 @@ import StatusTab from "./StatusTab";
 import { toggleCallCache } from "@/store/runnerSlice";
 
 type DetailTab =
+  | "table"
   | "response"
   | "headers"
   | "auth"
@@ -109,16 +111,17 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
 
 /**
  * One row in the request list: a clickable header (step index, method, URL,
- * progress, status) over a collapsible five-or-six tab detail panel. Reused
- * verbatim for HTTP and SSE calls — SSE swaps in a live event stream on the
- * Response tab.
+ * progress, status) over a collapsible five-to-seven tab detail panel.
+ * Reused verbatim for HTTP and SSE calls — SSE swaps in a live event stream
+ * on the Response tab.
  *
  * @remarks
  * Status: stable — Type: list row
  *
  * State & behavior: three pieces of local state — whether the panel is `open`,
- * the active detail `tab`, and a 1.5s "copied" flash on the Copy-as-cURL
- * button. Everything shown is read from the `call` prop; the only dispatch is
+ * the active detail `tab` (defaulting to **Table** for a `PGSQL` call, else
+ * **Response**), and a 1.5s "copied" flash on the Copy-as-cURL button.
+ * Everything shown is read from the `call` prop; the only dispatch is
  * `toggleCallCache` from the cache pill. The detail panel mounts only once
  * `open` and the call has left `idle`. For an SSE/`api.stream` call, the
  * detail body auto-scrolls to its newest event as `call.sseEvents` grows —
@@ -129,11 +132,15 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  * Variants: idle / pending / success / error drive the left border, progress
  * bar and trailing status glyph. A `cache`-flagged call with a stored response
  * shows the cache pill; a call carrying `assertions` shows a pass/fail badge in
- * the header and an extra **Tests** tab.
+ * the header and an extra **Tests** tab. A `PGSQL` call gets an extra
+ * **Table** tab too, first in the row (ahead of Response) — the query's
+ * `rows` as an actual grid rather than the nested object the Response tab's
+ * JSON tree shows.
  *
- * Composition: {@link MethodPill}, {@link StatusPill}, and the five/six tab
- * bodies ({@link RespTab}, {@link HeadTab}, {@link AuthTab}, {@link PayloadTab},
- * {@link StatusTab}, plus an inline Tests list).
+ * Composition: {@link MethodPill}, {@link StatusPill}, and the five-to-seven
+ * tab bodies ({@link TableTab} — `PGSQL` calls only, {@link RespTab},
+ * {@link HeadTab}, {@link AuthTab}, {@link PayloadTab}, {@link StatusTab},
+ * plus an inline Tests list).
  *
  * Accessibility: the header is a click target; the cache and cURL controls stop
  * propagation so they don't also toggle the panel. Icon-only controls carry a
@@ -149,7 +156,8 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  *   template-literal argument (newlines + indentation) collapses to one line
  *   in both the row and its tooltip.
  * - cURL copy is offered only once the call has left `idle`, so the URL and
- *   headers are the resolved ones.
+ *   headers are the resolved ones. A `PGSQL` call never offers it — a raw SQL
+ *   statement run over a database connection has no `curl` equivalent.
  * - A failed clipboard write leaves the button in its idle state, no error.
  * - Assertions recorded before the first call attach to that first call.
  *
@@ -166,7 +174,9 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
 export default function CallCard({ T, call, defaultOpen }: Props) {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(defaultOpen ?? false);
-  const [tab, setTab] = useState<DetailTab>("response");
+  const [tab, setTab] = useState<DetailTab>(
+    call.method === "PGSQL" ? "table" : "response",
+  );
   const [copiedCurl, setCopiedCurl] = useState(false);
   const hasCachedResponse = call.response !== null;
   const isCached = call.cache;
@@ -190,7 +200,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
   const asserts = call.assertions ?? [];
   const failedCount = asserts.filter((a) => !a.ok).length;
   const passedCount = asserts.length - failedCount;
-  const canCopyCurl = call.status !== "idle";
+  const canCopyCurl = call.status !== "idle" && call.method !== "PGSQL";
 
   const copyCurl = async () => {
     try {
@@ -539,6 +549,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
             }}
           >
             <ButtonGroup className={TAB_GROUP}>
+              {call.method === "PGSQL" && tabBtn("table", "Table")}
               {tabBtn("response", "Response")}
               {tabBtn("headers", "Headers")}
               {tabBtn("auth", "Auth")}
@@ -562,6 +573,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
               minWidth: 0,
             }}
           >
+            {tab === "table" && <TableTab T={T} call={call} />}
             {tab === "response" && <RespTab T={T} call={call} />}
             {tab === "headers" && (
               <HeadTab T={T} headers={call.responseHeaders || {}} />

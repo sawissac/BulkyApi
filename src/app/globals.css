@@ -81,11 +81,83 @@
   border-color: color-mix(in srgb, currentColor 28%, transparent);
 }
 
+/* Decorative wash for the sidebar and response panels (Sidebar.tsx,
+   ResponsePanel.tsx) — shared classes, one per pattern style, rather than
+   each component (or each style) duplicating a gradient, so the two panels
+   stay in sync the way their own docs already say they should, and Settings
+   (TweaksPanel's "Background Pattern" section) can just swap the class name.
+   Plain classes rather than `@utility` — the pseudo-element rule below is the
+   whole point (Settings' Intensity slider scales it, and nothing else, via
+   plain `opacity`) and needs a real selector to hang `::before` off, which a
+   Tailwind-variant-aware `@utility` isn't built for.
+   Each class is `position: relative` so its `::before` (`inset: 0`,
+   `pointer-events: none`, generated first so real children paint over it)
+   can hold the actual gradient at a fixed, always-legible strength — colors
+   come from `color-mix(in srgb, var(--app-accent) ...)`, never a literal
+   hex, so the pattern holds up across every theme and light/dark — and
+   `opacity: var(--app-pattern-alpha)` dials the *whole layer* down as one
+   unit. That split is deliberate: an earlier version threaded
+   `--app-pattern-alpha` through a `calc()` inside every gradient stop's own
+   `color-mix()` instead, which some browsers refuse to compute (the pattern
+   silently stopped painting at all, not just faintly) — plain `opacity` on
+   an isolated layer has no such edge case and needs no per-gradient calc(). */
+.app-panel-texture--checker,
+.app-panel-texture--dots,
+.app-panel-texture--graph {
+  position: relative;
+}
+
+.app-panel-texture--checker::before,
+.app-panel-texture--dots::before,
+.app-panel-texture--graph::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--app-pattern-alpha, 0.2);
+}
+
+.app-panel-texture--checker::before {
+  background-image:
+    linear-gradient(135deg, color-mix(in srgb, var(--app-accent) 45%, transparent) 25%, transparent 25%),
+    linear-gradient(225deg, var(--app-accent) 25%, transparent 25%),
+    linear-gradient(315deg, color-mix(in srgb, var(--app-accent) 45%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, var(--app-accent) 25%, transparent 25%);
+  background-position: -10px 0, -10px 0, 0 0, 0 0;
+  background-size: 20px 20px;
+}
+
+.app-panel-texture--dots::before {
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 19px, var(--app-accent) 19px, var(--app-accent) 20px, transparent 20px, transparent 39px, var(--app-accent) 39px, var(--app-accent) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 19px, var(--app-accent) 19px, var(--app-accent) 20px, transparent 20px, transparent 39px, var(--app-accent) 39px, var(--app-accent) 40px),
+    radial-gradient(circle at 20px 20px, var(--app-accent) 1.6px, transparent 2.1px),
+    radial-gradient(circle at 0px 0px, var(--app-accent) 1.2px, transparent 1.7px),
+    radial-gradient(circle at 40px 0px, var(--app-accent) 1.2px, transparent 1.7px),
+    radial-gradient(circle at 0px 40px, var(--app-accent) 1.2px, transparent 1.7px),
+    radial-gradient(circle at 40px 40px, var(--app-accent) 1.2px, transparent 1.7px);
+  background-size: 40px 40px;
+}
+
+.app-panel-texture--graph::before {
+  background-image:
+    linear-gradient(var(--app-accent) 2px, transparent 2px),
+    linear-gradient(90deg, var(--app-accent) 2px, transparent 2px),
+    linear-gradient(color-mix(in srgb, var(--app-accent) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 55%, transparent) 1px, transparent 1px);
+  background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
+  background-position: -2px -2px, -2px -2px, -1px -1px, -1px -1px;
+}
+
 :root {
   --app-font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --app-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   --app-font-title: 'Poppins', ui-sans-serif, system-ui, sans-serif;
   --app-font-description: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* Fallback for `patternOpacity` (`uiSlice`, ÷100) — `BulkyApp` sets the real
+     value on `<html>`; this only covers the instant before that effect runs. */
+  --app-pattern-alpha: 0.2;
 
   /* Fallbacks = the default 'ocean' theme; themeVars() overrides these on the app root. */
   --app-bg: #061525;

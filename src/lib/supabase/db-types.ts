@@ -1,5 +1,5 @@
 import type { ApiCall } from '@/lib/types';
-import type { DisplayMode, LayoutKey, ResponseView, SidebarTab } from '@/store/uiSlice';
+import type { DisplayMode, LayoutKey, PatternStyle, ResponseView, SidebarTab } from '@/store/uiSlice';
 import type { ThemeKey } from '@/lib/themes';
 
 /** Row of `public.collections`. Ids are nanoid strings minted by Redux, not uuids. */
@@ -9,6 +9,9 @@ export type CollectionRow = {
   name: string;
   open: boolean;
   env_idx: number;
+  /** Index of the collection's active database connection — added by
+   *  `0004_connections.sql`, so a project still on 0003 answers null. */
+  conn_idx: number | null;
   position: number;
 };
 
@@ -48,6 +51,24 @@ export type EnvironmentRow = {
   position: number;
 };
 
+/** Row of `public.db_connections` — one saved Postgres connection, mirroring
+ *  `DbConnection` in `@/lib/sampleData`. The password is stored as sent: RLS
+ *  keeps it to its owner, the same protection every environment variable in
+ *  the `vars` blob above already relies on. */
+export type DbConnectionRow = {
+  id: string;
+  collection_id: string;
+  user_id: string;
+  name: string;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+  ssl: string;
+  position: number;
+};
+
 /** Runner fields worth persisting — mirrors what `persist.ts` already keeps. */
 export type RunnerSnapshot = {
   builtCalls: ApiCall[];
@@ -69,6 +90,10 @@ export type UserStateRow = {
   call_timeout: number;
   view_by_item_id: Record<string, ResponseView>;
   runner_snapshot: RunnerSnapshot;
+  /** Sidebar/response-panel background wash — added by `0005_pattern.sql`,
+   *  so a project still on 0004 answers the column's own default. */
+  pattern_style: PatternStyle;
+  pattern_opacity: number;
 };
 
 /**
@@ -106,6 +131,12 @@ export type Database = {
         Update: Partial<EnvironmentRow>;
         Relationships: [];
       };
+      db_connections: {
+        Row: DbConnectionRow;
+        Insert: Omit<DbConnectionRow, 'user_id'> & { user_id?: string };
+        Update: Partial<DbConnectionRow>;
+        Relationships: [];
+      };
       user_state: {
         Row: UserStateRow;
         Insert: Partial<UserStateRow> & { user_id: string };
@@ -140,6 +171,8 @@ export type SyncSnapshot = {
     displayMode?: DisplayMode;
     callTimeout: number;
     viewByItemId: Record<string, ResponseView>;
+    patternStyle: PatternStyle;
+    patternOpacity: number;
     runner: RunnerSnapshot;
   };
 };

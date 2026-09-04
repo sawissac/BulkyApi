@@ -29,6 +29,10 @@ import { parseCurl, curlToScript } from "@/lib/curlParser";
  * Every import switches the sidebar to the collections tab so the new item is
  * visible, except when there is no collection to import into — then the script
  * is only loaded into the editor buffer.
+ *
+ * `exportCollection` blanks every saved database password on its way out: the
+ * file is the copy most likely to be shared, and unlike the synced account
+ * copy it is protected by nothing.
  */
 export function useFileActions() {
   const dispatch = useDispatch();
@@ -77,7 +81,16 @@ export function useFileActions() {
   }, [dispatch, targetCollectionId]);
 
   const exportCollection = useCallback(() => {
-    const json = JSON.stringify({ collections }, null, 2);
+    // An exported file is the copy most likely to be mailed or committed, so
+    // database passwords are blanked out of it. Everything else about a
+    // connection travels, leaving the importer one field to fill in rather
+    // than a connection to rebuild.
+    const safeCollections = collections.map((c) =>
+      c.connections?.length
+        ? { ...c, connections: c.connections.map((conn) => ({ ...conn, password: "" })) }
+        : c,
+    );
+    const json = JSON.stringify({ collections: safeCollections }, null, 2);
     downloadBlob(
       `bulky-collections-${Date.now()}.json`,
       json,

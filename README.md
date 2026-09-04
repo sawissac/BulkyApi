@@ -16,6 +16,7 @@ Built with Next.js 16, React 19, Redux Toolkit, Monaco editor, Tailwind v4. Work
 - **cURL import**: paste curl, auto-generate script.
 - **SSE support**: streaming responses captured per-event.
 - **WebSocket + Socket.IO**: `api.ws`/`api.io` open a live bidirectional connection; a message composer appears under the editor while one is open.
+- **Raw SQL**: `api.query.pgsql(sql, params?, opts?)` runs a statement against Postgres through a pooled server route — rows land on a call card beside the HTTP ones. Connections are configured in the sidebar's DB pane, per collection, with a Test button.
 - **Command palette**: `⌘K`/`Ctrl+K` from anywhere — fuzzy search over actions (run/stop/step, format, Tweaks, fullscreen, sidebar tabs), examples, requests, and environments.
 - **Abort + timeout**: stop running scripts, configurable per-call timeout.
 - **Themes**: Midnight, Ocean, Chocolate, Amethyst, Nature, Rose, Amber, Slate, Sunset, Coffee.
@@ -60,9 +61,11 @@ src/
 │  ├─ layout.tsx            # metadata, viewport, PWA icons
 │  ├─ manifest.ts           # /manifest.webmanifest route
 │  ├─ providers.tsx         # Redux + hydration + service worker register
-│  └─ api/proxy/            # CORS-bypass fetch proxy (30s timeout)
+│  ├─ api/proxy/            # CORS-bypass fetch proxy (30s timeout)
+│  └─ api/query/pgsql/      # pooled Postgres route behind api.query.pgsql
+│     └─ test/             # dial-only route behind the DB pane's Test button
 ├─ features/
-│  ├─ sidebar/              # Tests / Envs / Vars / File panes
+│  ├─ sidebar/              # Tests / Envs / Vars / DB / File panes
 │  ├─ code-editor/          # Monaco wrapper + run/step/stop toolbar
 │  ├─ response-panel/       # Call cards, waterfall, docs, console
 │  └─ tweaks/               # Theme + layout + timeout panel
@@ -71,9 +74,10 @@ src/
 │  ├─ useFullscreen.ts      # Fullscreen API toggle
 │  └─ useServiceWorker.ts   # registers /sw.js in production
 ├─ lib/
-│  ├─ scriptRunner.ts       # makeCall / makeSseCall / makeSocketCall / auth headers
+│  ├─ scriptRunner.ts       # makeCall / makeSseCall / makeSocketCall / makeSqlCall / auth headers
 │  ├─ scriptAnalyzer.ts     # extracts api.* calls without executing
 │  ├─ curlParser.ts         # curl → script
+│  ├─ dbConnection.ts       # saved connection ⇄ postgres:// DSN
 │  ├─ persist.ts            # localforage save/load (50KB cap)
 │  └─ themes.ts             # color palettes
 ├─ store/                   # Redux slices: ui, editor, runner, environment, collections
@@ -102,6 +106,12 @@ await api.head(url, opts?)
 const sock = await api.ws(url, opts?);            // native WebSocket
 const io   = await api.io(url, opts?, onEvent?);   // Socket.IO
 sock.send('hello'); io.emit('event', data);
+
+// raw SQL — values bind as $1, $2; never concatenated into the statement
+const r = await api.query.pgsql('select id from users where org_id = $1', [1]);
+r.rows; r.rowCount; r.command; r.fields; r.duration;
+// runs on the DB pane's active connection; { db: 'reporting' } picks another
+await api.query.pgsql('select 1', [], { db: 'reporting' });
 
 // auth
 await api.get(url, { auth: { type: 'bearer',  token: env.token } });

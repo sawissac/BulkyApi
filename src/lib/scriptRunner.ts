@@ -10,6 +10,12 @@ import type {
 // into the bundle for scripts that never call `api.io`. The runtime import
 // is a dynamic `await import(...)` inside `makeIoCall` instead.
 import type { ManagerOptions, SocketOptions } from "socket.io-client";
+import type { DbConnection } from "./sampleData";
+import {
+  connectionUrl,
+  isConnectionUsable,
+  sslOption,
+} from "./dbConnection";
 import { toRunnableJs } from "./transpile";
 import { makeExpect } from "./assertions";
 import { isRawBody, summarizeBody } from "./requestBody";
@@ -40,6 +46,40 @@ type CallOpts = {
   /** Stream calls only — JSON body sent with the request that opens the
    *  stream (an LLM chat/completions payload, typically). */
   body?: unknown;
+};
+
+/** Connection options for `api.query.pgsql`. Everything is optional — a script
+ *  that keeps its connection string in the environment passes nothing. */
+type SqlOpts = {
+  /** Name of a connection saved in the DB pane. Omit to use the collection's
+   *  active connection; a name that matches none fails the call rather than
+   *  quietly falling back to a different database. */
+  db?: string;
+  /** Raw connection string, bypassing the saved connections entirely. Takes
+   *  precedence over `db`. `{{var}}` is resolved. */
+  url?: string;
+  /** TLS: `true` verifies the server certificate, `"no-verify"` encrypts
+   *  without verifying it — what a managed Postgres behind a self-signed
+   *  pooler certificate needs. Omit to let `sslmode` in the connection string
+   *  decide. */
+  ssl?: boolean | "no-verify";
+  /** Postgres `statement_timeout` in ms for this query. @defaultValue 30000 */
+  timeout?: number;
+};
+
+type SqlField = { name: string; dataTypeID: number };
+
+type SqlResult<T = unknown> = {
+  rows: T[];
+  /** `null` for a statement that returns no row count (DDL, mostly). */
+  rowCount: number | null;
+  /** The statement's command tag — `SELECT`, `INSERT`, `UPDATE`, ... */
+  command: string;
+  fields: SqlField[];
+  duration: number;
+  /** Present only for a multi-statement batch, one entry per statement; the
+   *  top-level fields then describe the last one. */
+  statements?: Omit<SqlResult<T>, "duration" | "statements">[];
 };
 
 type StreamResult = {
@@ -100,6 +140,69 @@ function buildAuthHeaders(
   return { authHeaders, authInfo };
 }
 
+/** Saved connections handed to a run so `api.query.pgsql` can resolve
+ *  `opts.db` by name, and default to whichever one the DB pane has active. */
+export type SqlConnections = {
+  list: DbConnection[];
+  active: DbConnection | null;
+};
+
+/** Last-resort connection string: environment variable names
+ *  `api.query.pgsql` falls back to when the collection has no connection
+ *  configured, compared with underscores stripped and case ignored — so
+ *  `DATABASE_URL`, `databaseUrl` and `database_url` are all the same key. */
+const PG_URL_KEYS = new Set([
+  "databaseurl",
+  "pgurl",
+  "pgsqlurl",
+  "postgresurl",
+]);
+
+/** The connection a call means: the one `db` names (by name, case- and
+ *  space-insensitively, or by id), else whichever the DB pane has active.
+ *  Returns null when nothing matches, which the caller reports differently
+ *  depending on whether a name was asked for. */
+function findConnection(
+  connections: SqlConnections | undefined,
+  db?: string,
+): DbConnection | null {
+  if (!db) return connections?.active ?? null;
+  const key = db.trim().toLowerCase();
+  return (
+    (connections?.list ?? []).find(
+      (c) => c.id === db || c.name.trim().toLowerCase() === key,
+    ) ?? null
+  );
+}
+
+function envPgUrl(envVars: Record<string, string>): string {
+  for (const [key, value] of Object.entries(envVars)) {
+    if (value && PG_URL_KEYS.has(key.replace(/_/g, "").toLowerCase())) {
+      return value;
+    }
+  }
+  return "";
+}
+
+/** `postgres://user@host:5432/db` — the password and any query string are
+ *  dropped. A call record is persisted locally and synced to Supabase, so the
+ *  connection string itself must never land on one. */
+function describePgUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.username ? `${u.username}@` : ""}${u.host}${u.pathname}`;
+  } catch {
+    return "postgres";
+  }
+}
+
+/** One-line form of a statement — what a SQL call card shows where an HTTP one
+ *  shows its URL. `analyzeScript` collapses the same way, so a literal
+ *  statement's stub and its finished call pair up on this key. */
+function collapseSql(sql: string): string {
+  return sql.replace(/\s+/g, " ").trim();
+}
+
 export async function runScript(
   code: string,
   envVars: Record<string, string>,
@@ -109,6 +212,7 @@ export async function runScript(
   callTimeout?: number,
   abortSignal?: AbortSignal,
   socketRegistry?: Map<number, SocketHandle>,
+  sqlConnections?: SqlConnections,
 ): Promise<{
   calls: ApiCall[];
   logs: LogEntry[];
@@ -944,6 +1048,207 @@ export async function runScript(
     });
   };
 
+  // `api.query.pgsql`. A browser can't speak the Postgres wire protocol, so
+  // unlike an HTTP call — which only detours through the proxy when CORS
+  // demands it — every query goes to `/api/query/pgsql`, which holds the
+  // pooled `pg` connections. The statement is never interpolated: `{{var}}`
+  // is resolved in the connection string only, and values belong in `params`
+  // (`$1`, `$2`, ...) so the driver binds them out of band. A failed query
+  // throws rather than resolving with an `ok: false`, the way every Postgres
+  // client behaves — there is no in-band error status to hand back the way an
+  // HTTP 500 is still a response.
+  const makeSqlCall = async <T = unknown>(
+    sql: string,
+    params?: unknown[],
+    opts: SqlOpts = {},
+  ): Promise<SqlResult<T>> => {
+    if (abortSignal?.aborted) throw new Error("Script aborted");
+
+    // Resolution can fail (a `db` naming no saved connection, nothing
+    // configured at all), but the failure is carried rather than thrown until
+    // the record exists — a query that never reached Postgres still deserves
+    // a card saying why.
+    let connUrl = "";
+    let ssl = opts.ssl;
+    let resolveError: string | null = null;
+
+    if (opts.url) {
+      connUrl = opts.url;
+    } else {
+      const conn = findConnection(sqlConnections, opts.db);
+      if (conn) {
+        if (isConnectionUsable(conn)) {
+          connUrl = connectionUrl(conn);
+          ssl = opts.ssl ?? sslOption(conn);
+        } else {
+          resolveError = `Connection "${conn.name}" needs a host and a database — set them in the DB pane`;
+        }
+      } else if (opts.db) {
+        resolveError = `No saved connection named "${opts.db}"`;
+      } else {
+        connUrl = envPgUrl(mutableEnv);
+        if (!connUrl) {
+          resolveError =
+            "No Postgres connection — add one in the DB pane, or pass opts.url";
+        }
+      }
+    }
+
+    connUrl = connUrl.replace(
+      /\{\{(\w+)\}\}/g,
+      (_, k) => mutableEnv[k] ?? `{{${k}}}`,
+    );
+    const display = collapseSql(sql);
+
+    const rec: ApiCall = {
+      idx: calls.length,
+      method: "PGSQL",
+      url: display,
+      urlExpr: display,
+      status: "pending",
+      statusCode: null,
+      response: null,
+      responseHeaders: {},
+      requestBody: {
+        database: describePgUrl(connUrl),
+        sql,
+        params: params ?? [],
+      },
+      requestHeaders: {},
+      authInfo: null,
+      duration: 0,
+      error: null,
+      timestamp: new Date().toISOString(),
+      cache: false,
+      note: pendingNote ?? undefined,
+    };
+    pendingNote = null;
+
+    calls.push(rec);
+    claimPending(rec);
+    onUpdate(
+      calls.map((c) => ({ ...c })),
+      [...logs],
+    );
+
+    if (waitForNext) await waitForNext();
+    if (abortSignal?.aborted) throw new Error("Script aborted");
+
+    const cacheKey = `PGSQL::${display}`;
+    if (responseCache && cacheKey in responseCache) {
+      const cached = responseCache[cacheKey];
+      rec.statusCode = cached.statusCode;
+      rec.status = "success";
+      rec.response = cached.response;
+      rec.duration = cached.duration;
+      rec.timestamp = cached.timestamp;
+      onUpdate(
+        calls.map((c) => ({ ...c })),
+        [...logs],
+      );
+      return {
+        ...(cached.response as SqlResult<T>),
+        duration: cached.duration,
+      };
+    }
+
+    const t0 = Date.now();
+    const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let timedOut = false;
+    if (callTimeout && callTimeout > 0) {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, callTimeout);
+    }
+    abortSignal?.addEventListener("abort", () => controller.abort(), {
+      once: true,
+    });
+
+    try {
+      if (resolveError) throw new Error(resolveError);
+
+      const res = await fetch("/api/query/pgsql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: connUrl,
+          sql,
+          params: params ?? [],
+          ssl,
+          // The route caps its own statement timeout; passing the run's
+          // per-call timeout keeps Postgres from working on a statement this
+          // side has already given up waiting for.
+          timeout: opts.timeout ?? (callTimeout || undefined),
+        }),
+        signal: controller.signal,
+      });
+
+      if (timeoutId) clearTimeout(timeoutId);
+      const payload = await res.json();
+
+      if (!res.ok || payload.error) {
+        rec.statusCode = res.status;
+        rec.status = "error";
+        rec.response = payload;
+        rec.error = payload.error || `Query failed: ${res.statusText}`;
+        rec.duration = Date.now() - t0;
+        onUpdate(
+          calls.map((c) => ({ ...c })),
+          [...logs],
+        );
+        throw new Error(rec.error as string);
+      }
+
+      rec.statusCode = res.status;
+      rec.status = "success";
+      rec.response = {
+        command: payload.command,
+        rowCount: payload.rowCount,
+        rows: payload.rows,
+        fields: payload.fields,
+        ...(payload.statements ? { statements: payload.statements } : {}),
+      };
+      rec.duration = Date.now() - t0;
+      onUpdate(
+        calls.map((c) => ({ ...c })),
+        [...logs],
+      );
+      return { ...(rec.response as SqlResult<T>), duration: rec.duration };
+    } catch (e) {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (rec.status !== "error") {
+        rec.status = "error";
+        rec.duration = Date.now() - t0;
+        if (abortSignal?.aborted && !timedOut) {
+          rec.error = "Aborted by user";
+          onUpdate(
+            calls.map((c) => ({ ...c })),
+            [...logs],
+          );
+          throw new Error("Script aborted");
+        }
+        if (timedOut || (e as Error).name === "AbortError") {
+          rec.error = `Timeout: query exceeded ${callTimeout}ms`;
+          onUpdate(
+            calls.map((c) => ({ ...c })),
+            [...logs],
+          );
+          throw new Error(
+            `Query timed out after ${callTimeout}ms — script stopped`,
+          );
+        }
+        rec.error = (e as Error).message;
+        onUpdate(
+          calls.map((c) => ({ ...c })),
+          [...logs],
+        );
+      }
+      throw e;
+    }
+  };
+
   const api = {
     get: (url: string, opts?: CallOpts) =>
       makeCall("GET", url, null, opts, false),
@@ -1015,6 +1320,12 @@ export async function runScript(
         input.oncancel = () => reject(new Error("No file selected"));
         input.click();
       });
+    },
+    // Raw database queries. Namespaced rather than sitting beside the HTTP
+    // verbs so a second driver reads as `api.query.<driver>` when one lands.
+    query: {
+      pgsql: <T = unknown>(sql: string, params?: unknown[], opts?: SqlOpts) =>
+        makeSqlCall<T>(sql, params, opts),
     },
     form: (fields: Record<string, unknown>): FormData => {
       const data = new FormData();

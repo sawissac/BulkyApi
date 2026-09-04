@@ -18,6 +18,7 @@ import {
   Laptop,
   FileLock,
   TableProperties,
+  Database,
   FolderDown,
   FolderUp,
   Download,
@@ -25,6 +26,10 @@ import {
   SquareTerminal,
   Footprints,
   Play,
+  PanelLeftRightDashed,
+  TvMinimal,
+  Form,
+  Code2,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import { selectCode, setCode } from "@/store/editorSlice";
@@ -50,7 +55,10 @@ import {
   setSidebarTab,
   selectCommandPaletteOpen,
   setCommandPaletteOpen,
+  selectLayout,
+  setLayout,
   type SidebarTab,
+  type LayoutKey,
 } from "@/store/uiSlice";
 import { useDisplayMode } from "@/hooks/useDisplayMode";
 import { useFileActions } from "@/hooks/useFileActions";
@@ -98,15 +106,23 @@ const ACTION_BTN =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel " +
   "disabled:pointer-events-none disabled:opacity-50 disabled:hover:scale-100";
 
-/** Footer toggle label. Hidden once the editor pane's status bar (a
- *  `@container`) drops below 480px, leaving the buttons icon-only. */
-const TOOL_LABEL =
-  "text-[11px] font-semibold uppercase tracking-[0.07em] @max-[480px]:hidden";
-
 /** Wraps the footer's utility toggles for spacing only — no outer border or
  *  radius, so the group reads as embedded in the status bar rather than a
  *  floating segmented block. */
 const GROUP_BOX = "gap-0.5";
+
+/** The footer's compact layout switcher — same three {@link LayoutKey}
+ *  values and icons as `TweaksPanel`'s full-size `LAYOUT_OPTIONS` list, just
+ *  without the label/detail text a `TOOL_BTN`-sized icon has no room for. */
+const LAYOUT_TOOL_OPTIONS: Array<{
+  id: LayoutKey;
+  label: string;
+  Icon: React.ElementType;
+}> = [
+  { id: "balanced", label: "Balanced layout", Icon: PanelLeftRightDashed },
+  { id: "editor-focus", label: "Editor Focus layout", Icon: TvMinimal },
+  { id: "response-focus", label: "Response Focus layout", Icon: Form },
+];
 
 type Props = {
   /** Active theme, passed straight through to {@link MonacoCodeEditor} and
@@ -213,24 +229,27 @@ type Props = {
  * jumps to its first request (collections with none are disabled); the
  * request picker lists only the active collection's requests, each behind a
  * small {@link MethodPill}. The footer status bar (not the top toolbar)
- * leads with the
- * active item's {@link MethodPill} (omitted for Scratch Pad), then Format,
- * Examples and Search — grouped for spacing only, borderless so the group
- * reads as embedded in the bar rather than a floating segmented block. The
- * status bar is a `@container`; once it narrows past 480px each button drops
- * its text label (`TOOL_LABEL`) and renders icon-only.
+ * leads with the active item's {@link MethodPill} (omitted for Scratch Pad),
+ * then two icon-only `ButtonGroup`s split by a hairline divider: Format/
+ * Examples/Search first, then the layout switcher (`LAYOUT_TOOL_OPTIONS` —
+ * the same three {@link LayoutKey} values and icons as `TweaksPanel`'s full
+ * Layout section, `data-active`/`aria-pressed` marking the current one).
+ * Every footer button (Format/Examples/Search, the layout switcher) is
+ * icon-only and unlabeled by design — a `Tooltip` carries the name on
+ * hover/focus, `aria-label` for everything else. The trailing language
+ * indicator is the one exception left with visible text: a small `Code2`
+ * icon beside "TypeScript · Bulky Runtime v2.0", unchanged from before the
+ * icon-only pass — TypeScript is type-stripped to JavaScript at run time.
  * Examples opens a `Popover` anchored to its trigger, listing each
  * {@link ExampleScript} behind a small {@link MethodPill} inside a vertical
  * `ButtonGroup`; picking one closes the popover and opens
  * {@link ExampleDialog} for that script. Search opens {@link CommandPalette}
- * — the same thing ⌘K/Ctrl+K does from anywhere in the app. The footer's
- * language label —
- * TypeScript, type-stripped to JavaScript at run time — sits beside the
- * runtime label, joined by `·`. Between the editor body and the status bar,
- * the socket composer mounts only while a socket is open: a `textarea` next
- * to a stacked pair of labeled buttons (`Disconnect` above `Send`, both the
- * `ACTION_BTN` recipe Run/Stop/Next use — `Disconnect` compact and tinted
- * `bg-app-error` like Stop, `Send` full-size and tinted the theme accent).
+ * — the same thing ⌘K/Ctrl+K does from anywhere in the app. Between the
+ * editor body and the status bar, the socket composer mounts only while a
+ * `textarea` next to a stacked pair of labeled buttons (`Disconnect` above
+ * `Send`, both the `ACTION_BTN` recipe Run/Stop/Next use — `Disconnect`
+ * compact and tinted `bg-app-error` like Stop, `Send` full-size and tinted
+ * the theme accent).
  *
  * Accessibility: each segment's rename label is a plain button with a
  * tooltip; the chevron button carries an explicit `aria-label` ("Switch
@@ -238,9 +257,11 @@ type Props = {
  * both breadcrumb pickers and Examples — are Radix `Popover`s, which supply
  * their own `aria-haspopup`/`aria-controls` wiring and Escape/outside-click
  * dismissal with focus returned to the trigger. Picker rows are plain
- * buttons reachable by their visible name. The footer's Format, Examples and
- * Search buttons each carry an `aria-label`, so they keep an accessible name
- * once the `@container` collapse hides their text.
+ * buttons reachable by their visible name. Every icon-only footer button
+ * (Format/Examples/Search, the three layout buttons) carries an
+ * `aria-label` and a `Tooltip`, since none render visible text; the layout
+ * buttons additionally set `aria-pressed` for the active one. The language
+ * indicator needs neither — its text is already visible.
  *
  * Test ids: breadcrumb rename fields
  * `code-editor-rename-collection-input` / `code-editor-rename-item-input`
@@ -248,10 +269,11 @@ type Props = {
  * `code-editor-socket-message-textarea` (a dynamic-value field a role/name
  * query can't pin down), `code-editor-socket-send-button` and
  * `code-editor-socket-disconnect-button`. The breadcrumb label and chevron
- * buttons, toolbar buttons (Format/Examples/Search alike), and popover
- * entries carry no testid — all are reachable by role and their own (static
- * or, for the rename labels, dynamic but singular) accessible name.
- * {@link CommandPalette} carries its own testids (`command-palette-input`).
+ * buttons, footer buttons (Format/Examples/Search, layout switcher, language
+ * indicator alike), and popover entries carry no testid — all are reachable
+ * by role and their own (static or, for the rename labels, dynamic but
+ * singular) accessible name. {@link CommandPalette} carries its own testids
+ * (`command-palette-input`).
  *
  * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
  *
@@ -307,6 +329,7 @@ export default function CodeEditor({
   const stepMode = useSelector(selectStepMode);
   const tweaksOpen = useSelector(selectTweaksOpen);
   const commandPaletteOpen = useSelector(selectCommandPaletteOpen);
+  const layout = useSelector(selectLayout);
   const { mode: displayMode, apply: applyDisplayMode } = useDisplayMode();
   const fileActions = useFileActions();
   const monacoEditorRef = useRef<EditorInstance | null>(null);
@@ -479,6 +502,7 @@ export default function CodeEditor({
           { id: "collections", label: "Go to Requests", Icon: FolderOpen },
           { id: "env", label: "Go to Envs", Icon: FileLock },
           { id: "vars", label: "Go to Vars", Icon: TableProperties },
+          { id: "db", label: "Go to DB", Icon: Database },
           { id: "file", label: "Go to File", Icon: FolderDown },
         ] as Array<{ id: SidebarTab; label: string; Icon: typeof FolderOpen }>
       ).map(({ id, label, Icon }) => ({
@@ -942,7 +966,7 @@ export default function CodeEditor({
       )}
 
       {/* Status bar */}
-      <div className="@container flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-app-border bg-app-panel px-3">
+      <div className="flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-app-border bg-app-panel px-3">
         {activeItem && <MethodPill method={activeItem.method} sm />}
 
         <ButtonGroup className={GROUP_BOX}>
@@ -955,7 +979,6 @@ export default function CodeEditor({
                 className={TOOL_BTN}
               >
                 <WandSparkles size={13} aria-hidden="true" />
-                <span className={TOOL_LABEL}>Format</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>Format document (Shift+Alt+F)</TooltipContent>
@@ -971,7 +994,6 @@ export default function CodeEditor({
                 className={TOOL_BTN}
               >
                 <BookOpen size={13} aria-hidden="true" />
-                <span className={TOOL_LABEL}>Examples</span>
               </button>
             </PopoverTrigger>
             <PopoverContent
@@ -1014,15 +1036,43 @@ export default function CodeEditor({
                 className={TOOL_BTN}
               >
                 <Search size={13} aria-hidden="true" />
-                <span className={TOOL_LABEL}>Search</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>Command palette (⌘K)</TooltipContent>
           </Tooltip>
         </ButtonGroup>
 
+        <span
+          className="my-1.5 w-px self-stretch bg-app-border-mid"
+          aria-hidden="true"
+        />
+
+        {/* Layout switcher — same three LayoutKey values TweaksPanel's full
+            Layout section offers, as a compact icon-only segmented group so
+            switching doesn't need a trip through Tweaks. */}
+        <ButtonGroup className={GROUP_BOX}>
+          {LAYOUT_TOOL_OPTIONS.map(({ id, label, Icon }) => (
+            <Tooltip key={id}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => dispatch(setLayout(id))}
+                  aria-label={label}
+                  aria-pressed={layout === id}
+                  data-active={layout === id || undefined}
+                  className={TOOL_BTN}
+                >
+                  <Icon size={13} aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </ButtonGroup>
+
         <span className="flex-1" />
-        <span className="shrink-0 text-[11px] text-app-dim">
+        <span className="flex shrink-0 items-center gap-1 text-[11px] text-app-dim">
+          <Code2 size={12} aria-hidden="true" />
           TypeScript <span className="text-app-border-mid">·</span>{" "}
           <span className="text-app-accent-dim">Bulky Runtime v2.0</span>
         </span>

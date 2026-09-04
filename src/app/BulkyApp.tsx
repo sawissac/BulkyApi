@@ -14,6 +14,7 @@ import {
   selectLayout,
   selectCommandPaletteOpen,
   setCommandPaletteOpen,
+  selectPatternOpacity,
 } from "@/store/uiSlice";
 import { selectCode, setCode } from "@/store/editorSlice";
 import { selectEnvVars, selectActiveHooks } from "@/store/collectionsSlice";
@@ -137,6 +138,7 @@ export default function BulkyApp() {
   const layout = useSelector(selectLayout);
   const tweaksOpen = useSelector(selectTweaksOpen);
   const commandPaletteOpen = useSelector(selectCommandPaletteOpen);
+  const patternOpacity = useSelector(selectPatternOpacity);
   const viewByItemId = useSelector(selectViewByItemId);
   const code = useSelector(selectCode);
   const envVars = useSelector(selectEnvVars);
@@ -162,6 +164,18 @@ export default function BulkyApp() {
     }
     root.style.colorScheme = T.isLight ? "light" : "dark";
   }, [T]);
+
+  // `patternOpacity` (0–100, uiSlice) as the 0–1 multiplier the
+  // `app-panel-texture--*` utilities scale every gradient color by — set
+  // here rather than folded into `themeVars()`, which is pure `Theme -> CSS
+  // vars` and used by places with no `ui` state at all (StatusScreen, the
+  // mocks gallery).
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--app-pattern-alpha",
+      String(patternOpacity / 100),
+    );
+  }, [patternOpacity]);
 
   const isSwitchingItemRef = useRef(false);
 
@@ -267,7 +281,12 @@ export default function BulkyApp() {
 
   return (
     <div
-      style={themeVars(T) as React.CSSProperties}
+      style={
+        {
+          ...themeVars(T),
+          "--app-pattern-alpha": String(patternOpacity / 100),
+        } as React.CSSProperties
+      }
       className="flex h-screen w-screen overflow-hidden bg-app-bg font-sans text-app-text"
     >
       <ActivityRail />

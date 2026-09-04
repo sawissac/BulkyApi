@@ -4,8 +4,11 @@ import { removeItem } from './collectionsSlice';
 
 export type LayoutKey = 'balanced' | 'editor-focus' | 'response-focus';
 export type ResponseView = 'cards' | 'waterfall' | 'docs';
-export type SidebarTab = 'collections' | 'env' | 'vars' | 'file';
+export type SidebarTab = 'collections' | 'env' | 'vars' | 'db' | 'file';
 export type DisplayMode = 'browser' | 'fullscreen';
+/** Sidebar/response-panel decorative wash — one of the `app-panel-texture--*`
+ *  utilities in `globals.css`, or `'none'` for a flat panel. */
+export type PatternStyle = 'none' | 'checker' | 'dots' | 'graph';
 
 type UiState = {
   theme: ThemeKey;
@@ -17,6 +20,9 @@ type UiState = {
   displayMode: DisplayMode;
   viewByItemId: Record<string, ResponseView>;
   callTimeout: number;
+  patternStyle: PatternStyle;
+  /** 0–100; `BulkyApp` divides by 100 to set `--app-pattern-alpha` on `<html>`. */
+  patternOpacity: number;
 };
 
 const initialState: UiState = {
@@ -29,6 +35,8 @@ const initialState: UiState = {
   displayMode: 'browser',
   viewByItemId: {},
   callTimeout: 0,
+  patternStyle: 'checker',
+  patternOpacity: 20,
 };
 
 const uiSlice = createSlice({
@@ -62,6 +70,12 @@ const uiSlice = createSlice({
     setCallTimeout(state, action: PayloadAction<number>) {
       state.callTimeout = action.payload;
     },
+    setPatternStyle(state, action: PayloadAction<PatternStyle>) {
+      state.patternStyle = action.payload;
+    },
+    setPatternOpacity(state, action: PayloadAction<number>) {
+      state.patternOpacity = Math.min(100, Math.max(0, action.payload));
+    },
     hydrateUi(_state, action: PayloadAction<UiState>) {
       // A freshly loaded page never owns the screen, so the saved display mode
       // is dropped and the app always comes up in URL view; the palette is
@@ -81,7 +95,7 @@ const uiSlice = createSlice({
   },
 });
 
-export const { setTheme, setLayout, setTweaksOpen, setCommandPaletteOpen, setResponseView, setResponseViewForItem, setSidebarTab, setDisplayMode, setCallTimeout, hydrateUi } = uiSlice.actions;
+export const { setTheme, setLayout, setTweaksOpen, setCommandPaletteOpen, setResponseView, setResponseViewForItem, setSidebarTab, setDisplayMode, setCallTimeout, setPatternStyle, setPatternOpacity, hydrateUi } = uiSlice.actions;
 export default uiSlice.reducer;
 
 export const selectTheme        = (s: { ui: UiState }) => s.ui.theme;
@@ -93,3 +107,5 @@ export const selectViewByItemId    = (s: { ui: UiState }) => s.ui.viewByItemId;
 export const selectSidebarTab      = (s: { ui: UiState }) => s.ui.sidebarTab;
 export const selectDisplayMode     = (s: { ui: UiState }) => s.ui.displayMode;
 export const selectCallTimeout     = (s: { ui: UiState }) => s.ui.callTimeout;
+export const selectPatternStyle    = (s: { ui: UiState }) => s.ui.patternStyle;
+export const selectPatternOpacity  = (s: { ui: UiState }) => s.ui.patternOpacity;

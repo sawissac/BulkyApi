@@ -1,8 +1,9 @@
-import type { Collection } from '@/lib/sampleData';
+import type { Collection, DbSsl } from '@/lib/sampleData';
 import { getSupabaseBrowser } from './client';
 import type {
   CollectionItemRow,
   CollectionRow,
+  DbConnectionRow,
   EnvironmentRow,
   FolderRow,
   RunnerSnapshot,
@@ -23,6 +24,13 @@ export type PersistedShape = {
 
 const byPosition = <T extends { position: number }>(a: T, b: T) => a.position - b.position;
 
+/** `db_connections.ssl` is plain text in Postgres, so a value the app no
+ *  longer recognizes (an older or newer client wrote it) reads back as "no
+ *  TLS" rather than as an unhandled mode. */
+function toSsl(value: string): DbSsl {
+  return value === 'require' || value === 'no-verify' ? value : '';
+}
+
 /**
  * Reads the user's rows and rebuilds the nested Redux tree from them.
  * Returns null when Supabase is not configured or nobody is signed in, and
@@ -36,11 +44,12 @@ export async function pullRemoteState(): Promise<PersistedShape | null> {
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) return null;
 
-  const [colsRes, itemsRes, foldersRes, envsRes, stateRes] = await Promise.all([
+  const [colsRes, itemsRes, foldersRes, envsRes, connsRes, stateRes] = await Promise.all([
     supabase.from('collections').select('*'),
     supabase.from('collection_items').select('*'),
     supabase.from('folders').select('*'),
     supabase.from('environments').select('*'),
+    supabase.from('db_connections').select('*'),
     supabase.from('user_state').select('*').maybeSingle(),
   ]);
 
@@ -51,6 +60,11 @@ export async function pullRemoteState(): Promise<PersistedShape | null> {
   const items = (itemsRes.data ?? []) as CollectionItemRow[];
   const folders = (foldersRes.data ?? []) as FolderRow[];
   const envs = (envsRes.data ?? []) as EnvironmentRow[];
+  // A project still on 0003 has no `db_connections` table, so this query
+  // errors where the others cannot. That is not a reason to discard an
+  // otherwise complete pull — the collections just come back with no saved
+  // connections, exactly as they did before the pane existed.
+  const conns = (connsRes.error ? [] : (connsRes.data ?? [])) as DbConnectionRow[];
   const userState = stateRes.data as UserStateRow | null;
 
   if (cols.length === 0 && !userState) return null;
@@ -83,6 +97,20 @@ export async function pullRemoteState(): Promise<PersistedShape | null> {
       .filter((e) => e.collection_id === c.id)
       .sort(byPosition)
       .map(({ id, name, vars }) => ({ id, name, vars })),
+    connIdx: c.conn_idx ?? 0,
+    connections: conns
+      .filter((x) => x.collection_id === c.id)
+      .sort(byPosition)
+      .map(({ id, name, host, port, database, username, password, ssl }) => ({
+        id,
+        name,
+        host,
+        port,
+        database,
+        user: username,
+        password,
+        ssl: toSsl(ssl),
+      })),
   }));
 
   return {
@@ -101,6 +129,8 @@ export async function pullRemoteState(): Promise<PersistedShape | null> {
           sidebarTab: userState.sidebar_tab,
           callTimeout: userState.call_timeout,
           viewByItemId: userState.view_by_item_id ?? {},
+          patternStyle: userState.pattern_style ?? 'checker',
+          patternOpacity: userState.pattern_opacity ?? 20,
         }
       : undefined,
     runner: userState?.runner_snapshot ?? undefined,
@@ -135,6 +165,8 @@ export async function pushRemoteState(snapshot: SyncSnapshot): Promise<boolean> 
  * `collections` array is passed through as-is, so each collection's `folders`
  * list and every item's `folderId` travel with it — `sync_state` (0003) reads
  * `c.value->'folders'` and `i.value->>'folderId'` straight from this shape.
+ * `0004_connections.sql` extends that to `c.value->'connections'` and
+ * `c.value->>'connIdx'`, which likewise need no shaping here.
  */
 export function buildSnapshot(state: Record<string, unknown>): SyncSnapshot {
   const collections = state.collections as PersistedShape['collections'] | undefined;
@@ -155,6 +187,8 @@ export function buildSnapshot(state: Record<string, unknown>): SyncSnapshot {
       sidebarTab: ui.sidebarTab as SyncSnapshot['state']['sidebarTab'],
       callTimeout: Number(ui.callTimeout ?? 0),
       viewByItemId: (ui.viewByItemId ?? {}) as SyncSnapshot['state']['viewByItemId'],
+      patternStyle: (ui.patternStyle ?? 'checker') as SyncSnapshot['state']['patternStyle'],
+      patternOpacity: Number(ui.patternOpacity ?? 20),
       runner: {
         builtCalls: runner?.builtCalls ?? [],
         callsByItemId: runner?.callsByItemId ?? {},

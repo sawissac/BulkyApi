@@ -276,6 +276,7 @@ export const METHOD_CLR: Record<string, string> = {
   SSE:     '#f472b6',
   WS:      '#38bdf8',
   IO:      '#fb923c',
+  PGSQL:   '#a3e635',
   DOCS:    '#a78bfa',
 };
 
@@ -295,6 +296,7 @@ export const METHOD_CLR_LIGHT: Record<string, string> = {
   SSE:     '#be185d',
   WS:      '#0369a1',
   IO:      '#c2410c',
+  PGSQL:   '#4d7c0f',
   DOCS:    '#6d28d9',
 };
 

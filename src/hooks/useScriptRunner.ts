@@ -11,6 +11,8 @@ import {
   selectEnvVars,
   selectActiveEnv,
   selectActiveHooks,
+  selectConnections,
+  selectActiveConnection,
 } from "@/store/collectionsSlice";
 import {
   selectBuiltCalls,
@@ -33,6 +35,8 @@ export function useScriptRunner() {
   const envVars = useSelector(selectEnvVars);
   const activeEnv = useSelector(selectActiveEnv);
   const hooks = useSelector(selectActiveHooks);
+  const connections = useSelector(selectConnections);
+  const activeConnection = useSelector(selectActiveConnection);
   const builtCalls = useSelector(selectBuiltCalls);
   const running = useSelector(selectRunning);
   const activeId = useSelector(selectActiveId);
@@ -149,6 +153,7 @@ export function useScriptRunner() {
         callTimeout > 0 ? callTimeout : undefined,
         controller.signal,
         socketRegistryRef.current,
+        { list: connections, active: activeConnection },
       );
 
       stepResumeRef.current = null;
@@ -164,6 +169,8 @@ export function useScriptRunner() {
       envVars,
       activeEnv,
       hooks,
+      connections,
+      activeConnection,
       builtCalls,
       activeId,
       stepMode,

@@ -16,6 +16,15 @@ import {
   stringLiteralAt,
   type OdataItemKind,
 } from "@/lib/odataCompletion";
+import {
+  findSqlLiteralRanges,
+  pgsqlStringStart,
+  sqlCompletions,
+  sqlWordLength,
+  tokenizeSql,
+  type SqlItemKind,
+  type SqlTokenType,
+} from "@/lib/sqlCompletion";
 
 export type EditorInstance = MonacoEditorNS.IStandaloneCodeEditor;
 
@@ -168,6 +177,60 @@ interface BulkyHttp {
   head<T = any>(url: string, opts?: BulkyCallOpts): Promise<BulkyResponse<T>>;
 }
 
+interface BulkySqlOpts {
+  /** Name of a connection saved in the sidebar's DB pane. Omit to use the one
+   *  marked active there; a name matching none fails the call rather than
+   *  quietly running against a different database. */
+  db?: string;
+  /** Raw connection string, bypassing the saved connections entirely — takes
+   *  precedence over \`db\`. With neither, and no connection configured, the
+   *  environment's \`DATABASE_URL\` is the last resort (\`PG_URL\` /
+   *  \`PGSQL_URL\` / \`POSTGRES_URL\` also accepted). \`{{var}}\` resolves. */
+  url?: string;
+  /** \`true\` verifies the server certificate; \`'no-verify'\` encrypts without
+   *  verifying it — what a managed Postgres behind a self-signed pooler
+   *  certificate needs. Omit to let \`sslmode\` in the connection string decide. */
+  ssl?: boolean | 'no-verify';
+  /** Postgres \`statement_timeout\` for this query, in ms. @defaultValue \`30000\` */
+  timeout?: number;
+}
+
+interface BulkySqlField {
+  name: string;
+  /** Postgres type OID of the column. */
+  dataTypeID: number;
+}
+
+interface BulkySqlResult<T = any> {
+  rows: T[];
+  /** \`null\` for a statement that reports no row count — DDL, mostly. */
+  rowCount: number | null;
+  /** The statement's command tag — \`'SELECT'\`, \`'INSERT'\`, ... */
+  command: string;
+  fields: BulkySqlField[];
+  duration: number;
+  /** Present only for a multi-statement batch, one entry per statement — the
+   *  top-level fields then describe the last one. */
+  statements?: Array<Omit<BulkySqlResult<T>, 'duration' | 'statements'>>;
+}
+
+interface BulkyQuery {
+  /** Runs raw SQL against Postgres through the app's own database route — a
+   *  browser can't speak the Postgres wire protocol, so unlike an HTTP call
+   *  there is no direct option. The connection comes from the sidebar's DB
+   *  pane: the active one, or the one \`opts.db\` names.
+   *  Values belong in \`params\` as \`$1\`, \`$2\`, ...;
+   *  the statement itself is never interpolated, and \`{{var}}\` resolves in the
+   *  connection string only. Omitting \`params\` runs the text as a batch, so
+   *  several \`;\`-separated statements work — the extra results land in
+   *  \`statements\`. A failed query throws, the way any Postgres client does. */
+  pgsql<T = any>(
+    sql: string,
+    params?: unknown[],
+    opts?: BulkySqlOpts,
+  ): Promise<BulkySqlResult<T>>;
+}
+
 interface BulkyServer extends BulkyHttp, BulkyStream {}
 
 interface BulkyApi extends BulkyHttp, BulkyStream, BulkySocket {
@@ -176,6 +239,8 @@ interface BulkyApi extends BulkyHttp, BulkyStream, BulkySocket {
    *  APIs do). Files upload through it too: the proxy streams the body
    *  straight to the target instead of JSON-encoding it. */
   server: BulkyServer;
+  /** Raw database queries, one property per driver. */
+  query: BulkyQuery;
   /** Records a pass/fail check against the run. Never throws — a falsy
    *  \`condition\` is collected and shown on the call card and run summary. */
   assert(condition: unknown, message?: string): void;
@@ -224,6 +289,42 @@ declare function sleep(ms: number): Promise<void>;
  *  function, so its top-level \`await\` is legal even though the worker sees a
  *  non-module file. */
 const IGNORED_DIAGNOSTICS = [1375, 1378, 1308];
+
+/** CSS class per {@link SqlTokenType}, applied as a decoration
+ *  `inlineClassName` over the SQL sub-ranges `tokenizeSql` finds — Monaco's
+ *  TypeScript tokenizer colors a whole string uniformly and has no notion of
+ *  the SQL grammar inside it. Colors live in `SQL_HIGHLIGHT_COLORS` below,
+ *  written to a shared stylesheet by the syntax-highlight effect. */
+const SQL_TOKEN_CLASS: Record<SqlTokenType, string> = {
+  keyword: "bulky-sql-keyword",
+  function: "bulky-sql-function",
+  type: "bulky-sql-type",
+  string: "bulky-sql-string",
+  number: "bulky-sql-number",
+  placeholder: "bulky-sql-placeholder",
+  comment: "bulky-sql-comment",
+};
+
+/** Light/dark colors for `SQL_TOKEN_CLASS`. `keyword`/`string`/`number`/
+ *  `type` reuse the exact pairs the `bulky` Monaco theme already assigns
+ *  those classic token names (see the theme effect below), so SQL text
+ *  matches the surrounding script's palette; `function` and `placeholder`
+ *  are new since the base TypeScript grammar has no token for either. */
+const SQL_HIGHLIGHT_COLORS: Record<SqlTokenType, { light: string; dark: string }> = {
+  keyword: { light: "#7c2d12", dark: "#67e8f9" },
+  string: { light: "#3f6212", dark: "#86efac" },
+  number: { light: "#9a3412", dark: "#fdba74" },
+  type: { light: "#6d28d9", dark: "#c4b5fd" },
+  comment: { light: "#8f7d68", dark: "#4a5568" },
+  function: { light: "#b45309", dark: "#fcd34d" },
+  placeholder: { light: "#be185d", dark: "#f9a8d4" },
+};
+
+/** Id of the shared `<style>` element the syntax-highlight effect writes to.
+ *  Fixed and looked up rather than created fresh per mount, so several
+ *  editor instances on one page (the mock gallery renders more than one)
+ *  share a single stylesheet instead of racing to append their own. */
+const SQL_HIGHLIGHT_STYLE_ID = "bulky-sql-highlight-style";
 
 function envLib(envVars: Record<string, string>): string {
   const keys = Object.entries(envVars).map(([k, v]) => {
@@ -331,7 +432,12 @@ type Props = {
  * selection) — and subscribes to selection changes, reporting the selected
  * text through `onSelectionChange` so the panel can label its own Run button.
  * Both callbacks are read through refs because the actions and the listener
- * are registered once, on mount; the listener is disposed on unmount.
+ * are registered once, on mount; the listener is disposed on unmount. Mount
+ * also runs the first SQL decoration pass and subscribes it to
+ * `onDidChangeModelContent`, both disposed the same way.
+ * A separate effect keeps a shared `<style>` tag (`SQL_HIGHLIGHT_STYLE_ID`)
+ * in sync with `T.isLight`, since the decorations below are colored by CSS
+ * class rather than by Monaco's own theme `rules`.
  *
  * Variants: none.
  *
@@ -350,7 +456,13 @@ type Props = {
  *
  * Test ids: none — Monaco renders its own DOM.
  *
- * CSS classes: none — the editor is themed through Monaco, not Tailwind.
+ * CSS classes: `bulky-sql-keyword` / `-function` / `-type` / `-string` /
+ * `-number` / `-placeholder` / `-comment`, written to the shared
+ * `SQL_HIGHLIGHT_STYLE_ID` stylesheet and applied as decoration
+ * `inlineClassName`s over SQL sub-ranges — the one exception to the editor
+ * otherwise being themed through Monaco, not Tailwind, since Monaco's own
+ * theme `rules` color classic TypeScript tokens and have no notion of SQL
+ * living inside one of its string literals.
  *
  * Edge cases: a run fired before this component mounts finds no registered
  * transpiler and executes the buffer as-is — fine for JavaScript, a syntax
@@ -361,11 +473,27 @@ type Props = {
  * {@link stringLiteralAt} lexes the buffer rather than the caret's line, so a
  * URL split across lines of a template still resolves — and stays silent
  * unless the word being typed starts with `$` or the caret sits past a `?`,
- * which keeps ordinary strings and JSON bodies free of the widget.
+ * which keeps ordinary strings and JSON bodies free of the widget. A third
+ * manual provider covers Postgres: {@link pgsqlStringStart} reuses
+ * {@link stringLiteralAt}'s lexer, then qualifies a string either of two
+ * ways — the text right before its opening quote reads like
+ * `api.query.pgsql(` (or `api.pgsql(`), which qualifies it at any length, or
+ * (so a `const sql = "..."` built up before the call also completes) its own
+ * content starts with a SQL statement keyword. Either way it stays out of an
+ * ordinary quoted string, a URL, or `params`/`opts`. Syntax highlighting for
+ * that same SQL rides decorations rather than a fourth completion provider:
+ * {@link findSqlLiteralRanges} re-derives every qualifying string in the
+ * whole buffer on each edit (not just the one under the caret, since more
+ * than one may be visible at once) and {@link tokenizeSql} classifies the
+ * words inside each — Monaco's own tokenizer already colors the string
+ * uniformly, so only keywords, functions, types, nested SQL string literals,
+ * `$1`-style placeholders and line/block comments get a decoration;
+ * punctuation, operators and identifiers (table/column names) keep the
+ * color they already had.
  *
  * Dependencies: `@monaco-editor/react`, `monaco-editor` (types only),
  * `@/lib/transpile`, `@/lib/themes`, `@/lib/odataCompletion`,
- * `@/lib/lodashEditorLib` (dynamic import).
+ * `@/lib/sqlCompletion`, `@/lib/lodashEditorLib` (dynamic import).
  *
  * @example
  * ```tsx
@@ -380,6 +508,8 @@ type Props = {
  *
  * @see {@link registerTranspiler}
  * @see {@link odataCompletions}
+ * @see {@link sqlCompletions}
+ * @see {@link tokenizeSql}
  */
 export default function MonacoCodeEditor({
   value,
@@ -395,6 +525,10 @@ export default function MonacoCodeEditor({
   const onRunRef = useRef(onRun);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const selectionDisposableRef = useRef<IDisposable | null>(null);
+  const sqlContentDisposableRef = useRef<IDisposable | null>(null);
+  const sqlDecorationsRef = useRef<ReturnType<
+    EditorInstance["createDecorationsCollection"]
+  > | null>(null);
 
   useEffect(() => {
     envVarsRef.current = envVars;
@@ -408,6 +542,78 @@ export default function MonacoCodeEditor({
   useEffect(
     () => () => {
       selectionDisposableRef.current?.dispose();
+      sqlContentDisposableRef.current?.dispose();
+    },
+    [],
+  );
+
+  // SQL syntax highlighting — writes light/dark colors for `SQL_TOKEN_CLASS`
+  // to a shared stylesheet. A `<style>` tag rather than Monaco's own theme
+  // `rules` because those color classic tokens ("string", "keyword", ...)
+  // the TypeScript grammar assigns; there is no classic token for the SQL
+  // grammar living inside one of its string literals; decorations layer a
+  // second CSS class on top instead, so this is the color source for it.
+  useEffect(() => {
+    const style =
+      (document.getElementById(
+        SQL_HIGHLIGHT_STYLE_ID,
+      ) as HTMLStyleElement | null) ?? document.createElement("style");
+    style.id = SQL_HIGHLIGHT_STYLE_ID;
+    if (!style.isConnected) document.head.appendChild(style);
+
+    const mode = T.isLight ? "light" : "dark";
+    style.textContent = (
+      Object.keys(SQL_HIGHLIGHT_COLORS) as SqlTokenType[]
+    )
+      .map((type) => {
+        const extra =
+          type === "comment"
+            ? "font-style: italic;"
+            : type === "placeholder"
+              ? "font-weight: 600;"
+              : "";
+        return `.${SQL_TOKEN_CLASS[type]} { color: ${SQL_HIGHLIGHT_COLORS[type][mode]} !important; ${extra} }`;
+      })
+      .join("\n");
+  }, [T.isLight]);
+
+  // SQL syntax highlighting — decorations. Re-scans the whole buffer on every
+  // edit for {@link findSqlLiteralRanges}'s qualifying strings and lays a
+  // `SQL_TOKEN_CLASS` decoration over each {@link tokenizeSql} token inside
+  // them; punctuation, operators and identifiers are left undecorated; they
+  // keep the string color the TypeScript grammar already gave them.
+  const updateSqlDecorations = useCallback(
+    (monacoInstance: Monaco, editorInstance: EditorInstance) => {
+      const model = editorInstance.getModel();
+      if (!model) return;
+      const text = model.getValue();
+
+      const decorations: MonacoEditorNS.IModelDeltaDecoration[] = [];
+      for (const literal of findSqlLiteralRanges(text)) {
+        const sql = text.slice(literal.start, literal.end);
+        for (const token of tokenizeSql(sql)) {
+          const from = model.getPositionAt(literal.start + token.start);
+          const to = model.getPositionAt(literal.start + token.end);
+          decorations.push({
+            range: new monacoInstance.Range(
+              from.lineNumber,
+              from.column,
+              to.lineNumber,
+              to.column,
+            ),
+            options: {
+              inlineClassName: SQL_TOKEN_CLASS[token.type],
+            },
+          });
+        }
+      }
+
+      if (sqlDecorationsRef.current) {
+        sqlDecorationsRef.current.set(decorations);
+      } else {
+        sqlDecorationsRef.current =
+          editorInstance.createDecorationsCollection(decorations);
+      }
     },
     [],
   );
@@ -601,11 +807,21 @@ export default function MonacoCodeEditor({
         const before = line.substring(0, position.column - 1);
         if (!before.endsWith("{{")) return { suggestions: [] };
 
+        // Typing `{{` auto-closes to `{{}}` (bracket-matching, on by default)
+        // with the caret left in the middle, so the `}}` this completion
+        // would otherwise append already sits right after the caret — the
+        // bug this guards against inserted a second one on top of it,
+        // leaving `{{name}}}}`. The replace range swallows that existing
+        // pair instead of appending past it; a caret with no `}}` there
+        // (auto-close off, or one already deleted) still gets one inserted.
+        const after = line.substring(position.column - 1, position.column + 1);
+        const alreadyClosed = after === "}}";
+
         const range = {
           startLineNumber: position.lineNumber,
           endLineNumber: position.lineNumber,
           startColumn: position.column,
-          endColumn: position.column,
+          endColumn: alreadyClosed ? position.column + 2 : position.column,
         };
 
         const suggestions: languages.CompletionItem[] = Object.entries(
@@ -658,6 +874,70 @@ export default function MonacoCodeEditor({
           startLineNumber: position.lineNumber,
           endLineNumber: position.lineNumber,
           startColumn: position.column - odataWordLength(before),
+          endColumn: position.column,
+        };
+
+        return {
+          suggestions: items.map(
+            (item) =>
+              ({
+                label: item.label,
+                kind: kinds[item.kind],
+                detail: item.detail,
+                documentation: item.documentation
+                  ? { value: item.documentation }
+                  : undefined,
+                insertText: item.insertText,
+                insertTextRules: item.snippet
+                  ? monaco.languages.CompletionItemInsertTextRule
+                      .InsertAsSnippet
+                  : undefined,
+                filterText: item.label,
+                commitCharacters: [],
+                sortText: `0${item.label}`,
+                range,
+              }) as languages.CompletionItem,
+          ),
+        };
+      },
+    });
+
+    return () => disp.dispose();
+  }, [monaco]);
+
+  // Postgres completions for `api.query.pgsql("...")` — also string-only, and
+  // further scoped to the string a `pgsql(` call actually opened, so a plain
+  // URL or header value never sprouts SQL keywords.
+  useEffect(() => {
+    if (!monaco) return;
+
+    const K = monaco.languages.CompletionItemKind;
+    const kinds: Record<SqlItemKind, languages.CompletionItemKind> = {
+      keyword: K.Keyword,
+      function: K.Function,
+      type: K.Class,
+      value: K.Value,
+    };
+
+    const disp = monaco.languages.registerCompletionItemProvider("typescript", {
+      triggerCharacters: [" ", "(", ",", ".", "="],
+      provideCompletionItems(
+        model: MonacoEditorNS.ITextModel,
+        position: Position,
+      ) {
+        const offset = model.getOffsetAt(position);
+        const text = model.getValue();
+        const start = pgsqlStringStart(text, offset);
+        if (start === null) return { suggestions: [] };
+
+        const before = text.slice(start, offset);
+        const items = sqlCompletions(before);
+        if (items.length === 0) return { suggestions: [] };
+
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: position.column - sqlWordLength(before),
           endColumn: position.column,
         };
 
@@ -761,6 +1041,11 @@ export default function MonacoCodeEditor({
 
         selectionDisposableRef.current = editor.onDidChangeCursorSelection(
           () => onSelectionChangeRef.current?.(selectedText()),
+        );
+
+        updateSqlDecorations(monacoInstance, editor);
+        sqlContentDisposableRef.current = editor.onDidChangeModelContent(() =>
+          updateSqlDecorations(monacoInstance, editor),
         );
 
         editor.addCommand(

@@ -2,22 +2,25 @@
 
 import { useSelector } from "react-redux";
 import type { Theme } from "@/lib/themes";
-import { selectSidebarTab, type SidebarTab } from "@/store/uiSlice";
+import { selectSidebarTab, selectPatternStyle, type SidebarTab } from "@/store/uiSlice";
 import CollPane from "./CollPane";
 import EnvPane from "./EnvPane";
 import VarsPane from "./VarsPane";
+import DbPane from "./DbPane";
 import FilePane from "./FilePane";
 
 const PANE_LABELS: Record<SidebarTab, string> = {
   collections: "Requests",
   env: "Envs",
   vars: "Vars",
+  db: "DB",
   file: "File",
 };
 
 /**
  * Body of the left pane: renders the pane the active section owns — collections,
- * environments, extracted variables, or file import/export. Section switching
+ * environments, extracted variables, database connections, or file
+ * import/export. Section switching
  * lives in {@link ActivityRail}, not here, so this component only reads which
  * tab is selected; each pane supplies its own header.
  *
@@ -28,11 +31,12 @@ const PANE_LABELS: Record<SidebarTab, string> = {
  * Exactly one pane is mounted at a time, so a pane's own local state resets
  * when the user leaves and returns to it.
  *
- * Variants: one per `SidebarTab` — `collections`, `env`, `vars`, `file`.
+ * Variants: one per `SidebarTab` — `collections`, `env`, `vars`, `db`, `file`.
  *
- * Composition: renders {@link CollPane}, {@link EnvPane}, {@link VarsPane} or
- * {@link FilePane}, each handed the active theme. Sits inside the resizable
- * pane group and fills it edge to edge — no title strip of its own.
+ * Composition: renders {@link CollPane}, {@link EnvPane}, {@link VarsPane},
+ * {@link DbPane} or {@link FilePane}, each handed the active theme. Sits inside
+ * the resizable pane group and fills it edge to edge — no title strip of its
+ * own.
  *
  * Accessibility: the pane body is the `tabpanel` for the rail's tablist and
  * carries `id="sidebar-pane"`, the target of each tab's `aria-controls`. Its
@@ -40,10 +44,21 @@ const PANE_LABELS: Record<SidebarTab, string> = {
  *
  * Test ids: pane body `sidebar-pane`.
  *
- * CSS classes: none — Tailwind utilities over the `app-*` theme tokens only.
- * The root carries a faint dot-grid wash (`radial-gradient` at
- * `--app-border-mid`, 18px pitch) to read as a distinct surface from the
- * editor pane, which stays flat for code legibility.
+ * CSS classes: `app-panel-texture--<patternStyle>` (`src/app/globals.css`) —
+ * plain shared classes, not `@utility`s or a one-off Tailwind arbitrary
+ * value, since each needs a real selector to hang a `::before` off (see the
+ * class's own comment in `globals.css`), and each pattern is several offset
+ * gradient layers besides — more than an arbitrary-value string can hold
+ * cleanly. `patternStyle` (`uiSlice`, chosen in TweaksPanel's "Background
+ * Pattern" section) picks which one washes the root; `'none'` renders no
+ * class at all, leaving the panel flat. The gradient itself, on the
+ * `::before`, is colored from `var(--app-accent)` via `color-mix` rather
+ * than a literal hex, so it holds up across every theme and light/dark;
+ * `--app-pattern-alpha` (`patternOpacity` ÷ 100, also Settings-driven) scales
+ * that pseudo-element's `opacity` as one unit rather than each gradient
+ * stop's own color, to read as
+ * a distinct surface from the editor pane, which stays flat for code
+ * legibility. {@link ResponsePanel} carries the same class, by design.
  *
  * Edge cases: an unknown tab value cannot render a pane; the `aria-label` falls
  * back to the collections label so the tabpanel is never unnamed.
@@ -61,10 +76,15 @@ const PANE_LABELS: Record<SidebarTab, string> = {
  */
 export default function Sidebar({ T }: SidebarProps) {
   const tab = useSelector(selectSidebarTab);
+  const patternStyle = useSelector(selectPatternStyle);
   const label = PANE_LABELS[tab] ?? PANE_LABELS.collections;
+  const textureClass =
+    patternStyle === "none" ? "" : `app-panel-texture--${patternStyle}`;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-app-sidebar bg-[radial-gradient(circle,var(--app-border-mid)_1px,transparent_1px)] bg-size-[18px_18px]">
+    <div
+      className={`${textureClass} flex h-full w-full flex-col overflow-hidden bg-app-sidebar`}
+    >
       <div
         id="sidebar-pane"
         role="tabpanel"
@@ -75,6 +95,7 @@ export default function Sidebar({ T }: SidebarProps) {
         {tab === "collections" && <CollPane T={T} />}
         {tab === "env" && <EnvPane T={T} />}
         {tab === "vars" && <VarsPane T={T} />}
+        {tab === "db" && <DbPane T={T} />}
         {tab === "file" && <FilePane T={T} />}
       </div>
     </div>

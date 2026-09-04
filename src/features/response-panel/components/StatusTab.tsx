@@ -13,7 +13,16 @@ export default function StatusTab({ T, call }: Props) {
   const path = (() => {
     try { return new URL(call.url).pathname || '/'; } catch { return call.url.replace(/^https?:\/\/[^/]+/, '') || call.url; }
   })();
+  /** A `PGSQL` call's `url` is the statement, never a URL — the connection it
+   *  ran on is the password-stripped DSN kept on the request body. */
+  const database =
+    call.method === 'PGSQL' && call.requestBody && typeof call.requestBody === 'object'
+      ? String((call.requestBody as { database?: string }).database ?? '')
+      : '';
   const host = (() => {
+    if (database) {
+      try { return new URL(database).host; } catch { return database; }
+    }
     try { return new URL(call.url).hostname; } catch { return call.url.split('/')[2] || call.url; }
   })();
 

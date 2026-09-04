@@ -43,6 +43,9 @@
 `tweaks-panel-close-button` — TweaksPanel / header close button
 `tweaks-panel-theme-button-<theme-id>` — TweaksPanel / color theme pill (per theme: midnight, ocean, light, purple, green, rose, amber, slate, flat)
 `tweaks-panel-layout-button-<layout-id>` — TweaksPanel / layout pill (per layout: balanced, editor-focus, response-focus)
+`tweaks-panel-pattern-button-<pattern-id>` — TweaksPanel / background pattern pill (per pattern: none, checker, dots, graph)
+`tweaks-panel-pattern-swatch-<pattern-id>` — TweaksPanel / background pattern swatch preview
+`tweaks-panel-pattern-opacity-input` — TweaksPanel / pattern intensity range input (hidden while pattern is "none")
 `tweaks-panel-timeout-input` — TweaksPanel / call timeout number input (via shared `Input`)
 `tweaks-panel-timeout-input-clear-button` — TweaksPanel / call timeout inline clear button (renamed from `tweaks-panel-timeout-clear-button` when the standalone Clear link was replaced by `Input`'s built-in clear button)
 `tweaks-panel-done-button` — TweaksPanel / footer done button
@@ -144,7 +147,7 @@ Two mounted `VarSection`s — the environment section uses the `vars-pane-*` pre
 
 `call-card-<idx>` — CallCard / row root (per built call, 0-based index)
 `call-card-copy-curl-button` — CallCard / header "copy as cURL" action (shown once the call leaves idle)
-`call-card-tab-<id>` — CallCard / detail tab button (per tab: response, headers, auth, payload, status, tests)
+`call-card-tab-<id>` — CallCard / detail tab button (per tab: table [PGSQL calls only], response, headers, auth, payload, status, tests)
 
 ## RespTab (src/features/response-panel/components/RespTab.tsx)
 
@@ -226,3 +229,24 @@ Ids derive from the caller's `testId` base — the component hardcodes none.
 `json-tree-viewer-value-<path>` — JsonTreeViewer / click-to-copy scalar value (per node)
 `json-tree-viewer-expand-<path>` — JsonTreeViewer / see more–see less toggle (per elided string)
 `json-tree-viewer-key-<path>-tooltip` / `json-tree-viewer-value-<path>-tooltip` — JsonTreeViewer / copy tooltip content ("Click to copy" → "Copied")
+
+## DbPane (src/features/sidebar/components/DbPane.tsx)
+
+`db-pane-add-button` — DbPane / add a connection to the active collection
+`db-pane-empty-message` — DbPane / no-collection and no-connections empty states
+`db-pane-list` — DbPane / connection list container
+`db-pane-row-<id>` — DbPane / one connection row (per connection id)
+`db-pane-select-button-<id>` — DbPane / make this connection the active one
+`db-pane-duplicate-button-<id>` — DbPane / duplicate this connection
+`db-pane-delete-button-<id>` — DbPane / delete this connection
+`db-pane-name-input` — DbPane / connection name
+`db-pane-host-input` — DbPane / host
+`db-pane-port-input` — DbPane / port
+`db-pane-database-input` — DbPane / database name
+`db-pane-user-input` — DbPane / user
+`db-pane-password-input` — DbPane / password (masked until revealed)
+`db-pane-password-reveal-button` — DbPane / toggle password visibility
+`db-pane-ssl-button-off` / `db-pane-ssl-button-require` / `db-pane-ssl-button-no-verify` — DbPane / TLS mode
+`db-pane-dsn-input` — DbPane / paste a connection string to fill the fields
+`db-pane-test-button` — DbPane / run `select 1` against this connection
+`db-pane-test-message` — DbPane / test outcome (live region)

@@ -70,12 +70,21 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
   // than actually ran, silently truncating (or, if it was the *only* call,
   // wholly clearing) that stored call the moment the 300ms post-run
   // re-analyze in BulkyApp.tsx fires.
-  const re = /await\s+api\.(?:server\.)?(get|post|put|patch|delete|options|head|sse|stream|ws|io)\s*(?:<[^>()]*>)?\s*\(/gi;
+  const re = /await\s+api\.(?:(server|query)\.)?(get|post|put|patch|delete|options|head|sse|stream|ws|io|pgsql)\s*(?:<[^>()]*>)?\s*\(/gi;
   let m: RegExpExecArray | null;
 
   while ((m = re.exec(code)) !== null) {
     // Skip matches inside comments
     if (isInsideComment(code, m.index)) continue;
+
+    // `api.query.*` holds the database drivers and nothing else, so a
+    // namespace and a verb from opposite halves — `api.pgsql(...)`,
+    // `api.query.get(...)` — isn't a call this runtime has. Building a stub
+    // for one would leave `mergeCalls` reconciling against a card no run can
+    // ever fill.
+    const ns = m[1]?.toLowerCase();
+    const isSql = m[2].toLowerCase() === "pgsql";
+    if (isSql !== (ns === "query")) continue;
 
     // `api.sse` never sends a body, so its call record's `method` is always
     // "SSE" (see `makeStreamCall` in `scriptRunner.ts`). `api.stream` sends
@@ -84,9 +93,12 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
     // an overridden verb just means this stub's method won't match the
     // finished call's on the next merge, same graceful fallback as any other
     // call whose shape changes between runs.
-    const rawMethod = m[1].toUpperCase();
+    const rawMethod = m[2].toUpperCase();
     const method =
-      rawMethod === "SSE" || rawMethod === "WS" || rawMethod === "IO"
+      rawMethod === "SSE" ||
+      rawMethod === "WS" ||
+      rawMethod === "IO" ||
+      rawMethod === "PGSQL"
         ? rawMethod
         : rawMethod === "STREAM"
           ? "POST"
@@ -121,9 +133,18 @@ export function analyzeScript(code: string, envVars: Record<string, string> = {}
     if (/^['"`]/.test(url) && url.length > 1) url = url.slice(1, -1);
     url = url.replace(/\$\{env\.(\w+)\}/g, (_, k) => envVars[k] || `[${k}]`);
     url = url.replace(/env\.(\w+)/g, (_, k) => envVars[k] || `[${k}]`);
-    url = url.replace(/[`'"]\s*\+\s*[`'"]/g, '');
-    url = url.replace(/\s*\+\s*/g, '');
-    url = url.replace(/[`'"]/g, '');
+    if (isSql) {
+      // A SQL statement is not a URL: the concatenation squashing below would
+      // eat an `a + b` in a SELECT list, and stripping quotes would strip the
+      // ones around a literal. `collapseSql` in `scriptRunner.ts` normalizes
+      // the run's statement the same way, so a literal query's stub and its
+      // finished call still pair up on this key.
+      url = url.replace(/\s+/g, ' ').trim();
+    } else {
+      url = url.replace(/[`'"]\s*\+\s*[`'"]/g, '');
+      url = url.replace(/\s*\+\s*/g, '');
+      url = url.replace(/[`'"]/g, '');
+    }
 
     calls.push({
       idx: calls.length,

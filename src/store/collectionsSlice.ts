@@ -3,8 +3,10 @@ import {
   INITIAL_COLLECTIONS,
   type Collection,
   type CollectionItem,
+  type DbConnection,
   type Environment,
 } from '@/lib/sampleData';
+import { newConnection } from '@/lib/dbConnection';
 import { descendantFolderIds } from '@/lib/collectionTree';
 
 const RECENT_LIMIT = 6;
@@ -33,6 +35,18 @@ function pushRecent(state: CollectionsState, id: string) {
 // Helper to find the collection containing a specific environment
 function findCollectionForEnv(state: CollectionsState, envId: string): Collection | undefined {
   return state.collections.find(c => c.environments.some(e => e.id === envId));
+}
+
+/** `connections` is optional on `Collection` (a collection saved before the DB
+ *  pane existed has none), so every reducer that writes one materializes the
+ *  array first rather than guarding at each use. */
+function connectionsOf(col: Collection): DbConnection[] {
+  col.connections ??= [];
+  return col.connections;
+}
+
+function findCollectionForConn(state: CollectionsState, connId: string): Collection | undefined {
+  return state.collections.find(c => (c.connections ?? []).some(x => x.id === connId));
 }
 
 /**
@@ -330,6 +344,46 @@ const collectionsSlice = createSlice({
       if (!src) return;
       col.environments.push({ id: nanoid(), name: `${src.name} Copy`, vars: { ...src.vars } });
     },
+    // --- Database Connection Reducers ---
+    setConnIdx(state, action: PayloadAction<{ collectionId: string; connIdx: number }>) {
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      if (col) col.connIdx = action.payload.connIdx;
+    },
+    addConnection(state, action: PayloadAction<{ collectionId: string; name: string }>) {
+      const col = state.collections.find((c) => c.id === action.payload.collectionId);
+      if (!col) return;
+      const list = connectionsOf(col);
+      list.push(newConnection(nanoid(), action.payload.name));
+      // A first connection becomes the active one — otherwise it would sit
+      // there configured and unused until the row was clicked.
+      if (list.length === 1) col.connIdx = 0;
+    },
+    updateConnection(
+      state,
+      action: PayloadAction<{ id: string; patch: Partial<Omit<DbConnection, 'id'>> }>,
+    ) {
+      const col = findCollectionForConn(state, action.payload.id);
+      if (!col) return;
+      const conn = (col.connections ?? []).find((c) => c.id === action.payload.id);
+      if (conn) Object.assign(conn, action.payload.patch);
+    },
+    removeConnection(state, action: PayloadAction<string>) {
+      const col = findCollectionForConn(state, action.payload);
+      if (!col) return;
+      const list = connectionsOf(col);
+      const idx = list.findIndex((c) => c.id === action.payload);
+      if (idx < 0) return;
+      list.splice(idx, 1);
+      if ((col.connIdx ?? 0) >= list.length) col.connIdx = Math.max(0, list.length - 1);
+    },
+    duplicateConnection(state, action: PayloadAction<string>) {
+      const col = findCollectionForConn(state, action.payload);
+      if (!col) return;
+      const list = connectionsOf(col);
+      const src = list.find((c) => c.id === action.payload);
+      if (!src) return;
+      list.push({ ...src, id: nanoid(), name: `${src.name} Copy` });
+    },
     mergeEnvironments(state, action: PayloadAction<{ collectionId: string; environments: Environment[] }>) {
       const col = state.collections.find((c) => c.id === action.payload.collectionId);
       if (!col) return;
@@ -400,6 +454,11 @@ export const {
   removeEnvironment,
   renameEnvironment,
   duplicateEnvironment,
+  setConnIdx,
+  addConnection,
+  updateConnection,
+  removeConnection,
+  duplicateConnection,
   mergeEnvironments,
   setVar,
   deleteVar,
@@ -484,3 +543,25 @@ export const selectActiveHooks = createSelector(
   [selectActiveCollection],
   (col) => ({ preRun: col?.preRun ?? '', postRun: col?.postRun ?? '' }),
 );
+
+// --- Database Connection Selectors ---
+
+const EMPTY_CONNECTIONS: DbConnection[] = [];
+
+export const selectConnections = (s: { collections: CollectionsState }) => {
+  const col = selectActiveCollection(s);
+  return col?.connections ?? EMPTY_CONNECTIONS;
+};
+
+export const selectConnIdx = (s: { collections: CollectionsState }) => {
+  const col = selectActiveCollection(s);
+  return col?.connIdx ?? 0;
+};
+
+/** The connection `api.query.pgsql` uses when a script names none. Null when
+ *  the collection has none saved, or `connIdx` points past the end — a stored
+ *  index outliving the row it pointed at must not resolve to a neighbour. */
+export const selectActiveConnection = (s: { collections: CollectionsState }) => {
+  const list = selectConnections(s);
+  return list[selectConnIdx(s)] ?? null;
+};

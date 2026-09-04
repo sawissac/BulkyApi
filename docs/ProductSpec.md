@@ -28,7 +28,7 @@ running underneath so nothing is lost if the window is widened.
 | Region | Purpose |
 |---|---|
 | **Activity Rail** (48px, far left) | Brand mark, active-environment badge, section tabs, run status, account/sync, display mode, Tweaks |
-| **Sidebar pane** | Body of the section picked in the rail: Requests, Envs, Vars, File |
+| **Sidebar pane** | Body of the section picked in the rail: Requests, Envs, Vars, DB, File |
 | **Middle Editor** | Monaco editor — write and edit automation scripts (TypeScript buffer, runs as JavaScript) |
 | **Right Panel** | Auto-built call cards; Cards / Waterfall / Docs views; console at the bottom |
 
@@ -39,6 +39,7 @@ The three panes are resizable. Rail tabs:
 | **Requests** | Collections, each holding request items |
 | **Envs** | Environments for the active collection |
 | **Vars** | Key–value pairs for the active environment |
+| **DB** | Saved Postgres connections for the active collection (§7.6) |
 | **File** | Save / import scripts and collections, cURL import, recent files |
 
 ### 2.1 Command Palette
@@ -75,6 +76,8 @@ await api.head(url, opts?)                 // headers only — no response body
 await api.sse(url, opts?, onEvent?)        // Server-Sent Events; returns { close() }
 await api.ws(url, opts?)                   // WebSocket; returns { send(), close() } (§3.10)
 await api.io(url, opts?, onEvent?)         // Socket.IO; returns { send(), emit(), close() } (§3.10)
+
+await api.query.pgsql(sql, params?, opts?) // raw SQL against Postgres (§3.11)
 ```
 
 Every verb also exists on **`api.server.*`** (`api.server.get(...)`, etc.), which
@@ -254,6 +257,74 @@ streams into the card's Response tab live — same idea as an SSE call (§5),
 shown as a flat timestamped log instead of per-event cards, with direction
 distinguishing sent from received.
 
+### 3.11 Raw SQL (Postgres)
+
+```ts
+const r = await api.query.pgsql(
+  'select id, name from users where org_id = $1 order by id',
+  [env.orgId],
+);
+console.log(r.rowCount, 'rows |', r.command, '|', r.duration + 'ms');
+```
+
+A browser cannot speak the Postgres wire protocol, so unlike an HTTP call —
+which only detours through the proxy when CORS demands it — every query
+travels through the app's own `/api/query/pgsql` route, which holds the pooled
+`pg` connections. There is no direct counterpart, and no `api.server.query`.
+
+The connection is configured in the sidebar's **DB pane** (§7.6), not in a
+script and not as an environment variable. A call that names none runs against
+whichever connection is marked active there; `opts.db` picks another by name:
+
+```ts
+await api.query.pgsql('select count(*) from events', [], { db: 'reporting' });
+```
+
+A name matching no saved connection fails the call rather than quietly falling
+back to a different database. Resolution order, first match wins:
+
+1. `opts.url` — a raw connection string written into the script.
+2. `opts.db` — the saved connection with that name (or id).
+3. The active connection in the DB pane.
+4. The environment's `DATABASE_URL` (`PG_URL`, `PGSQL_URL` and `POSTGRES_URL`
+   are accepted too, in any case and with or without underscores) — the last
+   resort, for a collection with no connection saved.
+
+`{{var}}` resolves in a connection string; it does **not** resolve inside the
+statement.
+
+| Option | Type | Notes |
+|---|---|---|
+| `db` | `string` | Name of a saved connection — overrides the active one |
+| `url` | `string` | Raw connection string — overrides `db` and the pane entirely |
+| `ssl` | `boolean \| 'no-verify'` | `true` verifies the server certificate; `'no-verify'` encrypts without verifying it, which is what a managed Postgres behind a self-signed pooler certificate needs. Omit to use the saved connection's own TLS setting |
+| `timeout` | `number` | Postgres `statement_timeout` in ms — defaults to 30 000, capped at 300 000 |
+
+Resolves to `{ rows, rowCount, command, fields, duration }`, plus `statements`
+(one entry per statement) when the text was a `;`-separated batch. Passing
+`params` switches the driver to the extended query protocol, which accepts
+exactly one statement — omit `params` to run a batch.
+
+Values belong in `params` as `$1`, `$2`, ...: the driver binds them out of band
+rather than splicing them into the statement. The statement itself is run
+verbatim — this is a database client, and a raw query feature that rewrote the
+query would have no purpose.
+
+A failed query **throws**, the way every Postgres client behaves; there is no
+`ok: false` result to inspect, since a database has no in-band error status the
+way an HTTP 500 is still a response. The card records the SQLSTATE `code`,
+plus `detail` / `hint` / `position` where Postgres supplies them. Wrap the call
+in `try/catch` when a failure is the expected outcome (§13).
+
+The call card shows the statement where an HTTP card shows its URL, and the
+Payload tab (§5) carries the SQL, the bound parameters, and the database it
+went to — as `postgres://user@host:port/db`, with the password stripped, since
+call records are persisted locally and synced (§11).
+
+> Aborting a run (§4.2) or hitting the per-call timeout (§4.3) ends this side's
+> wait, but the statement already running in Postgres is stopped only by the
+> backend's own `statement_timeout`.
+
 ---
 
 ## 4. Running a Script
@@ -316,7 +387,7 @@ Each card expands to these tabs:
 | **Response** | JSON tree viewer (Pretty / Raw / TS toggle). Non-JSON bodies render as indented XML / HTML (with a sandboxed **Preview** for HTML), plain text, or an inline image. |
 | **Headers** | Response headers as key–value pairs |
 | **Auth** | Auth method used, masked token / key |
-| **Payload** | Request headers and request body sent. A file upload (§3.7) lists field names and file sizes instead of a JSON dump. |
+| **Payload** | Request headers and request body sent. A file upload (§3.7) lists field names and file sizes instead of a JSON dump; a SQL call (§3.11) lists the statement, its bound parameters and the target database. |
 | **Status** | HTTP status code, duration, timestamp, host |
 | **Tests** | Recorded expectations for this call — only when the run made any (§3.5) |
 
@@ -422,6 +493,69 @@ env.token              // → masked in UI, sent as Bearer automatically
 Values assigned to `env.*` during a run appear in the **Extracted** panel and can
 be promoted into the active environment (see §3.4).
 
+### 7.6 Database Connections (DB pane)
+
+The **DB** tab holds the active collection's saved Postgres connections — what
+`api.query.pgsql` (§3.11) connects with. A connection is deliberately not an
+environment variable: a password is not something a URL should be able to
+interpolate as `{{var}}`.
+
+| Field | Notes |
+|---|---|
+| **Name** | What a script names in `{ db: '...' }`. Matched case- and space-insensitively |
+| **Host** / **Port** | Port defaults to 5432 |
+| **Database** | The database name, not the full URL |
+| **User** / **Password** | Password is masked until the eye control reveals it |
+| **TLS** | **Off** (no TLS), **Verify** (checks the server certificate), **No verify** (encrypts without checking it — what a managed Postgres behind a self-signed pooler needs) |
+
+Every edit saves as you type; there is no save button. Clicking a row makes it
+the active connection — the one a script gets when it names none.
+
+**Test connection** posts to `/api/query/pgsql/test`, a route that dials and
+nothing else — it accepts no statement, so there is none for the pane to
+compose or for the server to run on a caller's behalf. A reachable connection
+reports:
+
+| Reported | Why it is worth seeing |
+|---|---|
+| Dial time | A cold hosted connection takes hundreds of ms, a warm pooled one single digits |
+| Server version | Confirms which server answered |
+| Database and role | Where the DSN **actually** landed — a pooler that rewrites either shows up here instead of silently in a later query |
+| `encrypted` | Read back from `pg_stat_ssl`, so it is TLS confirmed rather than TLS requested. Omitted when the server will not say; that is never proof of an unencrypted link |
+
+An unreachable one reports the driver's own message — refused port, rejected
+credentials, a certificate the client would not accept. Either way the line
+truncates to the pane width, with the full text in its tooltip.
+
+A name-resolution failure gets a second look before it is reported, because
+`ENOTFOUND` alone is misleading: the driver resolves through the OS, which
+hides an IPv6 address from a machine with no IPv6 route and calls the host
+simply not found. The route re-queries DNS directly and says which it was:
+
+| Situation | Reported as |
+|---|---|
+| Only an AAAA record, no IPv4 route here | "publishes only an IPv6 address, which this machine has no route to" — use the host's IPv4 endpoint, on managed Postgres usually its **connection pooler** (different hostname, often a different port and username) |
+| No records at all | "does not resolve" — check the hostname, or whether the database is paused |
+| Resolves but refuses | "could not be reached" — check the port and any firewall |
+
+This applies to `api.query.pgsql` (§3.11) too, not just the test button.
+
+Both routes share one pool cache, so a successful test leaves a warm connection
+for the first query to borrow rather than paying the handshake twice.
+
+Pasting a `postgres://user:pass@host:5432/db` string into **Paste a connection
+string** fills every field from it, including `sslmode` if present — the fastest
+path from a hosted provider's copy button to a working connection. A string
+that is not a `postgres://` URL is left in the field with a hint rather than
+blanking the form.
+
+Connections are stored on the collection and sync with the account (§11) the
+same way environment variables do, passwords included — RLS keeps them to their
+owner. **Exporting a collection to a file blanks every password** (§8): the
+export is the copy most likely to be mailed or committed, and unlike the synced
+copy nothing protects it. An imported collection therefore arrives with its
+connections intact and one field to fill in.
+
 ---
 
 ## 8. File Actions
@@ -430,7 +564,7 @@ be promoted into the active environment (see §3.4).
 |---|---|
 | **Save Script** | Export the current editor buffer as `.js` |
 | **Import Script** | Load a `.js` file into the editor |
-| **Export Collection** | Save collections as JSON (`{ "collections": [...] }` wrapper) |
+| **Export Collection** | Save collections as JSON (`{ "collections": [...] }` wrapper). Saved database passwords (§7.6) are blanked on the way out |
 | **Import Collection** | Load collection JSON — a single object, an array, or the wrapped form |
 | **Import from cURL** | Paste a curl command to auto-generate a script |
 | **Recent** | Quick access to recently used files |
@@ -519,6 +653,14 @@ variables.
 - `api.ws` / `api.io` (§3.10) connect directly from the browser and never
   route through this proxy — a socket isn't a request/response the proxy
   could relay, and a native WebSocket doesn't hit CORS the way `fetch` does.
+- `api.query.pgsql` (§3.11) has its own route, `/api/query/pgsql`, rather than
+  riding this one: it opens a pooled Postgres connection instead of making a
+  fetch. It sits behind the same signed-in gate, and is trusted the same way —
+  both the connection string and the statement come from whoever is running
+  the app.
+- `/api/query/pgsql/test` is that route's sibling, behind the DB pane's **Test
+  connection** button (§7.6). It takes a connection string but no statement:
+  what it runs is fixed in the route. Both share one pool cache.
 
 ---
 
@@ -527,6 +669,8 @@ variables.
 | Scenario | Behavior |
 |---|---|
 | Network error | Card shows `err`, message in the console |
+| SQL error (§3.11) | Card shows the route's status, the console the message; SQLSTATE `code` / `detail` / `hint` / `position` land on the Response tab. The call throws, so the run stops unless it is caught |
+| Database unreachable (§3.11) | Card shows `502` and the driver's message, e.g. `connect ECONNREFUSED 127.0.0.1:5432`. A DNS failure is diagnosed further before it is reported — IPv6-only host, no such host, or reachable-but-refused (§7.6) |
 | HTTP 4xx / 5xx | Card shows the status code in red, expandable detail |
 | Script syntax error | Console shows `Script error: …`; no cards run |
 | Run stopped | In-flight call marked `Aborted by user`, script halts |
