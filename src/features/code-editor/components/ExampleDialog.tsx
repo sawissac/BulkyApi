@@ -225,7 +225,7 @@ export default function ExampleDialog({ example, onLoad, onClose }: Props) {
         className="flex max-h-[70vh] w-[min(600px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-3 py-1.5">
           <MethodPill method={example.method} />
           <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             {example.label}
@@ -242,14 +242,14 @@ export default function ExampleDialog({ example, onLoad, onClose }: Props) {
         </div>
 
         {/* Body — markdown */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 text-app-text">
+        <div className="flex-1 overflow-y-auto px-3 py-2 text-app-text">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD}>
             {example.markdown}
           </ReactMarkdown>
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-3 py-1.5">
           <button
             type="button"
             onClick={onClose}

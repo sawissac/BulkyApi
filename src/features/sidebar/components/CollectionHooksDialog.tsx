@@ -106,7 +106,7 @@ export default function CollectionHooksDialog({
         data-testid="collection-hooks-dialog-root"
         className="flex w-[min(640px,94vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-3 py-1.5">
           <BookCopy size={14} className="shrink-0 text-app-accent-dim" aria-hidden="true" />
           <span className="flex-1 truncate font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             {collectionName} · run hooks
@@ -122,7 +122,7 @@ export default function CollectionHooksDialog({
           </button>
         </div>
 
-        <div className="flex flex-col gap-3 px-4 py-3">
+        <div className="flex flex-col gap-3 px-3 py-2">
           <p className="font-description text-[11px] leading-relaxed text-app-dim">
             Both scripts run around <em>every</em> request in this collection —
             pre-run first (auth once, seed data), post-run last (cleanup). Pass
@@ -177,7 +177,7 @@ export default function CollectionHooksDialog({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-3 py-1.5">
           <button
             type="button"
             onClick={onClose}

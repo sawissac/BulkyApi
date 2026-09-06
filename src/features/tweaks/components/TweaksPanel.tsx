@@ -6,7 +6,12 @@ import {
   Check,
   Clock,
   Form,
+  Grid2x2,
+  LayoutTemplate,
+  Palette,
   PanelLeftRightDashed,
+  Rows2,
+  SlidersHorizontal,
   TvMinimal,
   X,
 } from "lucide-react";
@@ -65,6 +70,12 @@ const LAYOUT_OPTIONS: Array<{
     detail: "Response panel expands; editor narrows, sidebar stays slim.",
     Icon: Form,
   },
+  {
+    id: "stacked",
+    label: "Stacked",
+    detail: "Editor and response stack vertically beside the sidebar.",
+    Icon: Rows2,
+  },
 ];
 
 /** Sidebar/response-panel background choices — each `id` names one of the
@@ -82,7 +93,9 @@ const PATTERN_OPTIONS: Array<{ id: PatternStyle; label: string }> = [
 /** Forces every swatch to render at full strength, independent of the app's
  *  actual `--app-pattern-alpha` — a live setting turned down low would
  *  otherwise make the options themselves nearly indistinguishable. */
-const PATTERN_SWATCH_STYLE = { "--app-pattern-alpha": "1" } as React.CSSProperties;
+const PATTERN_SWATCH_STYLE = {
+  "--app-pattern-alpha": "1",
+} as React.CSSProperties;
 
 /** Corner-rounding class per pattern tile index, for the fixed single-row,
  *  4-column grid below — simpler than `THEME_CORNER_CLASS` since a 4-column
@@ -146,19 +159,51 @@ const ROW_BTN =
   "focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-0 " +
   "data-active:bg-app-accent-faint data-active:shadow-[inset_0_0_0_1.5px_var(--app-accent)]";
 
+/** The one-per-category entries of the left nav rail, in display order. Each
+ *  `key` gates one content section; `theme` is the section shown on open. */
+type SectionKey = "theme" | "layout" | "background" | "network";
+
+const SECTIONS: Array<{
+  key: SectionKey;
+  label: string;
+  Icon: React.ElementType;
+}> = [
+  { key: "theme", label: "Theme", Icon: Palette },
+  { key: "layout", label: "Layout", Icon: LayoutTemplate },
+  { key: "background", label: "Background", Icon: Grid2x2 },
+  { key: "network", label: "Network", Icon: SlidersHorizontal },
+];
+
+/**
+ * One nav-rail entry — icon plus label. No border of its own; the active entry
+ * takes the accent-faint fill and accent text, matching the segmented groups in
+ * the content pane. `ring-inset` keeps its focus ring from spilling over the
+ * rail's `border-r`.
+ */
+const NAV_BTN =
+  "group flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left font-title text-[11px] font-semibold uppercase tracking-[0.08em] text-app-dim " +
+  "transition-colors duration-200 hover:bg-app-hover hover:text-app-bright " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-app-accent " +
+  "data-active:bg-app-accent-faint data-active:text-app-accent";
+
 /**
  * Modal for the settings that reshape the whole app rather than one call:
- * color theme, layout preset, and the per-call timeout. Every change applies
- * immediately — there is no draft or Cancel, unlike {@link DisplayModeDialog} —
- * so the pill grid doubles as a live preview of whatever the user is pointing
- * at. Rendered by {@link ActivityRail} when the tweaks control is pressed.
+ * color theme, layout preset, background pattern, and the per-call timeout.
+ * Each category is a {@link SECTIONS} entry in a left nav rail; picking one
+ * swaps the right-hand content pane, only that section mounts at a time. Every
+ * change applies immediately — there is no draft or Cancel, unlike
+ * {@link DisplayModeDialog} — so the pill grid doubles as a live preview of
+ * whatever the user is pointing at. Rendered by {@link ActivityRail} when the
+ * tweaks control is pressed.
  *
  * @remarks
  * Status: stable — Type: overlay
  *
- * State & behavior: local state is only the call-timeout text field, kept
- * separate from the store so typing does not stutter waiting on the 400ms
- * debounce before `setCallTimeout` dispatches. Theme, layout and background-
+ * State & behavior: local state is the active nav section (`section`, seeded
+ * `'theme'`) and the call-timeout text field. `section` is not persisted —
+ * the panel unmounts on close, so it always reopens on Theme. The timeout
+ * field is kept separate from the store so typing does not stutter waiting on
+ * the 400ms debounce before `setCallTimeout` dispatches. Theme, layout and background-
  * pattern-style pills dispatch on click with no debounce; the pattern
  * intensity slider dispatches `setPatternOpacity` on every `input` event —
  * cheap enough (one CSS custom property write) that it needs no debounce
@@ -167,8 +212,13 @@ const ROW_BTN =
  * dispatching `setTweaksOpen(false)`; so does the footer's Done button.
  * Focus moves to the close button on mount.
  *
- * Variants: none of its own — the theme grid, layout list and pattern grid
- * each render one selected option among their choices, marked by
+ * Variants: none of its own. The left nav rail lists one {@link NAV_BTN} per
+ * {@link SECTIONS} entry (Theme / Layout / Background / Network), icon plus
+ * label; the active one takes `data-active` and `aria-current="page"` and the
+ * accent-faint fill. Its four content sections each mount only when selected,
+ * so they no longer stack behind `border-t` dividers — each owns just its
+ * `ui.label` heading and its control. The theme grid, layout list and pattern
+ * grid each render one selected option among their choices, marked by
  * `data-active` and `aria-pressed`. Theme is a grid of square tiles, each
  * filled with a diagonal gradient from that theme's actual accent color
  * (`Theme.cyan`) into a darker `color-mix` shade of the same color, so the
@@ -177,7 +227,7 @@ const ROW_BTN =
  * flat "no gradients" rule in `@/lib/ui` — scoped to these decorative
  * swatches only, the other being the pattern grid below. Layout
  * is a stacked list of full-width rows, each carrying a lucide icon
- * (`PanelLeftRightDashed`/`LaptopMinimal`/`Form`), a name, and a one-line
+ * (`PanelLeftRightDashed`/`TvMinimal`/`Form`/`Rows2`), a name, and a one-line
  * description of the resulting pane split; the selected row gets a trailing
  * `Check`. Background Pattern is a single-row, 4-column grid of tiles shaped
  * like the theme grid's — a swatch over a label, `Check` badge on the
@@ -210,23 +260,28 @@ const ROW_BTN =
  * corners. Each tile/row carries a faded `bg-app-hover` fill so the group
  * reads as one solid control block; hover swaps that fill to
  * `bg-app-selected` and the active member gets `bg-app-accent-faint` plus
- * the inset ring. Call Timeout stays a plain row below a `border-t` divider
- * since it is a single control, not a group.
+ * the inset ring. Call Timeout is a plain labelled field — a single control,
+ * not a group — filling the Network section on its own.
  *
- * Composition: renders no children. Reads `T` as an accepted prop only to keep
+ * Composition: renders no children. Two-pane body — a fixed-width `<nav>` rail
+ * (`w-40`, its own `border-r`) beside a `flex-1` scrollable content pane that
+ * shows the active section only. Reads `T` as an accepted prop only to keep
  * its signature consistent with the other panels {@link ActivityRail} composes
  * ({@link Sidebar}, {@link CollPane}); styling comes entirely from the `app-*`
  * theme tokens already mirrored onto `<html>`, not from `T` directly.
  *
- * Accessibility: `role="dialog"` with `aria-modal` and a label. Pills carry
+ * Accessibility: `role="dialog"` with `aria-modal` and a label. The nav rail
+ * is a `<nav aria-label="Settings sections">`; its entries are plain buttons
+ * carrying `aria-current="page"` on the active section. Pills carry
  * `aria-pressed` for their selected state. The timeout field is labelled by
  * the visible "Call Timeout" heading via `aria-labelledby`; the intensity
  * slider by a plain `<label htmlFor>` rather than `aria-labelledby`, since
  * "Intensity" belongs to it alone and isn't shared with a wider section like
  * "Call Timeout" is with its own field.
  *
- * Test ids: root `tweaks-panel-root`, close `tweaks-panel-close-button`, theme
- * pills `tweaks-panel-theme-button-<theme-id>`, theme swatch dots
+ * Test ids: root `tweaks-panel-root`, close `tweaks-panel-close-button`, nav
+ * entries `tweaks-panel-nav-<section>` (`theme`/`layout`/`background`/`network`),
+ * theme pills `tweaks-panel-theme-button-<theme-id>`, theme swatch dots
  * `tweaks-panel-theme-swatch-<theme-id>`, layout pills
  * `tweaks-panel-layout-button-<layout-id>`, pattern pills
  * `tweaks-panel-pattern-button-<pattern-id>`, pattern swatches
@@ -240,6 +295,8 @@ const ROW_BTN =
  * `app-*` theme tokens only.
  *
  * Edge cases:
+ * - The nav section is local state on an unmounting panel, so it always
+ *   reopens on Theme regardless of which section was last viewed.
  * - Clearing the timeout field or pressing "clear" both resolve to `0`
  *   (no limit), not `undefined`.
  * - A non-numeric paste is coerced to `0` on the trailing dispatch, though the
@@ -272,6 +329,8 @@ export default function TweaksPanel({}: TweaksPanelProps) {
   );
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+
+  const [section, setSection] = useState<SectionKey>("theme");
 
   const close = () => dispatch(setTweaksOpen(false));
 
@@ -308,9 +367,9 @@ export default function TweaksPanel({}: TweaksPanelProps) {
         aria-modal="true"
         aria-label="Settings"
         data-testid="tweaks-panel-root"
-        className="flex max-h-[min(680px,90vh)] w-[min(560px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
+        className="flex h-[min(560px,88vh)] w-[min(680px,94vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b-2 border-app-border-mid px-5 py-3">
+        <div className="flex shrink-0 items-center gap-2 border-b-2 border-app-border-mid px-4 py-1.5">
           <span className="flex-1 font-title text-[13px] font-semibold uppercase tracking-[0.04em] text-app-bright">
             Settings
           </span>
@@ -326,176 +385,210 @@ export default function TweaksPanel({}: TweaksPanelProps) {
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
-          <div>
-            <div className={`${ui.label} mb-2`}>Color Theme</div>
-            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-app-border bg-app-border sm:grid-cols-5">
-              {THEME_OPTIONS.map(({ id, label }, index) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => dispatch(setTheme(id))}
-                  aria-pressed={theme === id}
-                  data-active={theme === id || undefined}
-                  data-testid={`tweaks-panel-theme-button-${id}`}
-                  className={`${SWATCH_BTN} ${THEME_CORNER_CLASS[index] ?? ""}`}
-                >
-                  <span className="relative block h-9 w-full shrink-0 overflow-hidden rounded-sm border border-black/15">
-                    <span
-                      aria-hidden="true"
-                      data-testid={`tweaks-panel-theme-swatch-${id}`}
-                      className="absolute inset-0"
-                      style={{
-                        background: `linear-gradient(135deg, ${THEMES[id].cyan}, color-mix(in srgb, ${THEMES[id].cyan} 55%, black))`,
-                      }}
-                    />
-                    {theme === id && (
-                      <Check
-                        size={13}
-                        aria-hidden="true"
-                        className="absolute right-0.5 top-0.5 rounded-full bg-black/40 p-0.5 text-white"
-                      />
-                    )}
-                  </span>
-                  <span className="font-title text-[10px] font-semibold uppercase tracking-[0.06em] text-app-dim group-data-active:text-app-accent">
-                    {label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className={`${ui.label} mb-2`}>Layout</div>
-            <div className="flex flex-col divide-y divide-app-border overflow-hidden rounded-lg border border-app-border">
-              {LAYOUT_OPTIONS.map(({ id, label, detail, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => dispatch(setLayout(id))}
-                  aria-pressed={layout === id}
-                  data-active={layout === id || undefined}
-                  data-testid={`tweaks-panel-layout-button-${id}`}
-                  className={ROW_BTN}
-                >
-                  <Icon
-                    size={16}
-                    aria-hidden="true"
-                    className="shrink-0 text-app-dim group-data-active:text-app-accent"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-title text-[11px] font-semibold uppercase tracking-[0.06em] text-app-bright">
-                      {label}
-                    </span>
-                    <span className="mt-0.5 block font-description text-[11px] leading-snug text-app-dim">
-                      {detail}
-                    </span>
-                  </span>
-                  {layout === id && (
-                    <Check
-                      size={14}
-                      aria-hidden="true"
-                      className="shrink-0 text-app-accent"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-app-border pt-4">
-            <div className={`${ui.label} mb-2`}>Background Pattern</div>
-            <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border border-app-border bg-app-border">
-              {PATTERN_OPTIONS.map(({ id, label }, index) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => dispatch(setPatternStyle(id))}
-                  aria-pressed={patternStyle === id}
-                  data-active={patternStyle === id || undefined}
-                  data-testid={`tweaks-panel-pattern-button-${id}`}
-                  className={`${SWATCH_BTN} ${PATTERN_CORNER_CLASS[index] ?? ""}`}
-                >
-                  <span
-                    aria-hidden="true"
-                    data-testid={`tweaks-panel-pattern-swatch-${id}`}
-                    className={`relative block h-9 w-full shrink-0 overflow-hidden rounded-sm border border-app-border bg-app-sidebar ${
-                      id === "none" ? "" : `app-panel-texture--${id}`
-                    }`}
-                    style={id === "none" ? undefined : PATTERN_SWATCH_STYLE}
-                  >
-                    {patternStyle === id && (
-                      <Check
-                        size={13}
-                        aria-hidden="true"
-                        className="absolute right-0.5 top-0.5 rounded-full bg-black/40 p-0.5 text-white"
-                      />
-                    )}
-                  </span>
-                  <span className="font-title text-[10px] font-semibold uppercase tracking-[0.06em] text-app-dim group-data-active:text-app-accent">
-                    {label}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {patternStyle !== "none" && (
-              <div className="mt-3 flex items-center gap-2.5">
-                <label
-                  htmlFor="tweaks-panel-pattern-opacity-input"
-                  className="font-description text-[11px] text-app-dim"
-                >
-                  Intensity
-                </label>
-                <input
-                  id="tweaks-panel-pattern-opacity-input"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={patternOpacity}
-                  onChange={(e) =>
-                    dispatch(setPatternOpacity(Number(e.target.value)))
-                  }
-                  data-testid="tweaks-panel-pattern-opacity-input"
-                  className="h-1.5 flex-1 accent-app-accent"
+        <div className="flex min-h-0 flex-1">
+          <nav
+            aria-label="Settings sections"
+            className="flex w-40 shrink-0 flex-col gap-0.5 overflow-y-auto border-r-2 border-app-border-mid p-2"
+          >
+            {SECTIONS.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSection(key)}
+                aria-current={section === key ? "page" : undefined}
+                data-active={section === key || undefined}
+                data-testid={`tweaks-panel-nav-${key}`}
+                className={NAV_BTN}
+              >
+                <Icon
+                  size={14}
+                  aria-hidden="true"
+                  className="shrink-0 text-app-dim group-data-active:text-app-accent"
                 />
-                <span className={`${ui.meta} w-8 text-right`}>
-                  {patternOpacity}%
-                </span>
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-3">
+            {section === "theme" && (
+              <div>
+                <div className={`${ui.label} mb-2`}>Color Theme</div>
+                <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-app-border bg-app-border sm:grid-cols-5">
+                  {THEME_OPTIONS.map(({ id, label }, index) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => dispatch(setTheme(id))}
+                      aria-pressed={theme === id}
+                      data-active={theme === id || undefined}
+                      data-testid={`tweaks-panel-theme-button-${id}`}
+                      className={`${SWATCH_BTN} ${THEME_CORNER_CLASS[index] ?? ""}`}
+                    >
+                      <span className="relative block h-9 w-full shrink-0 overflow-hidden rounded-sm border border-black/15">
+                        <span
+                          aria-hidden="true"
+                          data-testid={`tweaks-panel-theme-swatch-${id}`}
+                          className="absolute inset-0"
+                          style={{
+                            background: `linear-gradient(135deg, ${THEMES[id].cyan}, color-mix(in srgb, ${THEMES[id].cyan} 55%, black))`,
+                          }}
+                        />
+                        {theme === id && (
+                          <Check
+                            size={13}
+                            aria-hidden="true"
+                            className="absolute right-0.5 top-0.5 rounded-full bg-black/40 p-0.5 text-white"
+                          />
+                        )}
+                      </span>
+                      <span className="font-title text-[10px] font-semibold uppercase tracking-[0.06em] text-app-dim group-data-active:text-app-accent">
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {section === "layout" && (
+              <div>
+                <div className={`${ui.label} mb-2`}>Layout</div>
+                <div className="flex flex-col divide-y divide-app-border overflow-hidden rounded-lg border border-app-border">
+                  {LAYOUT_OPTIONS.map(({ id, label, detail, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => dispatch(setLayout(id))}
+                      aria-pressed={layout === id}
+                      data-active={layout === id || undefined}
+                      data-testid={`tweaks-panel-layout-button-${id}`}
+                      className={ROW_BTN}
+                    >
+                      <Icon
+                        size={16}
+                        aria-hidden="true"
+                        className="shrink-0 text-app-dim group-data-active:text-app-accent"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-title text-[11px] font-semibold uppercase tracking-[0.06em] text-app-bright">
+                          {label}
+                        </span>
+                        <span className="mt-0.5 block font-description text-[11px] leading-snug text-app-dim">
+                          {detail}
+                        </span>
+                      </span>
+                      {layout === id && (
+                        <Check
+                          size={14}
+                          aria-hidden="true"
+                          className="shrink-0 text-app-accent"
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {section === "background" && (
+              <div>
+                <div className={`${ui.label} mb-2`}>Background Pattern</div>
+                <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border border-app-border bg-app-border">
+                  {PATTERN_OPTIONS.map(({ id, label }, index) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => dispatch(setPatternStyle(id))}
+                      aria-pressed={patternStyle === id}
+                      data-active={patternStyle === id || undefined}
+                      data-testid={`tweaks-panel-pattern-button-${id}`}
+                      className={`${SWATCH_BTN} ${PATTERN_CORNER_CLASS[index] ?? ""}`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        data-testid={`tweaks-panel-pattern-swatch-${id}`}
+                        className={`relative block h-9 w-full shrink-0 overflow-hidden rounded-sm border border-app-border bg-app-sidebar ${
+                          id === "none" ? "" : `app-panel-texture--${id}`
+                        }`}
+                        style={id === "none" ? undefined : PATTERN_SWATCH_STYLE}
+                      >
+                        {patternStyle === id && (
+                          <Check
+                            size={13}
+                            aria-hidden="true"
+                            className="absolute right-0.5 top-0.5 rounded-full bg-black/40 p-0.5 text-white"
+                          />
+                        )}
+                      </span>
+                      <span className="font-title text-[10px] font-semibold uppercase tracking-[0.06em] text-app-dim group-data-active:text-app-accent">
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {patternStyle !== "none" && (
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <label
+                      htmlFor="tweaks-panel-pattern-opacity-input"
+                      className="font-description text-[11px] text-app-dim"
+                    >
+                      Intensity
+                    </label>
+                    <input
+                      id="tweaks-panel-pattern-opacity-input"
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={patternOpacity}
+                      onChange={(e) =>
+                        dispatch(setPatternOpacity(Number(e.target.value)))
+                      }
+                      data-testid="tweaks-panel-pattern-opacity-input"
+                      className="h-1.5 flex-1 accent-app-accent"
+                    />
+                    <span className={`${ui.meta} w-8 text-right`}>
+                      {patternOpacity}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {section === "network" && (
+              <div>
+                <div
+                  id="tweaks-panel-timeout-label"
+                  className={`${ui.label} mb-2.5`}
+                >
+                  Call Timeout
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    icon={Clock}
+                    type="number"
+                    min={0}
+                    step={500}
+                    value={localTimeout}
+                    onChange={(e) => handleTimeoutChange(e.target.value)}
+                    onClear={() => {
+                      setLocalTimeout("");
+                      dispatch(setCallTimeout(0));
+                    }}
+                    placeholder="Enter timeout in ms…"
+                    aria-labelledby="tweaks-panel-timeout-label"
+                    data-testid="tweaks-panel-timeout-input"
+                    className="font-mono"
+                  />
+                  <span className={ui.meta}>ms</span>
+                </div>
               </div>
             )}
           </div>
-
-          <div className="border-t border-app-border pt-4">
-            <div
-              id="tweaks-panel-timeout-label"
-              className={`${ui.label} mb-2.5`}
-            >
-              Call Timeout
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                icon={Clock}
-                type="number"
-                min={0}
-                step={500}
-                value={localTimeout}
-                onChange={(e) => handleTimeoutChange(e.target.value)}
-                onClear={() => {
-                  setLocalTimeout("");
-                  dispatch(setCallTimeout(0));
-                }}
-                placeholder="Enter timeout in ms…"
-                aria-labelledby="tweaks-panel-timeout-label"
-                data-testid="tweaks-panel-timeout-input"
-                className="font-mono"
-              />
-              <span className={ui.meta}>ms</span>
-            </div>
-          </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end border-t-2 border-app-border-mid px-5 py-3">
+        <div className="flex shrink-0 items-center justify-end border-t-2 border-app-border-mid px-4 py-1.5">
           <button
             type="button"
             onClick={close}

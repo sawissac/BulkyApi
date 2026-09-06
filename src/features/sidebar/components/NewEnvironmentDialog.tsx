@@ -84,7 +84,7 @@ export default function NewEnvironmentDialog({ onCreate, onClose }: NewEnvironme
         data-testid="new-environment-dialog-root"
         className="flex w-[min(380px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-3 py-1.5">
           <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             New environment
           </span>
@@ -99,7 +99,7 @@ export default function NewEnvironmentDialog({ onCreate, onClose }: NewEnvironme
           </button>
         </div>
 
-        <div className="px-4 py-3">
+        <div className="px-3 py-2">
           <Input
             ref={inputRef}
             icon={Plus}
@@ -115,7 +115,7 @@ export default function NewEnvironmentDialog({ onCreate, onClose }: NewEnvironme
           />
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-3 py-1.5">
           <button
             type="button"
             onClick={onClose}

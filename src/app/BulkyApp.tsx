@@ -47,10 +47,14 @@ const LAYOUT_SIZES = {
   balanced: { side: "25%", editor: "50%", resp: "25%" },
   "editor-focus": { side: "18%", editor: "64%", resp: "18%" },
   "response-focus": { side: "18%", editor: "32%", resp: "50%" },
+  // `editor`/`resp` split the right column's height (editor top, response
+  // bottom) instead of the row's width the other three presets use them for.
+  stacked: { side: "20%", editor: "60%", resp: "40%" },
 } as const;
 
 const HANDLE =
   "w-3 bg-transparent text-app-border transition-colors duration-200 hover:text-app-border-accent " +
+  "aria-[orientation=horizontal]:h-3 " +
   "data-[resize-handle-active]:text-app-accent [&>div]:h-8 [&>div]:w-[3px] [&>div]:rounded-full [&>div]:bg-current";
 
 const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border";
@@ -90,8 +94,12 @@ const PANE = "h-full w-full overflow-hidden rounded-xl border border-app-border"
  * the app, not just its own footer button.
  *
  * Variants: pane sizes follow the `layout` setting — `balanced`,
- * `editor-focus`, `response-focus`. Changing it remounts the panel group by
- * key, which is what resets panes a user has dragged.
+ * `editor-focus`, `response-focus` all arrange sidebar/editor/response in one
+ * horizontal row, differing only in width split. `stacked` instead nests a
+ * second, vertical {@link ResizablePanelGroup} inside the row's right-hand
+ * panel, so the editor sits above the response panel rather than beside it;
+ * the sidebar panel is unchanged. Changing `layout` remounts the outer panel
+ * group by key, which is what resets panes a user has dragged.
  *
  * Composition: renders {@link ActivityRail}, {@link Sidebar},
  * {@link CodeEditor}, {@link ResponsePanel} and, when open,
@@ -303,31 +311,68 @@ export default function BulkyApp() {
             </div>
           </ResizablePanel>
           <ResizableHandle withHandle className={HANDLE} />
-          <ResizablePanel defaultSize={L.editor} minSize="25%">
-            <div className={PANE}>
-              <CodeEditor
-                T={T}
-                onRun={onRun}
-                onNext={onNext}
-                onStop={onStop}
-                running={running}
-                paused={paused}
-                onSendSocketMessage={sendSocketMessage}
-                onCloseSocket={closeSocketConnection}
-              />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle withHandle className={HANDLE} />
-          <ResizablePanel defaultSize={L.resp} minSize="15%" maxSize="70%">
-            <div className={PANE}>
-              <ResponsePanel
-                T={T}
-                stepMode={stepMode}
-                running={running}
-                onToggleStep={() => dispatch(setStepMode(!stepMode))}
-              />
-            </div>
-          </ResizablePanel>
+          {layout === "stacked" ? (
+            <ResizablePanel
+              defaultSize={`${100 - parseInt(L.side, 10)}%`}
+              minSize="30%"
+            >
+              <ResizablePanelGroup orientation="vertical" className="h-full">
+                <ResizablePanel defaultSize={L.editor} minSize="20%">
+                  <div className={PANE}>
+                    <CodeEditor
+                      T={T}
+                      onRun={onRun}
+                      onNext={onNext}
+                      onStop={onStop}
+                      running={running}
+                      paused={paused}
+                      onSendSocketMessage={sendSocketMessage}
+                      onCloseSocket={closeSocketConnection}
+                    />
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle className={HANDLE} />
+                <ResizablePanel defaultSize={L.resp} minSize="15%">
+                  <div className={PANE}>
+                    <ResponsePanel
+                      T={T}
+                      stepMode={stepMode}
+                      running={running}
+                      onToggleStep={() => dispatch(setStepMode(!stepMode))}
+                    />
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          ) : (
+            <>
+              <ResizablePanel defaultSize={L.editor} minSize="25%">
+                <div className={PANE}>
+                  <CodeEditor
+                    T={T}
+                    onRun={onRun}
+                    onNext={onNext}
+                    onStop={onStop}
+                    running={running}
+                    paused={paused}
+                    onSendSocketMessage={sendSocketMessage}
+                    onCloseSocket={closeSocketConnection}
+                  />
+                </div>
+              </ResizablePanel>
+              <ResizableHandle withHandle className={HANDLE} />
+              <ResizablePanel defaultSize={L.resp} minSize="15%" maxSize="70%">
+                <div className={PANE}>
+                  <ResponsePanel
+                    T={T}
+                    stepMode={stepMode}
+                    running={running}
+                    onToggleStep={() => dispatch(setStepMode(!stepMode))}
+                  />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </main>
 

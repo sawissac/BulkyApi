@@ -108,7 +108,7 @@ export default function ImportCollectionDialog({ onImport, onClose }: ImportColl
         data-testid="import-collection-dialog-root"
         className="flex w-[min(420px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-3 py-1.5">
           <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             Import collection
           </span>
@@ -124,7 +124,7 @@ export default function ImportCollectionDialog({ onImport, onClose }: ImportColl
           </button>
         </div>
 
-        <div className="flex flex-col gap-2.5 px-4 py-3">
+        <div className="flex flex-col gap-2.5 px-3 py-2">
           <button
             type="button"
             onClick={handleChoose}
@@ -149,7 +149,7 @@ export default function ImportCollectionDialog({ onImport, onClose }: ImportColl
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-app-border px-3 py-1.5">
           <button
             type="button"
             onClick={onClose}

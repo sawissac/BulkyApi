@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { ThemeKey } from '@/lib/themes';
 import { removeItem } from './collectionsSlice';
 
-export type LayoutKey = 'balanced' | 'editor-focus' | 'response-focus';
+export type LayoutKey = 'balanced' | 'editor-focus' | 'response-focus' | 'stacked';
 export type ResponseView = 'cards' | 'waterfall' | 'docs';
 export type SidebarTab = 'collections' | 'env' | 'vars' | 'db' | 'file';
 export type DisplayMode = 'browser' | 'fullscreen';

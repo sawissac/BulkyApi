@@ -29,6 +29,7 @@ import {
   PanelLeftRightDashed,
   TvMinimal,
   Form,
+  Rows2,
   Code2,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
@@ -111,7 +112,7 @@ const ACTION_BTN =
  *  floating segmented block. */
 const GROUP_BOX = "gap-0.5";
 
-/** The footer's compact layout switcher — same three {@link LayoutKey}
+/** The footer's compact layout switcher — same four {@link LayoutKey}
  *  values and icons as `TweaksPanel`'s full-size `LAYOUT_OPTIONS` list, just
  *  without the label/detail text a `TOOL_BTN`-sized icon has no room for. */
 const LAYOUT_TOOL_OPTIONS: Array<{
@@ -122,6 +123,7 @@ const LAYOUT_TOOL_OPTIONS: Array<{
   { id: "balanced", label: "Balanced layout", Icon: PanelLeftRightDashed },
   { id: "editor-focus", label: "Editor Focus layout", Icon: TvMinimal },
   { id: "response-focus", label: "Response Focus layout", Icon: Form },
+  { id: "stacked", label: "Stacked layout", Icon: Rows2 },
 ];
 
 type Props = {
@@ -232,7 +234,7 @@ type Props = {
  * leads with the active item's {@link MethodPill} (omitted for Scratch Pad),
  * then two icon-only `ButtonGroup`s split by a hairline divider: Format/
  * Examples/Search first, then the layout switcher (`LAYOUT_TOOL_OPTIONS` —
- * the same three {@link LayoutKey} values and icons as `TweaksPanel`'s full
+ * the same four {@link LayoutKey} values and icons as `TweaksPanel`'s full
  * Layout section, `data-active`/`aria-pressed` marking the current one).
  * Every footer button (Format/Examples/Search, the layout switcher) is
  * icon-only and unlabeled by design — a `Tooltip` carries the name on
@@ -258,7 +260,7 @@ type Props = {
  * their own `aria-haspopup`/`aria-controls` wiring and Escape/outside-click
  * dismissal with focus returned to the trigger. Picker rows are plain
  * buttons reachable by their visible name. Every icon-only footer button
- * (Format/Examples/Search, the three layout buttons) carries an
+ * (Format/Examples/Search, the four layout buttons) carries an
  * `aria-label` and a `Tooltip`, since none render visible text; the layout
  * buttons additionally set `aria-pressed` for the active one. The language
  * indicator needs neither — its text is already visible.
@@ -1047,7 +1049,7 @@ export default function CodeEditor({
           aria-hidden="true"
         />
 
-        {/* Layout switcher — same three LayoutKey values TweaksPanel's full
+        {/* Layout switcher — same four LayoutKey values TweaksPanel's full
             Layout section offers, as a compact icon-only segmented group so
             switching doesn't need a trip through Tweaks. */}
         <ButtonGroup className={GROUP_BOX}>

@@ -129,7 +129,7 @@ export default function DisplayModeDialog({
         data-testid="display-mode-dialog-root"
         className="flex w-[min(400px,92vw)] animate-[fadeUp_0.18s_ease] flex-col overflow-hidden rounded-lg border-2 border-app-border-mid bg-app-panel"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border px-3 py-1.5">
           <span className="flex-1 font-title text-[13px] font-semibold tracking-[-0.01em] text-app-bright">
             Display mode
           </span>
@@ -144,7 +144,7 @@ export default function DisplayModeDialog({
           </button>
         </div>
 
-        <div className="px-4 py-3">
+        <div className="px-3 py-2">
           <div className="flex flex-col divide-y divide-app-border overflow-hidden rounded-lg border border-app-border">
             {OPTIONS.map(({ id, label, detail, Icon }) => (
               <button
@@ -155,7 +155,7 @@ export default function DisplayModeDialog({
                 aria-pressed={draft === id}
                 data-selected={draft === id || undefined}
                 data-testid={`display-mode-dialog-option-${id}`}
-                className="group relative flex items-start gap-2.5 bg-app-hover px-3 py-2 text-left first:rounded-t-md last:rounded-b-md transition-colors duration-200 hover:bg-app-selected focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-0 data-selected:bg-app-accent-faint data-selected:shadow-[inset_0_0_0_1.5px_var(--app-accent)]"
+                className="group relative flex items-start gap-2.5 bg-app-hover px-2.5 py-1.5 text-left first:rounded-t-md last:rounded-b-md transition-colors duration-200 hover:bg-app-selected focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-0 data-selected:bg-app-accent-faint data-selected:shadow-[inset_0_0_0_1.5px_var(--app-accent)]"
               >
                 <Icon
                   size={15}
@@ -182,7 +182,7 @@ export default function DisplayModeDialog({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-app-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-app-border px-3 py-1.5">
           <span className="text-[10px] text-app-dim">
             Applies now. Reloading returns to URL view.
           </span>
@@ -191,7 +191,7 @@ export default function DisplayModeDialog({
               type="button"
               onClick={onClose}
               data-testid="display-mode-dialog-cancel-button"
-              className="h-8 rounded-md border border-app-border bg-transparent px-3.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+              className="h-7 rounded-md border border-app-border bg-transparent px-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-app-dim transition-colors duration-200 hover:bg-app-hover hover:text-app-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
             >
               Cancel
             </button>
@@ -199,7 +199,7 @@ export default function DisplayModeDialog({
               type="button"
               onClick={() => onConfirm(draft)}
               data-testid="display-mode-dialog-done-button"
-              className="h-8 rounded-md border-0 bg-app-accent px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
+              className="h-7 rounded-md border-0 bg-app-accent px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-app-on-solid transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
             >
               Done
             </button>
