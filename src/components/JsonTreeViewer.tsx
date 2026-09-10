@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import Highlighter from "react-highlight-words";
 import type { Theme } from "@/lib/themes";
 import {
@@ -339,7 +339,7 @@ function childSlots(
  * <JNode data={JSON.parse(body)} T={T} query="userId" activeIndex={2} openAll />
  * ```
  */
-export default function JNode({
+function JNodeInner({
   data,
   depth = 0,
   T,
@@ -486,3 +486,14 @@ export default function JNode({
     </span>
   );
 }
+
+/**
+ * Memoized so a parent's unrelated re-render — a copy-button flash, a match
+ * step, a keystroke elsewhere in the app — does not walk the whole tree
+ * again. Every prop is either a stable reference (`data` subtree, `T`) or a
+ * primitive, and recursion goes through this memoized identity rather than
+ * the inner function, so an unchanged branch stops the re-render at its root.
+ */
+const JNode = memo(JNodeInner);
+
+export default JNode;

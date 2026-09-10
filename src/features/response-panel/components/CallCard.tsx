@@ -8,6 +8,8 @@ import {
   DatabaseZap,
   TerminalSquare,
   Check,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import type { Theme } from "@/lib/themes";
 import type { ApiCall, Assertion } from "@/lib/types";
@@ -48,6 +50,12 @@ type Props = {
   call: ApiCall;
   /** Whether the detail panel starts expanded. @defaultValue false */
   defaultOpen?: boolean;
+  /** Whether this row is the only one shown, filling the pane. Forces the
+   *  detail panel open and drops the 500px body cap. @defaultValue false */
+  focused?: boolean;
+  /** Fires when the focus (expand / collapse) control is clicked — the owner
+   *  decides which call, if any, takes over the pane. */
+  onToggleFocus?: () => void;
 };
 
 /** Detail-tab container: bordered, clipped so the five tabs read as one
@@ -121,6 +129,9 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  * State & behavior: three pieces of local state — whether the panel is `open`,
  * the active detail `tab` (defaulting to **Table** for a `PGSQL` call, else
  * **Response**), and a 1.5s "copied" flash on the Copy-as-cURL button.
+ * Focus is *not* local: the header's focus control only calls
+ * `onToggleFocus`, and the owner feeds the answer back as `focused`, so one
+ * call at a time can hold the pane.
  * Everything shown is read from the `call` prop; the only dispatch is
  * `toggleCallCache` from the cache pill. The detail panel mounts only once
  * `open` and the call has left `idle`. For an SSE/`api.stream` call, the
@@ -129,7 +140,11 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  * at (or within 24px of) the bottom; a ref (not state, since it drives no
  * render) tracks that without re-rendering on every scroll tick.
  *
- * Variants: idle / pending / success / error drive the left border, progress
+ * Variants: focused / unfocused changes the card's geometry — focused, the
+ * row stretches to its container's full height, the detail panel is forced
+ * open (`open` state ignored), its body loses the 500px cap and grows into
+ * the leftover space, and the chevron is dropped since collapsing is no
+ * longer reachable. idle / pending / success / error drive the left border, progress
  * bar and trailing status glyph. A `cache`-flagged call with a stored response
  * shows the cache pill; a call carrying `assertions` shows a pass/fail badge in
  * the header and an extra **Tests** tab. A `PGSQL` call gets an extra
@@ -142,12 +157,14 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  * {@link HeadTab}, {@link AuthTab}, {@link PayloadTab}, {@link StatusTab},
  * plus an inline Tests list).
  *
- * Accessibility: the header is a click target; the cache and cURL controls stop
- * propagation so they don't also toggle the panel. Icon-only controls carry a
- * tooltip label.
+ * Accessibility: the header is a click target; the cache, cURL and focus
+ * controls stop propagation so they don't also toggle the panel. Icon-only
+ * controls carry a tooltip label, and the focus toggle reports its state via
+ * `aria-pressed`.
  *
  * Test ids: root `call-card` / `call-card-<idx>`, copy-cURL button
- * `call-card-copy-curl-button`, tab buttons `call-card-tab-<id>`.
+ * `call-card-copy-curl-button`, focus toggle `call-card-focus-button`, tab
+ * buttons `call-card-tab-<id>`.
  *
  * CSS classes: none — inline theme values, matching the rest of the pane.
  *
@@ -160,6 +177,8 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  *   statement run over a database connection has no `curl` equivalent.
  * - A failed clipboard write leaves the button in its idle state, no error.
  * - Assertions recorded before the first call attach to that first call.
+ * - Focusing a still-`idle` call shows the full-height "run the script" note
+ *   rather than a detail panel — there is nothing recorded to fill it.
  *
  * Dependencies: `lucide-react`, `react-redux`, `@/lib/toCurl`,
  * `@/lib/callMatch`, `@/store/runnerSlice`.
@@ -167,13 +186,26 @@ function AssertionRows({ T, items }: { T: Theme; items: Assertion[] }) {
  * @example
  * ```tsx
  * <CallCard T={theme} call={builtCalls[0]} defaultOpen />
+ * <CallCard
+ *   T={theme}
+ *   call={builtCalls[2]}
+ *   focused
+ *   onToggleFocus={() => setFocusedIdx(null)}
+ * />
  * ```
  *
  * @see {@link RespTab}
  */
-export default function CallCard({ T, call, defaultOpen }: Props) {
+export default function CallCard({
+  T,
+  call,
+  defaultOpen,
+  focused,
+  onToggleFocus,
+}: Props) {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(defaultOpen ?? false);
+  const isOpen = focused === true || open;
   const [tab, setTab] = useState<DetailTab>(
     call.method === "PGSQL" ? "table" : "response",
   );
@@ -191,11 +223,11 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
   const eventCount =
     (call.sseEvents?.length ?? 0) + (call.wsEvents?.length ?? 0);
   useEffect(() => {
-    if (!open || tab !== "response" || (!call.isSse && !call.isWs)) return;
+    if (!isOpen || tab !== "response" || (!call.isSse && !call.isWs)) return;
     const el = detailBodyRef.current;
     if (!el || !stickToBottomRef.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [open, tab, call.isSse, call.isWs, eventCount]);
+  }, [isOpen, tab, call.isSse, call.isWs, eventCount]);
 
   const asserts = call.assertions ?? [];
   const failedCount = asserts.filter((a) => !a.ok).length;
@@ -214,7 +246,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
 
   const sc = statusColor(call.statusCode, T);
 
-  const borderColor = open
+  const borderColor = isOpen
     ? T.cyan
     : call.status === "success"
       ? `${T.success}70`
@@ -246,6 +278,14 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
       style={{
         animation: "fadeUp 0.2s ease both",
         transition: "all 0.15s",
+        ...(focused
+          ? {
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              minHeight: 0,
+            }
+          : null),
       }}
     >
       {/* Note block */}
@@ -283,22 +323,23 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
 
       {/* Header row */}
       <div
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(!isOpen)}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 7,
+          flexShrink: 0,
           padding: "8px 12px",
           cursor: "pointer",
           borderLeft: `3px solid ${borderColor}`,
-          background: open ? T.bgSelected : "transparent",
+          background: isOpen ? T.bgSelected : "transparent",
           transition: "all 0.15s",
         }}
         onMouseEnter={(e) => {
-          if (!open) e.currentTarget.style.background = T.bgHover;
+          if (!isOpen) e.currentTarget.style.background = T.bgHover;
         }}
         onMouseLeave={(e) => {
-          if (!open) e.currentTarget.style.background = "transparent";
+          if (!isOpen) e.currentTarget.style.background = "transparent";
         }}
       >
         {/* Step badge */}
@@ -307,8 +348,8 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
             width: 18,
             height: 18,
             borderRadius: 5,
-            background: open ? T.cyanFaint : T.bgHover,
-            border: `1px solid ${open ? T.borderAccent : T.border}`,
+            background: isOpen ? T.cyanFaint : T.bgHover,
+            border: `1px solid ${isOpen ? T.borderAccent : T.border}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -320,7 +361,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
               fontFamily: "var(--font-mono)",
               fontSize: 8,
               fontWeight: 700,
-              color: open ? T.cyan : T.textDim,
+              color: isOpen ? T.cyan : T.textDim,
             }}
           >
             {call.idx + 1}
@@ -337,7 +378,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
                 minWidth: 0,
                 fontFamily: "var(--font-mono)",
                 fontSize: 9,
-                color: open ? T.textBright : T.text,
+                color: isOpen ? T.textBright : T.text,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -420,6 +461,41 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           </Tooltip>
         )}
 
+        {call.status === "idle" && (
+          <div
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              border: `1.5px dashed ${T.textDim}`,
+              flexShrink: 0,
+            }}
+          />
+        )}
+        {call.status === "pending" && (
+          <Loader2
+            size={10}
+            color={T.cyan}
+            style={{ animation: "spin 0.7s linear infinite", flexShrink: 0 }}
+          />
+        )}
+        {call.status === "success" && <StatusPill code={call.statusCode} />}
+        {call.status === "error" &&
+          (call.statusCode ? (
+            <StatusPill code={call.statusCode} />
+          ) : (
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                color: T.error,
+                flexShrink: 0,
+              }}
+            >
+              ERR
+            </span>
+          ))}
+
         {/* Copy as cURL — resolved URL + headers actually sent */}
         {canCopyCurl && (
           <Tooltip>
@@ -489,60 +565,71 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
           </Tooltip>
         )}
 
-        {call.status === "idle" && (
-          <div
+        {/* Focus toggle — hands the whole pane to this one call */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFocus?.();
+              }}
+              aria-pressed={focused === true}
+              aria-label={focused ? "Exit focused view" : "Focus this request"}
+              data-testid="call-card-focus-button"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "2px 4px",
+                borderRadius: 4,
+                flexShrink: 0,
+                background: focused ? `${T.cyan}20` : "transparent",
+                border: `1px solid ${focused ? T.cyan : T.border}`,
+                color: focused ? T.cyan : T.textDim,
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {focused ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {focused ? "Exit focused view" : "Focus this request"}
+          </TooltipContent>
+        </Tooltip>
+
+        {!focused && (
+          <ChevronDown
+            size={10}
+            color={T.textDim}
             style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              border: `1.5px dashed ${T.textDim}`,
               flexShrink: 0,
+              transform: isOpen ? "rotate(180deg)" : "rotate(0)",
+              transition: "transform 0.2s",
             }}
           />
         )}
-        {call.status === "pending" && (
-          <Loader2
-            size={10}
-            color={T.cyan}
-            style={{ animation: "spin 0.7s linear infinite", flexShrink: 0 }}
-          />
-        )}
-        {call.status === "success" && <StatusPill code={call.statusCode} />}
-        {call.status === "error" &&
-          (call.statusCode ? (
-            <StatusPill code={call.statusCode} />
-          ) : (
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 9,
-                color: T.error,
-                flexShrink: 0,
-              }}
-            >
-              ERR
-            </span>
-          ))}
-
-        <ChevronDown
-          size={10}
-          color={T.textDim}
-          style={{
-            flexShrink: 0,
-            transform: open ? "rotate(180deg)" : "rotate(0)",
-            transition: "transform 0.2s",
-          }}
-        />
       </div>
 
       {/* Expanded detail */}
-      {open && call.status !== "idle" && (
+      {isOpen && call.status !== "idle" && (
         <div
-          style={{ borderTop: `1px solid ${T.border}`, background: T.bgPanel }}
+          style={{
+            borderTop: `1px solid ${T.border}`,
+            background: T.bgPanel,
+            ...(focused
+              ? {
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  minHeight: 0,
+                }
+              : null),
+          }}
         >
           <div
             style={{
               display: "flex",
+              flexShrink: 0,
               padding: "5px 10px",
               borderBottom: `1px solid ${T.border}`,
               overflowX: "auto",
@@ -567,7 +654,9 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
             }}
             style={{
               padding: 10,
-              maxHeight: 500,
+              maxHeight: focused ? "none" : 500,
+              flex: focused ? 1 : undefined,
+              minHeight: focused ? 0 : undefined,
               overflowY: "auto",
               overflowX: "hidden",
               minWidth: 0,
@@ -586,7 +675,7 @@ export default function CallCard({ T, call, defaultOpen }: Props) {
         </div>
       )}
 
-      {open && call.status === "idle" && (
+      {isOpen && call.status === "idle" && (
         <div
           style={{
             padding: "10px 12px",

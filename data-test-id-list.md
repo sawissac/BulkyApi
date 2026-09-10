@@ -147,6 +147,7 @@ Two mounted `VarSection`s — the environment section uses the `vars-pane-*` pre
 
 `call-card-<idx>` — CallCard / row root (per built call, 0-based index)
 `call-card-copy-curl-button` — CallCard / header "copy as cURL" action (shown once the call leaves idle)
+`call-card-focus-button` — CallCard / header focus toggle (gives the pane to this one call, or restores the list)
 `call-card-tab-<id>` — CallCard / detail tab button (per tab: table [PGSQL calls only], response, headers, auth, payload, status, tests)
 
 ## RespTab (src/features/response-panel/components/RespTab.tsx)
@@ -154,6 +155,11 @@ Two mounted `VarSection`s — the environment section uses the `vars-pane-*` pre
 `resp-tab-search-input` — BodySearchBar / body search field (JSONPath in PRETTY, find-in-text in RAW/TS)
 `resp-tab-search-input-clear-button` — BodySearchBar / clear button derived by `Input` (shown once the field has a value)
 `resp-tab-search-status` — BodySearchBar / match count or JSONPath error line (mounts only while a term is entered)
+`resp-tab-highlight-input` — BodySearchBar / second field marking text inside the JSONPath results (mounts only when a query returned hits)
+`resp-tab-highlight-input-clear-button` — BodySearchBar / highlight field clear button derived by `Input`
+`resp-tab-highlight-status` — BodySearchBar / highlight match counter (`<n>/<total> matches`)
+`resp-tab-highlight-prev-button` — RespTab / step to previous highlight inside the query results
+`resp-tab-highlight-next-button` — RespTab / step to next highlight inside the query results
 `resp-tab-match-prev-button` — RespTab / step to previous find match (mounts only in RAW/TS with a term entered)
 `resp-tab-match-next-button` — RespTab / step to next find match (mounts only in RAW/TS with a term entered)
 `resp-tab-copy-button` — RespTab / copy body action

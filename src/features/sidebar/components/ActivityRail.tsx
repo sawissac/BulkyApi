@@ -1,7 +1,7 @@
 "use client";
 
 import { useDispatch, useSelector } from "react-redux";
-import { useState } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import {
   CircleUserRound,
@@ -121,7 +121,7 @@ const TABS: Array<{ id: SidebarTab; label: string; Icon: React.ElementType }> = 
  * @see {@link Sidebar}
  * @see {@link DisplayModeDialog}
  */
-export default function ActivityRail() {
+function ActivityRail() {
   const dispatch = useDispatch();
   const tab = useSelector(selectSidebarTab);
   const tweaksOpen = useSelector(selectTweaksOpen);
@@ -308,3 +308,7 @@ export default function ActivityRail() {
     </nav>
   );
 }
+
+/** Memoized so it re-renders only for the selectors it reads, not for every
+ *  parent render. It takes no props, so the memo always holds. */
+export default memo(ActivityRail);

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useSelector } from "react-redux";
 import type { Theme } from "@/lib/themes";
 import { selectSidebarTab, selectPatternStyle, type SidebarTab } from "@/store/uiSlice";
@@ -74,7 +75,7 @@ const PANE_LABELS: Record<SidebarTab, string> = {
  *
  * @see {@link ActivityRail}
  */
-export default function Sidebar({ T }: SidebarProps) {
+function Sidebar({ T }: SidebarProps) {
   const tab = useSelector(selectSidebarTab);
   const patternStyle = useSelector(selectPatternStyle);
   const label = PANE_LABELS[tab] ?? PANE_LABELS.collections;
@@ -106,3 +107,8 @@ export type SidebarProps = {
   /** Active theme, forwarded to whichever pane is mounted. */
   T: Theme;
 };
+
+/** Memoized so unrelated store churn — a keystroke in the code editor, a
+ *  response landing — does not re-render the pane tree. `T` is a stable
+ *  `THEMES` entry, so the memo actually holds. */
+export default memo(Sidebar);

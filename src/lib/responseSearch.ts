@@ -61,6 +61,76 @@ export function runJsonQuery(json: unknown, query: string): JsonQueryResult {
   }
 }
 
+/** One hit inside a {@link JsonQueryMatchGroup} — the value plus the single
+ *  path segment that separates it from the group's shared parent. */
+export type JsonQueryGroupItem = {
+  /** Last segment of the hit's path, unquoted: `Id`, `Message`, `0`. */
+  leaf: string;
+  /** The hit's full normalized path, kept for copy/debug of a single row. */
+  path: string;
+  value: unknown;
+};
+
+/** Sibling hits that share one parent path, e.g. every field matched inside
+ *  `` $['value'][0] `` by a multi-field query like `$..Id,Message`. */
+export type JsonQueryMatchGroup = {
+  /** Shared parent path, `` $['value'][0] ``. Empty for a root (`$`) hit,
+   *  which has no parent to group under. */
+  parent: string;
+  items: JsonQueryGroupItem[];
+};
+
+/** Splits a normalized JSONPath into its parent path and final segment.
+ *  Handles both bracket forms jsonpath-plus emits — `['key']` and `[0]` — and
+ *  tolerates a quoted key containing brackets, since the quotes are matched
+ *  rather than the last `[`. */
+const PATH_TAIL = /^(.*)\[(?:'((?:[^'\\]|\\.)*)'|(\d+))\]$/;
+
+/**
+ * Buckets a flat match list into sibling groups so a multi-field query reads
+ * as one block per record instead of alternating single-value cards.
+ *
+ * A query like `$..Id,Message` returns `Id`, `Message`, `Id`, `Message`… in
+ * document order; grouping by parent path turns that back into one entry per
+ * `` $['value'][N] `` with both fields inside. Order is preserved: groups
+ * appear in the order their first hit did, and items in the order they
+ * matched, so the list still reads top-to-bottom like the document.
+ *
+ * A hit whose path has no parent segment (the root `$`, or anything the
+ * bracket form does not cover) becomes its own single-item group with an
+ * empty `parent` — the caller renders those as a plain full-path card.
+ */
+export function groupJsonQueryMatches(
+  matches: JsonQueryMatch[],
+): JsonQueryMatchGroup[] {
+  const groups: JsonQueryMatchGroup[] = [];
+  const byParent = new Map<string, JsonQueryMatchGroup>();
+
+  for (const m of matches) {
+    const tail = PATH_TAIL.exec(m.path);
+    if (!tail) {
+      groups.push({ parent: "", items: [{ leaf: m.path, ...m }] });
+      continue;
+    }
+
+    const parent = tail[1];
+    const leaf = tail[2] ?? tail[3] ?? "";
+    const item: JsonQueryGroupItem = { leaf, path: m.path, value: m.value };
+
+    const existing = byParent.get(parent);
+    if (existing) {
+      existing.items.push(item);
+      continue;
+    }
+
+    const group: JsonQueryMatchGroup = { parent, items: [item] };
+    byParent.set(parent, group);
+    groups.push(group);
+  }
+
+  return groups;
+}
+
 /**
  * Counts case-insensitive, non-overlapping occurrences of `needle` in `text`.
  *

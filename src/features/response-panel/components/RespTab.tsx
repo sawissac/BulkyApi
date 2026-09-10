@@ -26,7 +26,8 @@ import {
   runJsonQuery,
   countMatches,
   countTreeMatches,
-  type JsonQueryMatch,
+  groupJsonQueryMatches,
+  type JsonQueryMatchGroup,
 } from "@/lib/responseSearch";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -962,6 +963,7 @@ function BodySearchBar({
   status,
 }: BodySearchBarProps) {
   const isQuery = mode === "query";
+  const isHighlight = mode === "highlight";
   return (
     <div
       style={{
@@ -979,11 +981,29 @@ function BodySearchBar({
         spellCheck={false}
         autoComplete="off"
         placeholder={
-          isQuery ? "$..Id for JSONPath · or find in tree" : "Find in text"
+          isHighlight
+            ? "Highlight in results"
+            : isQuery
+              ? "$..Id for JSONPath · or find in tree"
+              : "Find in text"
         }
-        aria-label={isQuery ? "JSONPath query" : "Find in response text"}
-        data-testid="resp-tab-search-input"
-        clearLabel={isQuery ? "Clear query" : "Clear search"}
+        aria-label={
+          isHighlight
+            ? "Highlight in query results"
+            : isQuery
+              ? "JSONPath query"
+              : "Find in response text"
+        }
+        data-testid={
+          isHighlight ? "resp-tab-highlight-input" : "resp-tab-search-input"
+        }
+        clearLabel={
+          isHighlight
+            ? "Clear highlight"
+            : isQuery
+              ? "Clear query"
+              : "Clear search"
+        }
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 11,
@@ -994,7 +1014,9 @@ function BodySearchBar({
       {status && (
         <span
           aria-live="polite"
-          data-testid="resp-tab-search-status"
+          data-testid={
+            isHighlight ? "resp-tab-highlight-status" : "resp-tab-search-status"
+          }
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: 9,
@@ -1017,8 +1039,10 @@ function BodySearchBar({
 type BodySearchBarProps = {
   /** Active theme; supplies the status line's info/error colors. */
   T: Theme;
-  /** Which job the field is doing — drives placeholder, label and nothing else. */
-  mode: "query" | "text";
+  /** Which job the field is doing — drives placeholder, label, test id and
+   *  nothing else. `highlight` is the second field that marks text inside an
+   *  active JSONPath query's results. */
+  mode: "query" | "text" | "highlight";
   /** Current search term. Controlled — the caller owns it. */
   value: string;
   /**
@@ -1033,21 +1057,31 @@ type BodySearchBarProps = {
 };
 
 /**
- * Result list for an active JSONPath query — one card per hit, each showing
- * the normalized path that reached the value above the value's own subtree.
- * Internal to {@link RespTab}.
+ * Result list for an active JSONPath query — one card per *parent*, not per
+ * hit, so a multi-field query (`$..Id,Message`) reads as one block per record
+ * instead of alternating single-value cards. Internal to {@link RespTab}.
  *
  * @remarks
  * Status: stable — Type: display
  *
- * State & behavior: stateless. Each value is handed to {@link JNode}, which
+ * State & behavior: holds no state of its own, only a ref onto its container
+ * so the current highlight can be scrolled into view when `activeIndex`
+ * moves. Grouping happens in {@link RespTab} — it owns the highlight
+ * numbering, which has to follow render order. Each value is handed to
+ * {@link JNode}, which
  * keeps its own expand/collapse state; because a new query produces new
  * elements at new positions, those trees remount and re-open to their default
  * depth rather than holding a stale collapsed state from the previous query.
  *
- * Variants: an empty `matches` renders the no-hits line instead of the list.
+ * Variants: empty `groups` render the no-hits line instead of the list. A
+ * group with several siblings shows the shared parent path as its heading and
+ * one labeled row per field, divided by a hairline; a lone hit keeps the old
+ * shape — full path above the value, no field label, since the path already
+ * names it.
  *
- * Composition: renders {@link JNode} per match.
+ * Composition: renders {@link JNode} per match, handing it the highlight term
+ * and that value's `matchOffset` so one running `activeIndex` addresses a
+ * match anywhere in the list.
  *
  * Test ids: list container `resp-tab-query-match-list`, empty line
  * `resp-tab-query-empty-message`. Individual matches carry none — a JSONPath
@@ -1058,10 +1092,28 @@ type BodySearchBarProps = {
  * response body.
  *
  * Edge cases: a match on the root (`$`) renders the whole document as one
- * card, which is the honest result rather than a special case.
+ * card, which is the honest result rather than a special case — it has no
+ * parent, so it is always its own group. A query returning array elements
+ * (`$.value[*]`) groups every element under the array's own path, labeled by
+ * index.
  */
-function QueryMatches({ T, matches }: { T: Theme; matches: JsonQueryMatch[] }) {
-  if (matches.length === 0) {
+function QueryMatches({
+  T,
+  groups,
+  query,
+  activeIndex,
+  offsets,
+}: QueryMatchesProps) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!query || activeIndex < 0) return;
+    boxRef.current
+      ?.querySelector(".json-tree-viewer__mark--active")
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [query, activeIndex, groups]);
+
+  if (groups.length === 0) {
     return (
       <div
         data-testid="resp-tab-query-empty-message"
@@ -1083,12 +1135,13 @@ function QueryMatches({ T, matches }: { T: Theme; matches: JsonQueryMatch[] }) {
 
   return (
     <div
+      ref={boxRef}
       data-testid="resp-tab-query-match-list"
       style={{ display: "flex", flexDirection: "column", gap: 4 }}
     >
-      {matches.map((m, i) => (
+      {groups.map((g, gi) => (
         <div
-          key={`${m.path}-${i}`}
+          key={`${g.parent}-${gi}`}
           style={{
             background: T.bgHover,
             border: `1px solid ${T.border}`,
@@ -1107,22 +1160,95 @@ function QueryMatches({ T, matches }: { T: Theme; matches: JsonQueryMatch[] }) {
               overflowWrap: "anywhere",
             }}
           >
-            {m.path}
+            {g.items.length > 1 ? g.parent : g.items[0].path}
           </div>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              lineHeight: 1.7,
-            }}
-          >
-            <JNode data={m.value} T={T} />
-          </div>
+
+          {g.items.length > 1 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {g.items.map((it, ii) => (
+                <div
+                  key={`${it.path}-${ii}`}
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "baseline",
+                    paddingTop: ii === 0 ? 0 : 4,
+                    borderTop: ii === 0 ? "none" : `1px solid ${T.border}`,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: T.cyan,
+                      flexShrink: 0,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {it.leaf}
+                  </span>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                      lineHeight: 1.7,
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <JNode
+                      data={it.value}
+                      T={T}
+                      query={query}
+                      activeIndex={activeIndex}
+                      matchOffset={offsets.get(it.path) ?? 0}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                lineHeight: 1.7,
+              }}
+            >
+              <JNode
+                data={g.items[0].value}
+                T={T}
+                query={query}
+                activeIndex={activeIndex}
+                matchOffset={offsets.get(g.items[0].path) ?? 0}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>
   );
 }
+
+type QueryMatchesProps = {
+  /** Active theme; every color on the cards is read from it. */
+  T: Theme;
+  /** Already-bucketed query hits — the caller groups, since it also needs the
+   *  group order to number the highlight matches. */
+  groups: JsonQueryMatchGroup[];
+  /** Secondary find term marked inside the matched values. Empty marks
+   *  nothing. */
+  query: string;
+  /** Index of the highlight match to mark as current, across the whole
+   *  result list. `-1` marks none as current. */
+  activeIndex: number;
+  /** Per-item running match count, keyed by the item's JSONPath — how many
+   *  highlight matches precede that value in the list, so `activeIndex` lands
+   *  on the right one. */
+  offsets: Map<string, number>;
+};
 
 /**
  * The PRETTY body: a {@link JNode} tree with the current find term marked.
@@ -1341,7 +1467,11 @@ type HighlightedPreProps = {
  * State & behavior: `view` selects the body renderer. Search terms are kept
  * per view — the PRETTY term in `jsonQuery`, the RAW / TS term in `textQuery`
  * — so
- * switching PRETTY↔RAW never reinterprets one as the other. Both terms are
+ * switching PRETTY↔RAW never reinterprets one as the other. A third term,
+ * `resultFind`, belongs to the second field that appears under a valid
+ * JSONPath: the path picks *which* values to show, this one marks text
+ * *inside* them, with its own `resultNav` stepper keyed by both terms. All
+ * three are
  * passed through `useDeferredValue`, so a keystroke paints immediately and the
  * query/highlight pass lands on the next frame. `matchNav` holds the current
  * find hit for the RAW / TS views, keyed by `view` plus the term so a new term
@@ -1357,6 +1487,8 @@ type HighlightedPreProps = {
  * - pending / errored calls — a spinner or the error box.
  * - non-JSON bodies — {@link NonJsonBody}, which brings its own toggles.
  * - JSON bodies — the PRETTY / RAW / TS toggle documented here.
+ * - PRETTY with a JSONPath that returned hits — a second search row, the
+ *   highlight field and its own up/down stepper.
  *
  * Composition: renders {@link BodySearchBar}, {@link QueryMatches},
  * {@link HighlightedPre} and {@link HighlightedTree}. The control row (search field,
@@ -1370,7 +1502,7 @@ type HighlightedPreProps = {
  * against `top: 0` would hold the visible row 10px clear of the scrollport
  * and leak scrolled text through the gap.
  *
- * Accessibility: the search field is labelled per mode; its status line is
+ * Accessibility: both search fields are labelled per mode; each status line is
  * `aria-live="polite"` and reads `<n>/<total> matches` wherever a find term
  * is active — the tree included — so stepping is announced. The match up/down buttons are icon-only and carry
  * `aria-label`s ("Previous match" / "Next match"), and disable together once
@@ -1380,7 +1512,10 @@ type HighlightedPreProps = {
  * Test ids: copy button `resp-tab-copy-button`, view toggles
  * `resp-tab-view-button-<mode>` (pretty, raw, ts), match navigation
  * `resp-tab-match-prev-button` / `resp-tab-match-next-button` (mounted only in
- * RAW / TS with a term entered), body root `resp-tab-body`.
+ * RAW / TS with a term entered), highlight navigation
+ * `resp-tab-highlight-prev-button` / `resp-tab-highlight-next-button`
+ * (mounted only under a JSONPath that returned hits), body root
+ * `resp-tab-body`.
  * Search ids are listed on {@link BodySearchBar} and {@link QueryMatches}.
  *
  * CSS classes: `VIEW_GROUP` / `VIEW_BTN` / `COPY_BTN_*` Tailwind recipes over
@@ -1392,8 +1527,12 @@ type HighlightedPreProps = {
  *   second marks hits in place across keys and scalar values and drives the
  *   up/down buttons. RAW and TS only ever get the find term, since neither is
  *   a JSON document to query. Match navigation follows the
- *   same split — PRETTY already lists every hit as its own card, so it needs
- *   no stepping.
+ *   same split — PRETTY already lists every hit as its own card, so the path
+ *   itself needs no stepping; the highlight field layered over those results
+ *   does get its own.
+ * - The highlight row mounts only when the query actually returned something,
+ *   and its term is dropped from the count the moment the path stops matching
+ *   — nothing is highlighted in a list that is not on screen.
  * - Copy always takes the whole body (or the whole generated TS), never the
  *   filtered subset — the search narrows the view, not the payload.
  *
@@ -1410,9 +1549,12 @@ export default function RespTab({ T, call }: Props) {
   const [jsonQuery, setJsonQuery] = useState("");
   const [textQuery, setTextQuery] = useState("");
   const [matchNav, setMatchNav] = useState({ key: "", idx: 0 });
+  const [resultFind, setResultFind] = useState("");
+  const [resultNav, setResultNav] = useState({ key: "", idx: 0 });
 
   const deferredJsonQuery = useDeferredValue(jsonQuery);
   const deferredTextQuery = useDeferredValue(textQuery);
+  const deferredResultFind = useDeferredValue(resultFind);
 
   const queryResult = useMemo(
     () =>
@@ -1431,6 +1573,67 @@ export default function RespTab({ T, call }: Props) {
       return "// Could not generate TypeScript types from response";
     }
   }, [view, call.response]);
+
+  // Both of these walk the whole response, so they are memoized rather than
+  // recomputed on every render — a render happens on each keystroke in the
+  // search field (and on any parent re-render), while their inputs only
+  // change when the response, the view or the *deferred* term does.
+  const copyText = useMemo(
+    () => (view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2)),
+    [view, tsOutput, call.response],
+  );
+
+  const isPretty = view === "pretty";
+  const activeQuery = (isPretty ? deferredJsonQuery : deferredTextQuery).trim();
+  const hasQuery = activeQuery !== "";
+  const pathMode = isPretty && isJsonPath(activeQuery);
+  const findMode = hasQuery && !pathMode;
+  const matchCount = useMemo(
+    () =>
+      !findMode
+        ? 0
+        : isPretty
+          ? countTreeMatches(call.response, activeQuery)
+          : countMatches(copyText, activeQuery),
+    [findMode, isPretty, call.response, activeQuery, copyText],
+  );
+
+  // Grouping lives here rather than in QueryMatches because the highlight
+  // numbering has to follow the order the groups are *rendered* in, not the
+  // order jsonpath-plus returned the hits in.
+  const queryGroups = useMemo(
+    () => groupJsonQueryMatches(queryResult.ok ? queryResult.matches : []),
+    [queryResult],
+  );
+
+  const resultTerm = pathMode ? deferredResultFind.trim() : "";
+
+  // One walk over the results per term: `total` drives the counter and the
+  // nav bounds, `offsets` tells each value how many matches precede it so a
+  // single running `activeIndex` can address a match anywhere in the list.
+  const resultMatches = useMemo(() => {
+    const offsets = new Map<string, number>();
+    let total = 0;
+    if (resultTerm) {
+      for (const g of queryGroups) {
+        for (const it of g.items) {
+          offsets.set(it.path, total);
+          total += countTreeMatches(it.value, resultTerm);
+        }
+      }
+    }
+    return { offsets, total };
+  }, [queryGroups, resultTerm]);
+
+  const resultNavKey = `${activeQuery}:${resultTerm}`;
+  const resultStoredIdx = resultNav.key === resultNavKey ? resultNav.idx : 0;
+  const resultActive =
+    resultMatches.total > 0
+      ? ((resultStoredIdx % resultMatches.total) + resultMatches.total) %
+        resultMatches.total
+      : -1;
+  const stepResult = (delta: number) =>
+    setResultNav({ key: resultNavKey, idx: resultActive + delta });
 
   const handleCopy = async (text: string) => {
     try {
@@ -1522,19 +1725,6 @@ export default function RespTab({ T, call }: Props) {
     </Button>
   );
 
-  const copyText =
-    view === "ts" ? tsOutput : JSON.stringify(call.response, null, 2);
-
-  const isPretty = view === "pretty";
-  const activeQuery = (isPretty ? deferredJsonQuery : deferredTextQuery).trim();
-  const hasQuery = activeQuery !== "";
-  const pathMode = isPretty && isJsonPath(activeQuery);
-  const findMode = hasQuery && !pathMode;
-  const matchCount = !findMode
-    ? 0
-    : isPretty
-      ? countTreeMatches(call.response, activeQuery)
-      : countMatches(copyText, activeQuery);
   const navKey = `${view}:${activeQuery}`;
   const storedIdx = matchNav.key === navKey ? matchNav.idx : 0;
   const activeMatch =
@@ -1567,7 +1757,7 @@ export default function RespTab({ T, call }: Props) {
           top: -10,
           zIndex: 1,
           display: "flex",
-          alignItems: "center",
+          flexDirection: "column",
           gap: 6,
           margin: "-10px -10px 0",
           padding: "10px 10px 7px",
@@ -1575,67 +1765,123 @@ export default function RespTab({ T, call }: Props) {
           borderBottom: `1px solid ${T.border}`,
         }}
       >
-        <BodySearchBar
-          T={T}
-          mode={isPretty && !findMode ? "query" : "text"}
-          value={isPretty ? jsonQuery : textQuery}
-          onChange={isPretty ? setJsonQuery : setTextQuery}
-          status={status}
-        />
-        {findMode && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <BodySearchBar
+            T={T}
+            mode={isPretty && !findMode ? "query" : "text"}
+            value={isPretty ? jsonQuery : textQuery}
+            onChange={isPretty ? setJsonQuery : setTextQuery}
+            status={status}
+          />
+          {findMode && (
+            <ButtonGroup className={VIEW_GROUP}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => stepMatch(-1)}
+                disabled={matchCount === 0}
+                aria-label="Previous match"
+                data-testid="resp-tab-match-prev-button"
+                className={VIEW_BTN}
+              >
+                <ArrowUp size={10} />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => stepMatch(1)}
+                disabled={matchCount === 0}
+                aria-label="Next match"
+                data-testid="resp-tab-match-next-button"
+                className={VIEW_BTN}
+              >
+                <ArrowDown size={10} />
+              </Button>
+            </ButtonGroup>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => handleCopy(copyText)}
+                data-testid="resp-tab-copy-button"
+                className={cn(
+                  "shrink-0 gap-1 text-[8px] font-bold uppercase tracking-widest",
+                  copied ? COPY_BTN_COPIED : COPY_BTN_IDLE,
+                )}
+              >
+                {copied ? <Check size={10} /> : <Copy size={10} />}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Copy {view === "ts" ? "TypeScript" : "JSON"}
+            </TooltipContent>
+          </Tooltip>
           <ButtonGroup className={VIEW_GROUP}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => stepMatch(-1)}
-              disabled={matchCount === 0}
-              aria-label="Previous match"
-              data-testid="resp-tab-match-prev-button"
-              className={VIEW_BTN}
-            >
-              <ArrowUp size={10} />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => stepMatch(1)}
-              disabled={matchCount === 0}
-              aria-label="Next match"
-              data-testid="resp-tab-match-next-button"
-              className={VIEW_BTN}
-            >
-              <ArrowDown size={10} />
-            </Button>
+            {viewBtn("pretty", "PRETTY")}
+            {viewBtn("raw", "RAW")}
+            {viewBtn("ts", "TS")}
           </ButtonGroup>
+        </div>
+
+        {/* Second field: the JSONPath above says *which* values to show, this
+            one marks text inside them. Only a valid query has results worth
+            highlighting, so the row appears with them and goes away with
+            them. */}
+        {pathMode && queryResult.ok && queryResult.matches.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <BodySearchBar
+              T={T}
+              mode="highlight"
+              value={resultFind}
+              onChange={setResultFind}
+              status={
+                resultTerm === ""
+                  ? null
+                  : {
+                      kind: "info",
+                      text:
+                        resultMatches.total === 0
+                          ? "No matches"
+                          : `${resultActive + 1}/${resultMatches.total} match${
+                              resultMatches.total === 1 ? "" : "es"
+                            }`,
+                    }
+              }
+            />
+            <ButtonGroup className={VIEW_GROUP}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => stepResult(-1)}
+                disabled={resultMatches.total === 0}
+                aria-label="Previous highlight"
+                data-testid="resp-tab-highlight-prev-button"
+                className={VIEW_BTN}
+              >
+                <ArrowUp size={10} />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => stepResult(1)}
+                disabled={resultMatches.total === 0}
+                aria-label="Next highlight"
+                data-testid="resp-tab-highlight-next-button"
+                className={VIEW_BTN}
+              >
+                <ArrowDown size={10} />
+              </Button>
+            </ButtonGroup>
+          </div>
         )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() => handleCopy(copyText)}
-              data-testid="resp-tab-copy-button"
-              className={cn(
-                "shrink-0 gap-1 text-[8px] font-bold uppercase tracking-widest",
-                copied ? COPY_BTN_COPIED : COPY_BTN_IDLE,
-              )}
-            >
-              {copied ? <Check size={10} /> : <Copy size={10} />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Copy {view === "ts" ? "TypeScript" : "JSON"}
-          </TooltipContent>
-        </Tooltip>
-        <ButtonGroup className={VIEW_GROUP}>
-          {viewBtn("pretty", "PRETTY")}
-          {viewBtn("raw", "RAW")}
-          {viewBtn("ts", "TS")}
-        </ButtonGroup>
       </div>
       {view === "raw" ? (
         <HighlightedPre
@@ -1657,7 +1903,13 @@ export default function RespTab({ T, call }: Props) {
         />
       ) : pathMode && queryResult.ok ? (
         <div data-testid="resp-tab-body">
-          <QueryMatches T={T} matches={queryResult.matches} />
+          <QueryMatches
+            T={T}
+            groups={queryGroups}
+            query={resultTerm}
+            activeIndex={resultActive}
+            offsets={resultMatches.offsets}
+          />
         </div>
       ) : (
         <HighlightedTree

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { THEMES, themeVars } from "@/lib/themes";
 import { analyzeScript } from "@/lib/scriptAnalyzer";
@@ -185,6 +185,15 @@ export default function BulkyApp() {
     );
   }, [patternOpacity]);
 
+  // Stable identity so the memoized ResponsePanel survives a keystroke:
+  // `code` changes on every character typed, re-rendering this component, and
+  // an inline arrow here would hand the panel a new prop each time and defeat
+  // the memo.
+  const onToggleStep = useCallback(
+    () => dispatch(setStepMode(!stepMode)),
+    [stepMode, dispatch],
+  );
+
   const isSwitchingItemRef = useRef(false);
 
   const analyzeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -338,7 +347,7 @@ export default function BulkyApp() {
                       T={T}
                       stepMode={stepMode}
                       running={running}
-                      onToggleStep={() => dispatch(setStepMode(!stepMode))}
+                      onToggleStep={onToggleStep}
                     />
                   </div>
                 </ResizablePanel>
@@ -367,7 +376,7 @@ export default function BulkyApp() {
                     T={T}
                     stepMode={stepMode}
                     running={running}
-                    onToggleStep={() => dispatch(setStepMode(!stepMode))}
+                    onToggleStep={onToggleStep}
                   />
                 </div>
               </ResizablePanel>

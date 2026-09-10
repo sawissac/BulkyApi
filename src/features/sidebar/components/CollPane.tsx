@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   DndContext,
@@ -315,11 +315,24 @@ type MenuAction = {
  * Folding the low-frequency actions (rename, reparent, reorder, delete) in
  * here keeps the row itself down to one or two always-visible controls, so a
  * hovered row never buries its own name in a strip of icons.
+ *
+ * The tooltip is controlled rather than left to Radix, and focus restore is
+ * suppressed after a selected action, because the trigger wears both a
+ * `TooltipTrigger` and a `DropdownMenuTrigger`: opening the menu would
+ * otherwise leave the tooltip standing over it, and closing the menu hands
+ * focus back to the trigger — which re-opens the tooltip on top of whatever
+ * the action just opened, a `ConfirmDialog` included. Escape or a click
+ * outside is not an action, so those keep Radix's normal focus restore and
+ * the keyboard user still lands back on the button they came from.
  */
 function RowMenu({ id, label, actions }: { id: string; label: string; actions: MenuAction[] }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
+  const actionTakenRef = useRef(false);
+
   return (
-    <DropdownMenu>
-      <Tooltip>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <Tooltip open={tipOpen && !menuOpen} onOpenChange={setTipOpen}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button
@@ -336,7 +349,13 @@ function RowMenu({ id, label, actions }: { id: string; label: string; actions: M
         </TooltipTrigger>
         <TooltipContent>More actions</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent>
+      <DropdownMenuContent
+        onCloseAutoFocus={(e) => {
+          if (!actionTakenRef.current) return;
+          actionTakenRef.current = false;
+          e.preventDefault();
+        }}
+      >
         {actions.map((a) =>
           a.key === "sep" ? (
             <DropdownMenuSeparator key={`sep-${id}`} />
@@ -345,7 +364,10 @@ function RowMenu({ id, label, actions }: { id: string; label: string; actions: M
               key={a.key}
               tone={a.tone}
               disabled={a.disabled}
-              onSelect={a.onSelect}
+              onSelect={() => {
+                actionTakenRef.current = true;
+                a.onSelect();
+              }}
               data-testid={`coll-pane-menu-${a.key}-${id}`}
             >
               {a.icon}

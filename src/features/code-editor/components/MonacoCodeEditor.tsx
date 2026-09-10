@@ -618,6 +618,31 @@ export default function MonacoCodeEditor({
     [],
   );
 
+  // Coalesces the rescan to one animation frame. `onDidChangeModelContent`
+  // fires per keystroke (and per character of a paste), and the scan walks the
+  // whole buffer, so a fast typist would otherwise pay for a full re-tokenize
+  // between every two characters. Decorations only need to be right by the
+  // next paint.
+  const sqlFrameRef = useRef<number | null>(null);
+  const scheduleSqlDecorations = useCallback(
+    (monacoInstance: Monaco, editorInstance: EditorInstance) => {
+      if (sqlFrameRef.current !== null) return;
+      sqlFrameRef.current = requestAnimationFrame(() => {
+        sqlFrameRef.current = null;
+        updateSqlDecorations(monacoInstance, editorInstance);
+      });
+    },
+    [updateSqlDecorations],
+  );
+
+  useEffect(
+    () => () => {
+      if (sqlFrameRef.current !== null)
+        cancelAnimationFrame(sqlFrameRef.current);
+    },
+    [],
+  );
+
   const transpile = useCallback(
     async (m: Monaco, code: string): Promise<string> => {
       const uri = m.Uri.parse(TRANSPILE_URI);
@@ -1045,7 +1070,7 @@ export default function MonacoCodeEditor({
 
         updateSqlDecorations(monacoInstance, editor);
         sqlContentDisposableRef.current = editor.onDidChangeModelContent(() =>
-          updateSqlDecorations(monacoInstance, editor),
+          scheduleSqlDecorations(monacoInstance, editor),
         );
 
         editor.addCommand(

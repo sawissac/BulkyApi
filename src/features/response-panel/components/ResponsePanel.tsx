@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -222,12 +222,16 @@ type LogLineProps = {
  * @remarks
  * Status: stable — Type: pane
  *
- * State & behavior: two local states, both for the console panel —
+ * State & behavior: three local states. Two belong to the console panel —
  * `consoleHeight` (px, clamped to {@link CONSOLE_MIN}–{@link CONSOLE_MAX}) is
  * driven by dragging the resize handle at the panel's top edge, and
  * `consoleCollapsed` hides the log body leaving just the header strip. A
- * `dragRef` holds the pointer origin mid-drag. Neither is persisted — both
- * reset when the pane unmounts. Everything else is read from
+ * `dragRef` holds the pointer origin mid-drag. The third, `focusedIdx`, is the
+ * `idx` of the one call that has taken over the list — set from a
+ * {@link CallCard}'s focus control, cleared by the same control. It is
+ * resolved against `builtCalls` on every render, so a rebuilt script that no
+ * longer has that call falls back to the full list on its own. None is
+ * persisted — all reset when the pane unmounts. Everything else is read from
  * `runnerSlice` (built calls, logs, extracted vars, assertions), `uiSlice`
  * (the active view) and `collectionsSlice` (active item and environment).
  * Picking a view
@@ -235,14 +239,19 @@ type LogLineProps = {
  * `setResponseViewForItem`, so each request remembers how it was last read.
  * Promoting a variable writes it straight into the active environment.
  *
- * Variants: three content views — `cards`, `waterfall`, `docs`. The header
+ * Variants: three content views — `cards`, `waterfall`, `docs`. The `cards`
+ * view has a second axis: list (every call) or focused (one call, full
+ * height). The header
  * (title, step toggle, view switch, status dots) mounts only when a request
  * is active — with no active item there is no script to summarize. The
  * extracted, tests and console strips mount only when they have something to
  * show; the tests strip shows the run's pass/fail tally and every recorded
  * expectation.
  *
- * Composition: renders {@link CallCard} rows inside one bordered `LIST` card,
+ * Composition: renders {@link CallCard} rows inside one bordered `LIST` card
+ * — or, while a call is focused, that one row alone, stretched to the card's
+ * full height with the surrounding scroll container switched to
+ * `overflow-hidden` so the row owns the scrolling instead,
  * or {@link ApiWaterfall} / {@link ApiDocs} in their place, and one
  * {@link LogLine} per entry inside the console panel. Styling follows
  * the left pane's system — `app-*` Tailwind tokens and the `ui.*` recipes,
@@ -308,7 +317,7 @@ type LogLineProps = {
  * @see {@link CallCard}
  * @see {@link ApiWaterfall}
  */
-export default function ResponsePanel({
+function ResponsePanel({
   T,
   stepMode,
   onToggleStep,
@@ -329,6 +338,11 @@ export default function ResponsePanel({
 
   const [consoleHeight, setConsoleHeight] = useState(CONSOLE_DEFAULT);
   const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
+  const focusedCall =
+    focusedIdx === null
+      ? null
+      : (builtCalls.find((c) => c.idx === focusedIdx) ?? null);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
   const onHandleDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -467,7 +481,11 @@ export default function ResponsePanel({
       )}
 
       {/* Content */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className={`min-h-0 flex-1 ${
+          focusedCall ? "flex flex-col overflow-hidden" : "overflow-y-auto"
+        }`}
+      >
         {view === "waterfall" ? (
           <ApiWaterfall T={T} />
         ) : view === "docs" ? (
@@ -477,9 +495,17 @@ export default function ResponsePanel({
             No API calls detected in this script
           </p>
         ) : (
-          <div className={LIST}>
-            {builtCalls.map((call, i) => (
-              <CallCard key={i} T={T} call={call} />
+          <div className={`${LIST} ${focusedCall ? "min-h-0 flex-1" : ""}`}>
+            {(focusedCall ? [focusedCall] : builtCalls).map((call) => (
+              <CallCard
+                key={call.idx}
+                T={T}
+                call={call}
+                focused={focusedCall !== null}
+                onToggleFocus={() =>
+                  setFocusedIdx(focusedCall ? null : call.idx)
+                }
+              />
             ))}
           </div>
         )}
@@ -686,3 +712,10 @@ export type ResponsePanelProps = {
   /** Whether a run is in progress. Disables the step toggle mid-run. */
   running: boolean;
 };
+
+/** Memoized so a keystroke in the code editor — which updates `code` in the
+ *  store on every character — cannot repaint the call list and its JSON
+ *  trees. The panel's own selectors still drive its updates; the props it
+ *  takes (`T`, `stepMode`, `running`, and a `useCallback`-stable
+ *  `onToggleStep`) hold their identity between those keystrokes. */
+export default memo(ResponsePanel);
